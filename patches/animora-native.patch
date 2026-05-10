@@ -1,0 +1,77 @@
+From: Animora Technologies <noreply@animora.tech>
+Subject: Animora native rebrand + UI spacing patch
+Apply against Blender 5.1.1 (tag: v5.1.1) source tree:
+    cd blender-fork
+    git apply ../patches/animora-native.patch
+
+Changes:
+  1. wm_window.cc       - window title shows "Animora" without version
+  2. wm_init_exit.cc    - terminal quit message: "Blender quit" -> "Animora quit"
+  3. interface_style.cc - increase widget spacing constants
+  4. interface_layout.cc - add gap between aligned buttons (no more touching)
+
+--- a/source/blender/windowmanager/intern/wm_window.cc
++++ b/source/blender/windowmanager/intern/wm_window.cc
+@@ -684,7 +684,7 @@ static std::string wm_window_title_main_get(const wmWindowManager *wm,
+     }
+   }
+
+-  win_title.append(fmt::format(" - Blender {}", BKE_blender_version_string()));
++  win_title.append(" - Animora");
+
+   return win_title;
+ }
+--- a/source/blender/windowmanager/intern/wm_init_exit.cc
++++ b/source/blender/windowmanager/intern/wm_init_exit.cc
+@@ -695,7 +695,7 @@ void WM_exit_ex_args(bContext *C, int exit_code)
+   WM_exit_ex(C, true, do_user_exit_actions);
+
+   if (!CLG_quiet_get()) {
+-    printf("\nBlender quit\n");
++    printf("\nAnimora quit\n");
+   }
+
+   exit(exit_code);
+--- a/source/blender/editors/interface/interface_style.cc
++++ b/source/blender/editors/interface/interface_style.cc
+@@ -103,13 +103,13 @@ uiStyle *UI_style_init_default()
+   style->tooltip.shadowalpha = 0.5f;
+   style->tooltip.shadowcolor = 0.0f;
+
+-  style->columnspace = 8;
+-  style->templatespace = 5;
+-  style->boxspace = 5;
+-  style->buttonspacex = 8;
+-  style->buttonspacey = 2;
+-  style->panelspace = 8;
+-  style->panelouter = 4;
++  style->columnspace = 12;
++  style->templatespace = 8;
++  style->boxspace = 8;
++  style->buttonspacex = 10;
++  style->buttonspacey = 7;
++  style->panelspace = 12;
++  style->panelouter = 6;
+
+   return style;
+ }
+--- a/source/blender/editors/interface/interface_layout.cc
++++ b/source/blender/editors/interface/interface_layout.cc
+@@ -4796,7 +4796,7 @@ Layout &Layout::row(bool align)
+   Layout *litem = MEM_new<LayoutRow>(__func__, nullptr);
+   LayoutInternal::init_from_parent(litem, this, align);
+
+-  litem->space_ = (align) ? 0 : root_->style->buttonspacex;
++  litem->space_ = (align) ? 4 : root_->style->buttonspacex + 2;
+
+   block_layout_set_current(this->block(), litem);
+
+@@ -4943,7 +4943,7 @@ Layout &Layout::column(bool align)
+   Layout *litem = MEM_new<LayoutColumn>(__func__, nullptr);
+   LayoutInternal::init_from_parent(litem, this, align);
+
+-  litem->space_ = (align) ? 0 : root_->style->buttonspacey;
++  litem->space_ = (align) ? 5 : root_->style->buttonspacey + 2;
+
+   block_layout_set_current(this->block(), litem);
+

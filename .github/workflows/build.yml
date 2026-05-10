@@ -1,0 +1,133 @@
+name: Animora Build
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+            artifact: "Animora-*-windows-x64.exe"
+          - os: macos-14
+            platform: macos
+            artifact: "Animora-*-macos.dmg"
+          - os: ubuntu-22.04
+            platform: linux
+            artifact: "Animora-*.AppImage"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ---- Windows dependencies ----
+      - name: Install Windows build deps
+        if: matrix.platform == 'windows'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          choco install nsis -y
+
+      # ---- macOS dependencies ----
+      - name: Install macOS build deps
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake ninja
+
+      # ---- Linux dependencies ----
+      - name: Install Linux build deps
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y cmake ninja-build build-essential \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxi-dev libgl-dev libglu1-mesa-dev \
+            libopenal-dev libsndfile1-dev \
+            libpython3-dev python3-dev
+
+      - name: Rebrand (asset injection + string patches)
+        run: python scripts/rebrand.py
+
+      - name: CMake Configure
+        run: python scripts/build.py --platform ${{ matrix.platform }} --skip-compile --skip-package
+
+      - name: Compile
+        run: |
+          cmake --build build/${{ matrix.platform }}/Release \
+            --config Release \
+            --parallel ${{ runner.os == 'Windows' && '4' || '$(nproc)' }}
+
+      - name: Package installer
+        run: python scripts/build.py --platform ${{ matrix.platform }} --skip-rebrand --skip-compile
+
+      # ---- Code signing (release tags only) ----
+      - name: Sign Windows installer
+        if: matrix.platform == 'windows' && startsWith(github.ref, 'refs/tags/')
+        env:
+          WINDOWS_CERT_PATH: ${{ secrets.WINDOWS_CERT_PATH }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $installer = Get-ChildItem dist\Animora-*-windows-x64.exe | Select-Object -First 1
+          signtool sign /f "$env:WINDOWS_CERT_PATH" /p "$env:WINDOWS_CERT_PASSWORD" `
+            /tr http://timestamp.digicert.com /td sha256 /fd sha256 $installer.FullName
+
+      - name: Notarize macOS installer
+        if: matrix.platform == 'macos' && startsWith(github.ref, 'refs/tags/')
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+          MACOS_NOTARIZATION_PASSWORD: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
+          MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+        run: |
+          DMG=$(ls dist/Animora-*.dmg | head -1)
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$MACOS_NOTARIZATION_APPLE_ID" \
+            --password "$MACOS_NOTARIZATION_PASSWORD" \
+            --team-id "$MACOS_NOTARIZATION_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Smoke test
+        run: python scripts/build.py --platform ${{ matrix.platform }} --skip-rebrand --skip-compile --skip-package --smoke-test
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: animora-${{ matrix.platform }}
+          path: dist/${{ matrix.artifact }}
+          if-no-files-found: warn
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true

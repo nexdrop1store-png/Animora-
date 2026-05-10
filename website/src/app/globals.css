@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --animora-purple: #7c3aed;
+  --animora-purple-light: #a855f7;
+  --animora-dark: #0a0a0f;
+}
+
+body {
+  background-color: var(--animora-dark);
+}

@@ -1,0 +1,12 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.isort]
+known-first-party = ["animora_panel", "ai_backend", "auth_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["ai-backend/tests", "auth-server/tests", "addons/tests"]
+asyncio_mode = "auto"

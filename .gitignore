@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Environment variables — never commit real .env files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Blender fork — entire tree excluded from this repo (7+ GB).
+# Clone separately from projects.blender.org and apply patches/animora-native.patch.
+# See patches/README.md for instructions.
+blender-fork/
+*.blend1
+*.blend2
+
+# Build / probe scratch files
+build_log.txt
+tmp_probe.py
+test_addon_load.py
+
+# Node / website
+website/node_modules/
+website/.next/
+website/out/
+website/.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build output
+dist/
+release/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.pkg
+
+# Installer temp
+installer/windows/build/
+installer/macos/build/
+installer/linux/build/
+
+# Secrets / certs (never commit)
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# Animora user data (generated at runtime)
+~/.animora/
