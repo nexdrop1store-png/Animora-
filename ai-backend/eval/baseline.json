@@ -1,0 +1,113 @@
+[
+  {
+    "name": "primitive.cube",
+    "ok": true,
+    "notes": [
+      "over token budget (2888 > 1500)"
+    ]
+  },
+  {
+    "name": "primitive.cuboid",
+    "ok": true,
+    "notes": [
+      "over token budget (1879 > 1500)"
+    ]
+  },
+  {
+    "name": "primitive.sphere",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "primitive.cylinder",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "furniture.chair.low_poly",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "vehicle.car.basic",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "vehicle.car.lambo_urus",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "character.dragon",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "scene.beach",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "lighting.studio",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "question.bsdf",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "primitive.sphere.creative_safety_net",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "composition.still_life",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "composition.depth_layering",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "composition.three_point_lighting",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "composition.rule_of_thirds",
+    "ok": true,
+    "notes": [
+      "over token budget (7355 > 6000)"
+    ]
+  },
+  {
+    "name": "composition.grounded_furniture",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "character.standing_figure",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "asset.hdri_lighting",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "asset.texture_application",
+    "ok": true,
+    "notes": []
+  },
+  {
+    "name": "asset.reference_mesh",
+    "ok": true,
+    "notes": []
+  }
+]

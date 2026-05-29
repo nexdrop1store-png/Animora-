@@ -1,0 +1,506 @@
+{
+  "turn_index": 4,
+  "user_message": "full motorcycle, sport bike,  engine mounted in frame, on road hero shot",
+  "started_at": "2026-05-27T20:09:14Z",
+  "finished_at": "2026-05-27T20:20:33Z",
+  "intent": "hard_surface_model",
+  "persona": "hard_surface_artist",
+  "model": "claude-opus-4-7",
+  "routing_reason": "execution-default (intent=hard_surface_model, plan=trial)",
+  "spec": {
+    "subject": "a full sport motorcycle with engine mounted in frame, staged in a hero road shot",
+    "framing": {
+      "camera": "low three-quarter front, camera positioned roughly at exhaust/axle height",
+      "lens_mm": 85,
+      "angle": "hero shot"
+    },
+    "lighting": {
+      "time_of_day": "golden hour, late afternoon",
+      "key": "warm directional sun from camera-right, 5500K, strong intensity casting long shadow behind bike",
+      "fill": "cool sky bounce from camera-left, 8000K, roughly 30% of key intensity",
+      "rim": "subtle warm backlight grazing fairing edges and exhaust pipe from rear, separating bike from asphalt",
+      "mood": "dramatic"
+    },
+    "palette": {
+      "dominant": "deep gloss black and aggressive red fairing panels",
+      "accent": "polished silver and brushed aluminum engine cases, exhaust header",
+      "neutral": "dark grey asphalt road, soft warm amber sky gradient"
+    },
+    "composition": {
+      "foreground": "asphalt road surface with subtle tarmac texture and faint painted line, slightly defocused",
+      "midground": "full sport motorcycle centered-right in frame, engine and fairing fully lit",
+      "background": "open road receding to horizon, low warm sky, no foreground clutter",
+      "hero": "the engine block mounted in the frame \u2014 visible through fairings, glinting in side light"
+    },
+    "materials": [
+      {
+        "on": "fairing body panels",
+        "type": "high-gloss automotive lacquer",
+        "notes": "roughness 0.05, clearcoat layer, red base with black secondary panels, subtle panel-seam gaps 1\u20132mm"
+      },
+      {
+        "on": "engine block and cylinder head",
+        "type": "brushed cast aluminum",
+        "notes": "roughness 0.3, fine directional brushing, oil stain decals near gasket seams, slight edge wear"
+      },
+      {
+        "on": "exhaust headers and muffler",
+        "type": "polished stainless steel with heat discoloration",
+        "notes": "roughness 0.1 at tips rising to 0.25 near head, iridescent blue-gold heat tint baked into roughness map"
+      },
+      {
+        "on": "frame and swingarm",
+        "type": "gloss black powder-coated steel",
+        "notes": "roughness 0.08, visible weld seams, minor edge chips near footpeg mounts"
+      },
+      {
+        "on": "tires",
+        "type": "black rubber with tread pattern",
+        "notes": "roughness 0.85, subtle sidewall lettering bump, slight deformation at contact patch"
+      },
+      {
+        "on": "wheels and rotors",
+        "type": "machined aluminum rim with floating brake disc",
+        "notes": "roughness 0.15 on rim, 0.25 on rotor with radial scratch marks"
+      },
+      {
+        "on": "GroundPlane (existing DarkSurface.001)",
+        "type": "wet asphalt road",
+        "notes": "roughness 0.6, subtle normal displacement for aggregate texture, faint golden-hour specular reflection streak"
+      }
+    ],
+    "density": {
+      "scattered": "none \u2014 clean road environment, no debris or vegetation; environment kept minimal to focus on bike",
+      "control": "no scattering required"
+    },
+    "scale_notes": "Sport motorcycle approximately 2.1m long, 1.1m tall to top of windscreen, 0.7m wide at mirrors. Engine block roughly 0.45m tall x 0.35m wide. Camera positioned ~1.5m back from front axle, lens at ~0.35m height. Full scene footprint approximately 4m wide x 6m deep from camera."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "CrankcaseCover",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              },
+              {
+                "type": "BEVEL",
+                "name": "Bevel",
+                "angle_limit": 0.6981316804885864
+              }
+            ],
+            "parent": null,
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 224,
+            "polygon_count": 58
+          },
+          {
+            "name": "GroundPlane",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              -0.06499999761581421
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "DarkSurface.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "DarkSurface.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              0.3499999940395355,
+              -0.44999998807907104,
+              0.11999999731779099
+            ],
+            "rotation": [
+              1.3299856185913086,
+              8.208031943013339e-08,
+              0.6610431671142578
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Key_Light",
+            "type": "LIGHT",
+            "location": [
+              -0.5,
+              -0.30000001192092896,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.969532310962677,
+              -1.335605404051421e-08,
+              -1.0303770303726196
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Fill_Light",
+            "type": "LIGHT",
+            "location": [
+              0.6000000238418579,
+              -0.20000000298023224,
+              0.20000000298023224
+            ],
+            "rotation": [
+              1.2645189762115479,
+              1.3242193119822332e-07,
+              1.2490458488464355
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Rim_Light",
+            "type": "LIGHT",
+            "location": [
+              0.0,
+              0.5,
+              0.15000000596046448
+            ],
+            "rotation": [
+              1.2793394327163696,
+              8.373583426646292e-08,
+              3.1415927410125732
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": "GroundPlane",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 256
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.012000000104308128,
+            0.012000000104308128,
+            0.014000000432133675,
+            1.0
+          ],
+          "background_strength": 0.5
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 139,
+      "notes": ""
+    },
+    {
+      "iteration_index": 1,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "CrankcaseCover",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              },
+              {
+                "type": "BEVEL",
+                "name": "Bevel",
+                "angle_limit": 0.6981316804885864
+              }
+            ],
+            "parent": null,
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 224,
+            "polygon_count": 58
+          },
+          {
+            "name": "GroundPlane",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              -0.06499999761581421
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "DarkSurface.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "DarkSurface.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              0.3499999940395355,
+              -0.44999998807907104,
+              0.11999999731779099
+            ],
+            "rotation": [
+              1.3299856185913086,
+              8.208031943013339e-08,
+              0.6610431671142578
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Key_Light",
+            "type": "LIGHT",
+            "location": [
+              -0.5,
+              -0.30000001192092896,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.969532310962677,
+              -1.335605404051421e-08,
+              -1.0303770303726196
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Fill_Light",
+            "type": "LIGHT",
+            "location": [
+              0.6000000238418579,
+              -0.20000000298023224,
+              0.20000000298023224
+            ],
+            "rotation": [
+              1.2645189762115479,
+              1.3242193119822332e-07,
+              1.2490458488464355
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Rim_Light",
+            "type": "LIGHT",
+            "location": [
+              0.0,
+              0.5,
+              0.15000000596046448
+            ],
+            "rotation": [
+              1.2793394327163696,
+              8.373583426646292e-08,
+              3.1415927410125732
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": "GroundPlane",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 256
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.012000000104308128,
+            0.012000000104308128,
+            0.014000000432133675,
+            1.0
+          ],
+          "background_strength": 0.5
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 145,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "success",
+  "error_message": "",
+  "script_rescue_triggered": false
+}

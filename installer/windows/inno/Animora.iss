@@ -1,0 +1,157 @@
+; ============================================================
+;  Animora — Professional Windows Installer (Inno Setup 6)
+;  Builds: dist\Animora-Setup.exe
+;
+;  Blender version coupling:
+;  -------------------------
+;  Animora is built on a Blender fork. The runtime ships its bundled
+;  scripts/addons under {app}/<MAJOR.MINOR>/... — that nested version
+;  directory name is required by Blender and must match the version
+;  we built against. When upgrading the Blender base (5.1 → 5.2),
+;  bump BlenderVersion below AND scripts/animora_config.py in lockstep.
+;  See docs/UPGRADE_BLENDER.md.
+; ============================================================
+
+#define MyAppName        "Animora"
+#define BlenderVersion   "5.1"
+#define MyAppVersion     "5.1.1"
+#define MyAppPublisher   "Animora Technologies"
+#define MyAppURL         "https://animora.tech"
+#define MyAppExeName     "Animora.exe"
+#define MyAppId          "{{C9F5B8A2-3D7E-4A91-9F2C-1E5B8C7A4D63}"
+
+[Setup]
+AppId={#MyAppId}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/support
+AppUpdatesURL={#MyAppURL}/download
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+DisableDirPage=no
+OutputDir=C:\Users\Administrator\Desktop\Animora\dist
+OutputBaseFilename=Animora-Setup
+SetupIconFile=C:\Users\Administrator\Desktop\Animora\blender-fork\release\windows\icons\winblender.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName} {#MyAppVersion}
+WizardStyle=modern
+WizardImageFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\wizard-image.bmp
+WizardSmallImageFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\wizard-small.bmp
+WizardImageStretch=yes
+Compression=lzma2/max
+SolidCompression=yes
+LZMAUseSeparateProcess=yes
+LZMANumBlockThreads=2
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+MinVersion=10.0
+LicenseFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\license.txt
+ShowLanguageDialog=no
+DisableWelcomePage=no
+DisableReadyPage=no
+DisableFinishedPage=no
+AllowNoIcons=yes
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoDescription={#MyAppName} Setup
+VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
+CloseApplications=force
+RestartApplications=no
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
+Name: "quicklaunchicon"; Description: "Create a &Quick Launch shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "associate_anim"; Description: "Associate &.anim files with Animora"; GroupDescription: "File associations:"; Flags: checkedonce
+Name: "associate_blend"; Description: "Open &.blend files with Animora"; GroupDescription: "File associations:"; Flags: unchecked
+
+[Files]
+; Animora ships from the *staged* tree (build/windows/animora-stage/) which has
+; already been rebranded: blender.exe -> Animora.exe, blender-launcher.exe ->
+; Animora-launcher.exe, *.pdb excluded, etc. The recipient never sees
+; "blender_*" filenames in the install progress bar.
+; Run `python scripts/stage_for_installer.py` before invoking this .iss.
+Source: "C:\Users\Administrator\Desktop\Animora\build\windows\animora-stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; VC++ 2015-2022 Redistributable — installed silently as prerequisite if missing.
+Source: "C:\Users\Administrator\Desktop\Animora\installer\windows\inno\redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+
+; ── Recording build: bundled AI engine + addon marker ───────────────────
+; Present ONLY when build/backend-dist/ exists (produced by
+; `python scripts/freeze_backend.py`). The `external` + `skipifsourcedoesntexist`
+; flags make these entries a NO-OP for normal/production builds that never
+; ran the freeze step — so the same .iss produces either a recording build
+; or a plain build depending on whether the freeze output is present.
+;
+; 1. The frozen backend → {app}\engine\  (addon auto-launches engine\animora-backend.exe)
+Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\animora-backend\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+; 2. The bundle marker → the addon dir. Its presence is what flips the
+;    addon into recording mode (auto-launch + auto-connect, no sign-in).
+Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\bundle_config.json"; DestDir: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel"; Flags: ignoreversion skipifsourcedoesntexist
+
+[Icons]
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
+
+[Registry]
+; .anim file association → animorafile ProgID
+Root: HKA; Subkey: "Software\Classes\.anim"; ValueType: string; ValueName: ""; ValueData: "animorafile"; Flags: uninsdeletevalue; Tasks: associate_anim
+Root: HKA; Subkey: "Software\Classes\.anim\OpenWithProgids"; ValueType: none; ValueName: "animorafile"; Flags: uninsdeletevalue; Tasks: associate_anim
+Root: HKA; Subkey: "Software\Classes\animorafile"; ValueType: string; ValueName: ""; ValueData: "Animora File"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\animorafile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "Software\Classes\animorafile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+; Optional: also register Animora as a handler for .blend
+Root: HKA; Subkey: "Software\Classes\.blend\OpenWithProgids"; ValueType: none; ValueName: "animorafile"; Flags: uninsdeletevalue; Tasks: associate_blend
+; ApplicationsRegistration so Animora appears in "Open With…" menu
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+[Run]
+; Install VC++ Redistributable BEFORE launching Animora to eliminate the
+; side-by-side configuration error that occurs on machines lacking the runtime.
+Filename: "{tmp}\VC_redist.x64.exe"; \
+  Parameters: "/install /quiet /norestart"; \
+  StatusMsg: "Installing Microsoft Visual C++ Redistributable…"; \
+  Check: VCRedistNeedsInstall; \
+  Flags: waituntilterminated
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; Clean up runtime caches (don't touch user data in AppData\Roaming).
+; Path tracks BlenderVersion so an upgrade rewires this automatically.
+Type: filesandordirs; Name: "{app}\{#BlenderVersion}\config"
+Type: filesandordirs; Name: "{app}\{#BlenderVersion}\cache"
+
+[Code]
+function InitializeSetup(): Boolean;
+begin
+  { CloseApplications=force in [Setup] handles "Animora is running" automatically. }
+  Result := True;
+end;
+
+{ Check whether VC++ 2015-2022 Redistributable (>= 14.40) is already installed.
+  Returns True if Setup needs to run the bundled installer. }
+function VCRedistNeedsInstall: Boolean;
+var
+  Bld: Cardinal;
+begin
+  Result := True;
+  if RegQueryDWordValue(HKLM,
+       'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Bld', Bld) then
+  begin
+    { 14.40.33810 = VC++ 2015-2022 Redist 14.40 (May 2024).
+      Anything >= that satisfies Animora's runtime requirements. }
+    if Bld >= 33810 then
+      Result := False;
+  end;
+end;

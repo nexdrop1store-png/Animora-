@@ -1,0 +1,78 @@
+ANIMORA — END USER LICENSE
+===========================
+
+Animora is built on Blender and is licensed under the GNU General Public
+License, version 2 (GPLv2) or any later version. The Animora-specific
+branding, icons, theme assets, splash artwork, and AI Panel addon are
+copyright 2026 Animora Technologies.
+
+By installing Animora you accept the terms of the GPL as it applies to
+Blender, and the Animora Technologies brand-use terms below.
+
+
+SUMMARY (informational — the GPL text below is binding)
+-------------------------------------------------------
+
+  - You may use Animora for any purpose, including commercial work.
+  - You may inspect, modify, and redistribute the source code under
+    the same GPL terms.
+  - You receive Animora "as is", with no warranty of any kind.
+  - "Animora" and the Animora diamond logo are trademarks of Animora
+    Technologies. Forks must rebrand before public redistribution.
+
+
+GNU GENERAL PUBLIC LICENSE, VERSION 2 (June 1991)
+-------------------------------------------------
+
+  Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+  Everyone is permitted to copy and distribute verbatim copies of this
+  license document, but changing it is not allowed.
+
+  The licenses for most software are designed to take away your freedom
+  to share and change it. By contrast, the GNU General Public License is
+  intended to guarantee your freedom to share and change free software --
+  to make sure the software is free for all its users.
+
+  When we speak of free software, we are referring to freedom, not price.
+  Our General Public Licenses are designed to make sure that you have the
+  freedom to distribute copies of free software (and charge for this
+  service if you wish), that you receive source code or can get it if you
+  want it, that you can change the software or use pieces of it in new
+  free programs; and that you know you can do these things.
+
+  The full GPLv2 text is included with Animora at:
+      <install dir>\COPYING.txt
+
+  The complete text is also available online at:
+      https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+
+ANIMORA BRAND USE
+-----------------
+
+  The "Animora" name, the diamond logo, and the Animora Technologies
+  identity are trademarks. Source-code modifications that you publicly
+  redistribute MUST use a different name and logo.
+
+  See https://animora.tech/brand for our brand guidelines and
+  permission-request form.
+
+
+THIRD-PARTY COMPONENTS
+----------------------
+
+  Animora bundles software from the following projects under their
+  respective licenses:
+    - Blender (GPL-2.0-or-later)        https://www.blender.org/
+    - Mesa3D (MIT)                      https://www.mesa3d.org/
+    - Geist Sans (OFL 1.1)              https://github.com/vercel/geist-font
+    - Inter (OFL 1.1)                   https://rsms.me/inter/
+    - DejaVu Sans Mono (Bitstream Vera) https://dejavu-fonts.github.io/
+
+  Full license texts are installed under: <install dir>\COPYING.txt
+
+
+By clicking "I accept the agreement" you confirm that you have read
+this notice and agree to be bound by its terms.

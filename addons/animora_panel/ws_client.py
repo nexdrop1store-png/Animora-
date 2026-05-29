@@ -25,16 +25,35 @@ _RECONNECT_DELAY_BASE = 1.0   # seconds
 _RECONNECT_DELAY_MAX = 30.0
 _PING_INTERVAL = 20.0
 
+# H6 — Send-queue backpressure. The queue holds outbound text + binary
+# frames waiting for the WS write thread. On a slow connection or while
+# the backend has paused us, viewport frames pile up; unbounded queues
+# turn long sessions into a slow OOM. Cap at 256 entries; on overflow
+# binary frames (viewport — most-recent-wins) drop the OLDEST binary in
+# the queue to make room. Text frames are too important to drop silently;
+# if the queue is fully saturated by binaries, we still trim a binary
+# rather than ever blocking the caller (which would freeze Blender).
+_SEND_QUEUE_MAX = 256
+
 
 class AnimoraWSClient:
     def __init__(self) -> None:
         self._ws = None
         self._thread: Optional[threading.Thread] = None
-        self._send_queue: queue.Queue[bytes | str] = queue.Queue()
+        # Bounded queue; we never block on .put(), see send_* methods below.
+        self._send_queue: queue.Queue[bytes | str] = queue.Queue(maxsize=_SEND_QUEUE_MAX)
+        self._send_queue_lock = threading.Lock()  # serialises trim-then-put on overflow
+        self._dropped_binary_frames = 0  # cumulative for diagnostics
+        self._dropped_text_frames = 0
         self._stop_event = threading.Event()
         self._connected = False
         self._session_id: str = ""
         self._reconnect_delay = _RECONNECT_DELAY_BASE
+
+        # Backpressure state — read by vision.py before pushing frames.
+        # Set by the server via `pause_stream` / `resume_stream` control
+        # messages (docs/AI_ARCHITECTURE.md §3.1).
+        self._stream_paused = False
 
         # Callbacks (set by panel/operators)
         self.on_stream_token: Optional[Callable[[str], None]] = None
@@ -72,17 +91,141 @@ class AnimoraWSClient:
             "context": context_flags or {},
             "session_id": self._session_id,
         })
-        self._send_queue.put(payload)
+        self._enqueue(payload)
 
     def send_binary(self, data: bytes) -> None:
-        self._send_queue.put(data)
+        self._enqueue(data)
 
     def send_json(self, obj: dict) -> None:
-        self._send_queue.put(json.dumps(obj))
+        self._enqueue(json.dumps(obj))
+
+    def _enqueue(self, item: bytes | str) -> None:
+        """Non-blocking put with overflow handling (H6).
+
+        Strategy:
+          • Try a non-blocking put. If it fits, done.
+          • If the queue is full, atomically drain ONE oldest BINARY frame
+            (viewport stream is most-recent-wins) and try again.
+          • If we still can't fit a TEXT frame, drop the incoming text
+            frame with a warning. Never block the caller — a blocking
+            put() here would freeze the Blender main thread on slow
+            networks.
+        """
+        try:
+            self._send_queue.put_nowait(item)
+            return
+        except queue.Full:
+            pass
+
+        # Overflow path — serialized so two concurrent senders don't
+        # both try to trim and overshoot the cap.
+        with self._send_queue_lock:
+            # Try to free a slot by removing the oldest binary frame.
+            trimmed = False
+            try:
+                # Walk the queue, copy items except the first binary.
+                # queue.Queue doesn't expose iteration so we drain + repush.
+                buffered: list[bytes | str] = []
+                while True:
+                    try:
+                        buffered.append(self._send_queue.get_nowait())
+                    except queue.Empty:
+                        break
+                # Drop the FIRST binary item we encounter (oldest binary).
+                kept: list[bytes | str] = []
+                for entry in buffered:
+                    if not trimmed and isinstance(entry, (bytes, bytearray)):
+                        trimmed = True
+                        self._dropped_binary_frames += 1
+                        continue
+                    kept.append(entry)
+                for entry in kept:
+                    self._send_queue.put_nowait(entry)
+            except Exception as exc:
+                log.debug("send_queue trim failed: %s", exc)
+
+            if trimmed:
+                try:
+                    self._send_queue.put_nowait(item)
+                    if self._dropped_binary_frames % 50 == 1:
+                        log.warning(
+                            "send_queue overflow — dropped %d binary frames cumulatively",
+                            self._dropped_binary_frames,
+                        )
+                    return
+                except queue.Full:
+                    pass
+
+            # Still full and incoming is text — drop it. The session can
+            # recover from a missed scene_graph/tool_result more gracefully
+            # than from a hung main thread.
+            if isinstance(item, str):
+                self._dropped_text_frames += 1
+                log.warning(
+                    "send_queue full + only text frames present — dropping "
+                    "outgoing TEXT frame (cumulative drops=%d). First 80 chars: %s",
+                    self._dropped_text_frames, item[:80],
+                )
+            else:
+                # Incoming binary, no binary to evict — queue is all text.
+                # Drop the incoming binary; viewport stream is fine to skip.
+                self._dropped_binary_frames += 1
+
+    def _build_hello_payload(self) -> dict:
+        """Assemble the hello message sent right after WS upgrade.
+
+        Pulls the API key from the OS keyring (via credentials.py) and
+        the current settings from preferences. The key never appears in
+        any log line — only its sha256 fingerprint."""
+        api_key = ""
+        try:
+            from . import credentials
+            api_key = credentials.get_api_key() or ""
+        except Exception as exc:
+            log.warning("Failed to load API key from credentials: %s", exc)
+
+        settings: dict = {}
+        try:
+            from .preferences import get_prefs
+            prefs = get_prefs()
+            settings = {
+                "default_model": getattr(prefs, "default_model", "auto"),
+                "temperature": getattr(prefs, "temperature", 1.0),
+                "max_output_tokens": getattr(prefs, "max_output_tokens", 4096),
+                "streaming_enabled": getattr(prefs, "streaming_enabled", True),
+                "share_viewport": getattr(prefs, "share_viewport", True),
+                "share_scene_graph": getattr(prefs, "share_scene_graph", True),
+            }
+        except Exception as exc:
+            log.debug("Could not load settings for hello: %s", exc)
+
+        return {
+            "type": "hello",
+            "api_key": api_key,
+            "animora_version": "0.3.0",
+            # Sprint 4E — protocol version. Bumped each time the addon's
+            # tool dispatch contract changes so the backend can detect
+            # "user updated backend but didn't sync addon" and warn
+            # immediately on connect rather than letting the user sit
+            # through 45s coordinator timeouts on every iteration.
+            #   1 = pre-MCP-pivot (only execute_blender_script + a few)
+            #   2 = MCP atomic surface (create_primitive, set_transform, etc.)
+            #   3 = + tool.start handler + per-iteration undo + presence verify
+            #   4 = + vision exec-pause + execute_animora_code (rename + no MATERIAL_PREVIEW switch)
+            #   5 = + critical-path tool_result send (defer scene_diff / chat / HD capture)
+            "addon_protocol_version": 5,
+            "settings": settings,
+        }
 
     @property
     def connected(self) -> bool:
         return self._connected
+
+    @property
+    def stream_paused(self) -> bool:
+        """True when the backend has asked us to stop sending viewport
+        frames (its buffer is full). vision.py honors this flag."""
+        return self._stream_paused
 
     # ------------------------------------------------------------------
     # Internal connection loop
@@ -115,9 +258,20 @@ class AnimoraWSClient:
         ws.connect(url, timeout=10)
         self._ws = ws
         self._connected = True
+        self._stream_paused = False
         self._schedule_callback(self.on_connected)
 
-        # Resume session if we have an existing session_id
+        # First message: hello — carries the BYOK Anthropic API key (if
+        # the user pasted one) plus client-side settings (default model,
+        # streaming on/off, version). Backend uses this to set up the
+        # per-session AnthropicClient.
+        hello_payload = self._build_hello_payload()
+        try:
+            ws.send(json.dumps(hello_payload))
+        except Exception as exc:
+            log.warning("Failed to send hello: %s", exc)
+
+        # Then resume the session (replays history if any)
         ws.send(json.dumps({"type": "resume", "session_id": self._session_id}))
 
         last_ping = time.monotonic()
@@ -164,13 +318,90 @@ class AnimoraWSClient:
             msg_type = msg.get("type")
             if msg_type == "stream_token":
                 token = msg.get("token", "")
+                # State: THINKING → STREAMING on the first token
+                self._schedule_main_thread(self._on_first_token_or_continue)
                 self._schedule_callback(self.on_stream_token, token)
             elif msg_type == "tool_call":
+                # State: → EXECUTING with intent_summary as the detail
+                tool_name = msg.get("tool", "")
+                inp = msg.get("input", {}) or {}
+                intent_summary = str(inp.get("intent_summary", ""))[:120]
+                self._schedule_main_thread(
+                    lambda: self._set_state("EXECUTING", intent_summary, tool_name)
+                )
                 self._schedule_callback(self.on_tool_call, msg)
+            elif msg_type == "tool.start":
+                # Sprint 4E — fires from main.send_tool_call BEFORE the
+                # tool_call message. Carries `args_summary` (e.g.
+                # "cube TableTop") so the panel renders
+                #   ⏵ create_primitive(cube TableTop)
+                # as a chat line the moment the tool is about to
+                # dispatch — matches Claude-Desktop's per-tool log UX.
+                tool_name = str(msg.get("tool", ""))
+                args_summary = str(msg.get("args_summary", ""))[:120]
+                display = f"⏵ {tool_name}({args_summary})" if args_summary else f"⏵ {tool_name}"
+                detail = args_summary or tool_name.replace("_", " ").title()
+                # Append run-log chat line + flip status pill to the
+                # specific tool. Both hops to the main thread because
+                # they touch wm collections / area redraws.
+                self._schedule_main_thread(lambda d=display: self._append_assistant_chat(d))
+                self._schedule_main_thread(
+                    lambda d=detail, t=tool_name: self._set_state("EXECUTING", d, t)
+                )
+            elif msg_type == "phase":
+                # Live progress hint emitted by the orchestrator at points
+                # where the existing stream_token / tool_call cadence
+                # leaves a perceptible silence — e.g. during the LLM
+                # call for a forced-tool turn (no text tokens stream
+                # because the model goes straight to tool_use input).
+                # `drafting` is the most useful — it flips the panel
+                # into a visible "Drafting build plan…" the instant the
+                # SDK call starts, rather than staying in THINKING with
+                # nothing happening for 20-60s.
+                phase = msg.get("phase", "")
+                label = str(msg.get("label", ""))[:120]
+                if phase == "drafting":
+                    self._schedule_main_thread(
+                        lambda: self._set_state("THINKING", label)
+                    )
+                elif phase == "composing":
+                    # Sprint 4E — `input_json_delta` started streaming;
+                    # the model is now typing the tool_use input. Same
+                    # state as drafting but with a more specific label.
+                    self._schedule_main_thread(
+                        lambda: self._set_state("THINKING", label or "Composing the next step")
+                    )
+                elif phase == "building":
+                    self._schedule_main_thread(
+                        lambda: self._set_state("EXECUTING", label, "execute_animora_code")
+                    )
             elif msg_type == "error":
-                self._schedule_callback(self.on_error, msg.get("message", "Unknown error"))
+                emsg = msg.get("message", "Unknown error")
+                self._schedule_main_thread(lambda: self._set_state("ERROR", emsg))
+                self._schedule_callback(self.on_error, emsg)
             elif msg_type == "session_info":
                 log.debug("Session info: %s", msg)
+            elif msg_type == "pause_stream":
+                self._stream_paused = True
+                log.debug("Stream paused by backend (depth=%s)", msg.get("buffer_depth", "?"))
+            elif msg_type == "resume_stream":
+                self._stream_paused = False
+                log.debug("Stream resumed by backend (depth=%s)", msg.get("buffer_depth", "?"))
+            elif msg_type == "stream_cancelled":
+                log.debug("Stream cancelled: %s", msg.get("reason", "?"))
+                self._schedule_main_thread(lambda: self._set_state("IDLE", "(stopped)"))
+                self._schedule_callback(self.on_error, "(stopped)")
+            elif msg_type == "quality_notice":
+                # Phase 5: stash on state singleton, panel renders inline
+                self._schedule_main_thread(lambda: self._on_quality_notice(msg))
+                log.info("Quality notice [%s]: %s",
+                         msg.get("severity", "?"), msg.get("summary", ""))
+            elif msg_type == "turn_complete":
+                # Server says LLM + tool dispatch are done. Auto-return
+                # the panel to IDLE so the user doesn't have to STOP.
+                self._schedule_main_thread(
+                    lambda: self._set_state("COMPLETE", "")
+                )
 
     def _schedule_callback(self, cb: Callable | None, *args: Any) -> None:
         if cb is None:
@@ -182,9 +413,66 @@ class AnimoraWSClient:
                 cb(*args)
             except Exception as exc:
                 log.error("Callback error: %s", exc)
-            return None  # don't reschedule
+            return None
 
         bpy.app.timers.register(_call, first_interval=0.0)
+
+    def _schedule_main_thread(self, fn: Callable[[], None]) -> None:
+        """Hop a zero-arg callable onto Blender's main thread via the
+        app.timers queue. Used for state mutations from the receive
+        thread — state.set_state() must run on main because it triggers
+        area redraws."""
+        import bpy
+
+        def _call():
+            try:
+                fn()
+            except Exception as exc:
+                log.error("Main-thread hop failed: %s", exc)
+            return None
+
+        bpy.app.timers.register(_call, first_interval=0.0)
+
+    # ── State transition helpers (called on main thread) ──────────────
+
+    def _set_state(self, state_name: str, message: str = "", tool_name: str = "") -> None:
+        """Update the panel state. Resolved by name to avoid circular import."""
+        from . import state as state_module
+        state_module.set_state(state_name, message=message, tool_name=tool_name)
+
+    def _append_assistant_chat(self, content: str) -> None:
+        """Append a one-line assistant chat entry. Used by `tool.start`
+        to render the per-tool run-log ("⏵ create_primitive(cube TableTop)")
+        in the chat so the user sees each step as it dispatches.
+        Main-thread only (touches wm collection + area redraw)."""
+        try:
+            import bpy
+            wm = bpy.context.window_manager
+            if not hasattr(wm, "animora_chat_history"):
+                return
+            entry = wm.animora_chat_history.add()
+            entry.role = "assistant"
+            entry.content = content
+            if bpy.context.screen is not None:
+                for area in bpy.context.screen.areas:
+                    if area.type == "ANIMORA":
+                        area.tag_redraw()
+        except Exception as exc:
+            log.debug("append_assistant_chat failed: %s", exc)
+
+    def _on_first_token_or_continue(self) -> None:
+        """A stream_token arrived. Move SUBMITTING/THINKING → STREAMING.
+        No-op if we're already STREAMING."""
+        from . import state as state_module
+        if state_module.state.current != state_module.S.STREAMING:
+            state_module.set_state(state_module.S.STREAMING)
+
+    def _on_quality_notice(self, msg: dict) -> None:
+        from . import state as state_module
+        state_module.set_quality_notice(msg)
+        # After the quality check completes, fade to COMPLETE so the
+        # panel returns to a clean state.
+        state_module.set_state(state_module.S.COMPLETE, "Reviewed.")
 
 
 # Module-level singleton

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 
 from jose import JWTError, jwt
@@ -20,8 +21,27 @@ class AuthError(Exception):
 
 
 def decode_token(token: str) -> TokenClaims:
+    # H5 — Enforce issuer + audience. python-jose validates both when the
+    # `issuer` / `audience` kwargs are passed; if a claim is missing or
+    # doesn't match, it raises JWTError. Auth-server (when deployed) must
+    # mint tokens with these claims; dev_server.py already does.
+    #
+    # In dev mode, we permit tokens without an audience claim so the dev
+    # bypass continues to work. Production never sees this branch.
+    env_dev = os.environ.get("ANIMORA_ENV", "").lower() in ("dev", "development", "local")
+    decode_kwargs = {
+        "algorithms": [settings.jwt_algorithm],
+        "issuer": settings.jwt_issuer,
+        "audience": settings.jwt_audience,
+    }
+    if env_dev:
+        # Dev path: don't enforce iss/aud so dev tokens with bare claims
+        # (synthesised by dev_server) still pass. Production requires both.
+        decode_kwargs.pop("issuer", None)
+        decode_kwargs.pop("audience", None)
+
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, settings.jwt_secret, **decode_kwargs)
     except JWTError as exc:
         raise AuthError(f"Invalid token: {exc}", "invalid_token") from exc
 

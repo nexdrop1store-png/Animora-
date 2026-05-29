@@ -37,7 +37,13 @@ async def get_session(session_id: str) -> dict[str, Any]:
     r = await get_redis()
     raw = await r.get(_session_key(session_id))
     if raw:
-        return json.loads(raw)
+        data = json.loads(raw)
+        # Back-fill Phase 7 memory fields on older sessions so callers
+        # never have to defensively check for their presence.
+        data.setdefault("memory_summary", "")
+        data.setdefault("memory_compressed_at", 0.0)
+        data.setdefault("memory_turns_folded", 0)
+        return data
     return {
         "session_id": session_id,
         "conversation_history": [],
@@ -46,6 +52,12 @@ async def get_session(session_id: str) -> dict[str, Any]:
         "last_active": time.time(),
         "plan": "trial",
         "user_id": "",
+        # Phase 7: in-session memory compression. Populated by
+        # orchestrator/memory.py when conversation_history grows past
+        # the compression trigger threshold.
+        "memory_summary": "",          # the rolling compressed-history block
+        "memory_compressed_at": 0.0,   # monotonic timestamp of last compression
+        "memory_turns_folded": 0,      # cumulative count of turns absorbed into summary
     }
 
 

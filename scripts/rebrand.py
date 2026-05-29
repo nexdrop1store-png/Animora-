@@ -1,9 +1,13 @@
 """
 Non-destructive Blender → Animora rebrand script.
 
-Copies Animora assets into the blender-fork build staging area and patches
-string constants in C source files. Designed to run before every cmake
-invocation. Original tracked files in blender-fork/ are never modified.
+Copies Animora assets + the Animora AI panel source into the blender-fork
+build staging area and patches string constants in C source files.
+Designed to run before every cmake invocation. The fork tree is treated
+as a BUILD ARTIFACT, not a source of truth — anything Animora-specific
+that lives there at build time is copied in by this script. That means
+upgrading to a new Blender release is "re-checkout the fork at the new
+tag and re-run rebrand"; we never have to manually merge the AI panel.
 
 Usage:
     python scripts/rebrand.py [--fork-root PATH] [--assets-root PATH] [--dry-run]
@@ -18,6 +22,8 @@ import re
 import shutil
 import sys
 from pathlib import Path
+
+from animora_config import AI_PANEL_SRC, ai_panel_fork_dest
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger("rebrand")
@@ -34,6 +40,13 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
     # App name visible to user (exact quoted string)
     ('"Blender"', '"Animora"'),
     ("'Blender'", "'Animora'"),
+    # AppData / ProgramData path (GHOST_SystemPathsWin32.cc). MUST come
+    # before the generic "Blender Foundation" rule below, because that
+    # rule would otherwise produce "\\Animora Technologies\\Blender\\"
+    # — half-renamed and still user-visible in %APPDATA%. Both source
+    # and target are length-preserving so the C++ stays clean.
+    ('"\\\\Blender Foundation\\\\Blender\\\\"',
+     '"\\\\Animora Technologies\\\\Animora\\\\"'),
     # About / version strings
     ("Blender Foundation", "Animora Technologies"),
     ("www.blender.org", "animora.tech"),
@@ -59,6 +72,48 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
     ('"\\nBlender killed\\n"', '"\\nAnimora killed\\n"'),
     ('"\\nSent an internal break event. Press ^C again to kill Blender\\n"',
      '"\\nSent an internal break event. Press ^C again to kill Animora\\n"'),
+    # User-visible "Blender file" strings (kept loader compat via ext_test array)
+    ('"the Blender file"',              '"the Animora file"'),
+    ('"Blender file"',                  '"Animora file"'),
+    ('"blend-file"',                    '"anim-file"'),
+    ('"a blend file"',                  '"an Animora file"'),
+    ('"Choose a Blender"',              '"Choose an Animora"'),
+    ('"open Blender"',                  '"open Animora"'),
+    ('"This Blender"',                  '"This Animora"'),
+    ('"Blender installation"',          '"Animora installation"'),
+    ('"the Blender installation"',      '"the Animora installation"'),
+    ('"Blender configuration"',         '"Animora configuration"'),
+    # Asset library / file dialog tooltips
+    ('"Full path to the Blender file"', '"Full path to the Animora file"'),
+    ('"Full path to the Blender file containing the active asset"',
+     '"Full path to the Animora file containing the active asset"'),
+    # Status / info messages
+    ('"Blender is now starting"',       '"Animora is now starting"'),
+    ('"Restart Blender"',               '"Restart Animora"'),
+    # IFACE_-wrapped UI labels (screen_ops, io_usd, render_view)
+    ('IFACE_("Blender Version")',          'IFACE_("Animora Version")'),
+    ('IFACE_("Blender Drivers Editor")',   'IFACE_("Animora Drivers Editor")'),
+    ('IFACE_("Blender Info Log")',         'IFACE_("Animora Info Log")'),
+    ('IFACE_("Blender Data")',             'IFACE_("Animora Data")'),
+    ('IFACE_("Blender Render")',           'IFACE_("Animora Render")'),
+    # Operator names + descriptions
+    ('"About Blender"',                    '"About Animora"'),
+    ('"Open a window with information about Blender"',
+     '"Open a window with information about Animora"'),
+    ('"Capture a picture of the whole Blender window"',
+     '"Capture a picture of the whole Animora window"'),
+    ('"Update the display of reports in Blender UI"',
+     '"Update the display of reports in Animora UI"'),
+    ('"Sample a color from the Blender window"',
+     '"Sample a color from the Animora window"'),
+    ('"Exit Blender after saving"',        '"Exit Animora after saving"'),
+    # Error / status / system messages
+    ('L"Blender has stopped working"',     'L"Animora has stopped working"'),
+    ('"Blender requires a CPU with SSE42"','"Animora requires a CPU with SSE42"'),
+    ('L"Blender Thumbnail Handler"',       'L"Animora Thumbnail Handler"'),
+    # Eyedropper variants
+    ('"Sample a color from the Blender Window"',
+     '"Sample a color from the Animora Window"'),
 ]
 
 # Source file globs whose string content we patch
@@ -67,11 +122,21 @@ SOURCE_GLOBS: list[str] = [
     "source/blender/blenkernel/*.cc",
     "source/blender/editors/space_info/*.c",
     "source/blender/editors/space_info/*.cc",
+    "source/blender/editors/space_view3d/*.cc",
+    "source/blender/editors/screen/*.cc",
+    "source/blender/editors/interface/*.cc",
+    "source/blender/editors/io/*.cc",
+    "source/blender/editors/render/*.cc",
+    "source/blender/editors/util/*.cc",
     "source/blender/windowmanager/intern/*.c",
     "source/blender/windowmanager/intern/*.cc",
+    "source/blender/blenloader/intern/*.cc",
+    "source/blender/io/usd/*.cc",
+    "source/blender/python/intern/*.cc",
     "source/creator/*.c",
     "source/creator/*.cc",
     "intern/ghost/intern/*.cpp",
+    "intern/ghost/intern/*.cc",
 ]
 
 # Asset copy map: src (relative to assets/branding) → dst (relative to fork root)
@@ -146,6 +211,35 @@ def patch_sources(fork_root: Path, dry_run: bool) -> int:
     return patched_files
 
 
+def inject_ai_panel(fork_root: Path, dry_run: bool) -> int:
+    """Copy the canonical AI panel source (addons/animora_panel/) into the
+    fork's built-in addons dir. Overwrites whatever is there — the fork
+    copy is a build artifact. Returns the number of files copied.
+
+    Skips __pycache__ to keep the staged tree clean (CPython recreates
+    these at runtime anyway).
+    """
+    src = AI_PANEL_SRC
+    dst = ai_panel_fork_dest(fork_root)
+
+    if not src.is_dir():
+        log.error("AI panel source missing: %s. Animora cannot ship.", src)
+        sys.exit(1)
+
+    log.info("Inject AI panel: %s → %s", src.relative_to(REPO_ROOT), dst.relative_to(fork_root))
+    if dry_run:
+        return sum(1 for _ in src.rglob("*") if _.is_file() and "__pycache__" not in _.parts)
+
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(
+        src, dst,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    return sum(1 for _ in dst.rglob("*") if _.is_file())
+
+
 def patch_cmake_app_name(fork_root: Path, dry_run: bool) -> None:
     """Patch CMakeLists.txt to set executable name to 'animora'."""
     cmake = fork_root / "CMakeLists.txt"
@@ -188,10 +282,14 @@ def main() -> None:
     log.info("Assets    : %s", args.assets_root)
 
     copied = copy_assets(args.fork_root, args.assets_root, args.dry_run)
+    panel_files = inject_ai_panel(args.fork_root, args.dry_run)
     patched = patch_sources(args.fork_root, args.dry_run)
     patch_cmake_app_name(args.fork_root, args.dry_run)
 
-    log.info("Done. Assets copied: %d  Source files patched: %d", copied, patched)
+    log.info(
+        "Done. Assets copied: %d  AI panel files: %d  Source files patched: %d",
+        copied, panel_files, patched,
+    )
 
 
 if __name__ == "__main__":

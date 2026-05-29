@@ -1,0 +1,204 @@
+{
+  "turn_index": 23,
+  "user_message": "model a small friendly dragon with folded wings",
+  "started_at": "2026-05-28T10:14:12Z",
+  "finished_at": "2026-05-28T10:23:23Z",
+  "intent": "character_sculpt",
+  "persona": "character_artist",
+  "model": "claude-opus-4-7",
+  "routing_reason": "execution-default (intent=character_sculpt, plan=trial)",
+  "spec": {
+    "subject": "a small friendly dragon with folded wings",
+    "framing": {
+      "camera": "low three-quarter front",
+      "lens_mm": 85,
+      "angle": "hero shot"
+    },
+    "lighting": {
+      "time_of_day": "studio neutral with warm accent",
+      "key": "warm 5600K soft box from camera-left, slightly elevated, broad diffuse wrap",
+      "fill": "cool 7500K bounce from camera-right, one-third key intensity",
+      "rim": "warm amber backlight from upper-rear separating wings and tail from background",
+      "mood": "joyful"
+    },
+    "palette": {
+      "dominant": "soft forest green scales with slight iridescence, #4A7C59-ish",
+      "accent": "warm amber-gold on belly plates and wing membrane highlights, #C8893A-ish",
+      "neutral": "muted warm grey-white studio background"
+    },
+    "composition": {
+      "foreground": "slight ground shadow and two front feet visible at frame bottom",
+      "midground": "dragon body centered, sitting upright in relaxed pose with folded wings tucked against sides",
+      "background": "clean neutral gradient, minimal, keeping focus on character",
+      "hero": "the dragon's expressive wide eyes and friendly slightly open-mouthed smile"
+    },
+    "materials": [
+      {
+        "on": "dragon scales \u2014 body",
+        "type": "semi-gloss organic reptile skin with subtle iridescent sheen",
+        "notes": "roughness ~0.45, fine scale displacement at 3-4mm real-world size, slight SSS for soft fleshy depth at scale edges"
+      },
+      {
+        "on": "belly and inner neck plates",
+        "type": "smoother leathery skin, lighter value",
+        "notes": "roughness ~0.6, no displacement, warm amber-gold tint, segmented plate pattern via texture"
+      },
+      {
+        "on": "folded wing membranes",
+        "type": "thin translucent skin stretched over bone spines",
+        "notes": "SSS strong, roughness ~0.35, amber-green transmission tint, visible vein detail via normal map"
+      },
+      {
+        "on": "horns, claws, teeth",
+        "type": "polished bone-like keratin",
+        "notes": "roughness ~0.25, warm ivory to grey-brown gradient tip-to-base"
+      },
+      {
+        "on": "eyes",
+        "type": "glossy reptile iris with vertical slit pupil",
+        "notes": "deep teal iris, high specular, slight cornea refraction, warm reflection catch-light"
+      }
+    ],
+    "density": {
+      "scattered": "none \u2014 single character on clean surface",
+      "control": "no scattering required; character is sole scene element"
+    },
+    "scale_notes": "Dragon sits approximately 0.5m tall at head tip in a relaxed seated pose; body length snout to tail base roughly 0.6m; folded wingspan tip-to-tip approximately 0.7m. Character reads as a small creature \u2014 roughly the size of a large house cat."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Test",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [],
+            "material_shaders": [],
+            "vertex_count": 8,
+            "polygon_count": 6
+          }
+        ],
+        "active_object": "Test",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 128
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.15000000596046448,
+            0.15000000596046448,
+            0.15000000596046448,
+            1.0
+          ],
+          "background_strength": 0.30000001192092896
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 120,
+      "notes": ""
+    },
+    {
+      "iteration_index": 1,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Test",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [],
+            "material_shaders": [],
+            "vertex_count": 8,
+            "polygon_count": 6
+          }
+        ],
+        "active_object": "Test",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 128
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.15000000596046448,
+            0.15000000596046448,
+            0.15000000596046448,
+            1.0
+          ],
+          "background_strength": 0.30000001192092896
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 114,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "success",
+  "error_message": "",
+  "script_rescue_triggered": false
+}

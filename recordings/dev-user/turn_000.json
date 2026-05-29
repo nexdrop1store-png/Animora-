@@ -1,0 +1,322 @@
+{
+  "turn_index": 0,
+  "user_message": "build a 1960s vintage motorcycle, hero shot model",
+  "started_at": "2026-05-27T19:40:29Z",
+  "finished_at": "2026-05-27T19:51:39Z",
+  "intent": "material_authoring",
+  "persona": "lighting_td",
+  "model": "claude-opus-4-7",
+  "routing_reason": "execution-default (intent=material_authoring, plan=trial)",
+  "spec": {
+    "subject": "a 1960s vintage motorcycle, hero shot",
+    "framing": {
+      "camera": "low three-quarter front",
+      "lens_mm": 85,
+      "angle": "hero shot"
+    },
+    "lighting": {
+      "time_of_day": "golden hour",
+      "key": "warm sunlight from camera-left, 5500K, strong directional at 45 degrees elevation",
+      "fill": "cool sky bounce from camera-right, 7500K, roughly 30% of key intensity",
+      "rim": "warm backlight from rear-right separating chrome and bodywork from background",
+      "mood": "dramatic"
+    },
+    "palette": {
+      "dominant": "deep cherry red or classic black metallic bodywork (#1A1A1A to #8B1A1A)",
+      "accent": "polished chrome silver (#C8C8C8-ish) on engine, pipes, and trim",
+      "neutral": "warm asphalt grey ground with subtle amber-tinted ambient"
+    },
+    "composition": {
+      "foreground": "ground plane with subtle asphalt texture and faint shadow cast by motorcycle",
+      "midground": "the full motorcycle body centered slightly left of frame, engine and tank prominent",
+      "background": "soft out-of-focus neutral dark environment, vignette gradient",
+      "hero": "the engine block and fuel tank \u2014 eye lands on chrome carburetor and painted tank first"
+    },
+    "materials": [
+      {
+        "on": "fuel tank and fenders",
+        "type": "gloss metallic paint with clear coat",
+        "notes": "roughness ~0.05, subtle orange-peel micro-texture, light edge wear scratches on tank corners, deep cherry red or classic black"
+      },
+      {
+        "on": "engine block and cylinder head",
+        "type": "cast iron with machined aluminium surfaces",
+        "notes": "roughness 0.45 on cast areas, 0.15 on machined fins, subtle oil staining near gaskets, anisotropic brushing on aluminium fins"
+      },
+      {
+        "on": "exhaust pipes",
+        "type": "polished chrome with heat discoloration",
+        "notes": "roughness 0.08 proximal, gradient to rainbow heat tint (blue-gold) near cylinder headers"
+      },
+      {
+        "on": "frame and swing arm",
+        "type": "gloss black powder coat",
+        "notes": "roughness 0.12, minor paint chips at weld seams and footpeg areas"
+      },
+      {
+        "on": "tyres",
+        "type": "aged vulcanised rubber",
+        "notes": "roughness 0.85, subtle cracking micro-displacement on sidewalls, period-correct tread pattern"
+      },
+      {
+        "on": "seat",
+        "type": "black vinyl / leather",
+        "notes": "roughness 0.35, subtle stitch seam detail, light crease normals"
+      },
+      {
+        "on": "headlight and gauges",
+        "type": "polished chrome housing with glass lens",
+        "notes": "chrome roughness 0.05, lens IOR 1.52, slight dust on glass surface"
+      }
+    ],
+    "density": {
+      "scattered": "none \u2014 isolated studio-style hero shot, no scatter elements",
+      "control": "no scatter geometry; ground plane only with minimal props if any"
+    },
+    "scale_notes": "1960s motorcycle approximately 2.1m long, 1.1m tall to top of handlebars, 0.75m wide at handlebars. Engine sits roughly 0.55m off ground. Scene reads at ~4m wide from camera to maintain tight hero framing. No floating parts \u2014 verify wheel contact with ground plane."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Material"
+            ],
+            "material_shaders": [
+              {
+                "name": "Material",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Light",
+            "type": "LIGHT",
+            "location": [
+              4.076245307922363,
+              1.0054539442062378,
+              5.903861999511719
+            ],
+            "rotation": [
+              0.6503279805183411,
+              0.055217113345861435,
+              1.8663908243179321
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              7.358891487121582,
+              -6.925790786743164,
+              4.958309173583984
+            ],
+            "rotation": [
+              1.1093189716339111,
+              0.0,
+              0.8149281740188599
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.05087608844041824,
+            0.05087608844041824,
+            0.05087608844041824,
+            1.0
+          ],
+          "background_strength": 1.0
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 76,
+      "notes": ""
+    },
+    {
+      "iteration_index": 1,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Material"
+            ],
+            "material_shaders": [
+              {
+                "name": "Material",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Light",
+            "type": "LIGHT",
+            "location": [
+              4.076245307922363,
+              1.0054539442062378,
+              5.903861999511719
+            ],
+            "rotation": [
+              0.6503279805183411,
+              0.055217113345861435,
+              1.8663908243179321
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              7.358891487121582,
+              -6.925790786743164,
+              4.958309173583984
+            ],
+            "rotation": [
+              1.1093189716339111,
+              0.0,
+              0.8149281740188599
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.05087608844041824,
+            0.05087608844041824,
+            0.05087608844041824,
+            1.0
+          ],
+          "background_strength": 1.0
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 19,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "error",
+  "error_message": "unknown: Unexpected error: WebSocketDisconnect: ",
+  "script_rescue_triggered": false
+}

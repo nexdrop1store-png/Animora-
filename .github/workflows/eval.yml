@@ -1,0 +1,97 @@
+name: AI Quality Eval
+
+# Quality-regression gate: runs the eval harness against a frozen
+# baseline and fails the build if any benchmark that was passing on
+# main starts failing on the PR.
+#
+# Triggered on:
+#   - PRs that touch the AI surface (backend, prompts, panel) — we
+#     only care when the prompt/persona/router could plausibly change
+#     output quality. Pure docs/website PRs skip this expensive job.
+#   - Push to main as a smoke (cheap insurance against a broken merge).
+#   - Manual trigger via workflow_dispatch for ad-hoc verification.
+#
+# Cost: each run = N benchmarks × ~$0.05 Opus per call. At 12 benchmarks
+# (current size) one run is ~$0.60. Skipped paths above keep this off
+# the critical path of doc PRs.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ai-backend/**"
+      - "addons/animora_panel/**"
+      - "patches/**"
+      - ".github/workflows/eval.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ai-backend/**"
+      - "addons/animora_panel/**"
+  workflow_dispatch:
+
+jobs:
+  eval:
+    name: Quality regression gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ai-backend/requirements.txt
+
+      - name: Run eval harness vs baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANIMORA_ENV: dev
+          PYTHONIOENCODING: utf-8
+        run: |
+          python ai-backend/eval/runner.py \
+            --json eval_run.json \
+            --output eval_report.md \
+            --baseline ai-backend/eval/baseline.json \
+            --fail-on-regress
+
+      # PR-comment the markdown report so reviewers see scores
+      # inline without digging into job logs.
+      - name: Post eval report as PR comment
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('eval_report.md')) {
+              core.info('No eval report produced; skipping comment.');
+              return;
+            }
+            const body = fs.readFileSync('eval_report.md', 'utf8').slice(0, 60000);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Eval scorecard\n\n${body}`,
+            });
+
+      # Always upload the raw JSON dump so future runs can rescore it
+      # (via --skip-llm --input-json) without burning credits.
+      - name: Upload eval artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: |
+            eval_run.json
+            eval_report.md
+          retention-days: 30

@@ -1,0 +1,2774 @@
+{
+  "turn_index": 5,
+  "user_message": "build a sci-fi laser pistol with greebles",
+  "started_at": "2026-05-27T20:26:33Z",
+  "finished_at": "2026-05-27T20:35:22Z",
+  "intent": "hard_surface_model",
+  "persona": "hard_surface_artist",
+  "model": "claude-opus-4-7",
+  "routing_reason": "execution-default (intent=hard_surface_model, plan=trial)",
+  "spec": {
+    "subject": "a sci-fi laser pistol with greeble surface detail",
+    "framing": {
+      "camera": "low three-quarter front, slight upward tilt",
+      "lens_mm": 85,
+      "angle": "hero product reveal"
+    },
+    "lighting": {
+      "time_of_day": "studio neutral",
+      "key": "cool blue-white from camera-left, 6500K, strong directional to catch hard-surface bevels",
+      "fill": "warm amber bounce from camera-right, 3200K, one-third key intensity, softens shadow side",
+      "rim": "tight cyan rim light from rear-right separating barrel tip and grip from dark background",
+      "mood": "dramatic"
+    },
+    "palette": {
+      "dominant": "matte gunmetal dark grey #2A2D30-ish with subtle metallic sheen",
+      "accent": "glowing cyan energy cell and emissive barrel aperture #00E5FF-ish",
+      "neutral": "near-black void background with faint dark-blue vignette"
+    },
+    "composition": {
+      "foreground": "shallow-focus floor reflection catching cyan emissive glow",
+      "midground": "the laser pistol body centered and angled 30-degrees, occupying 70% of frame",
+      "background": "pure dark studio void, no distraction",
+      "hero": "the glowing cyan barrel aperture and emitter ring \u2014 the eye's first anchor"
+    },
+    "materials": [
+      {
+        "on": "main pistol body and frame",
+        "type": "anodized matte hard metal",
+        "notes": "roughness 0.45, metallic 0.95, fine micro-scratch normal map, controlled bevels 0.5mm real-world, subtle edge wear on corners"
+      },
+      {
+        "on": "greeble panels and surface insets",
+        "type": "machined aluminium with panel-seam recesses",
+        "notes": "roughness 0.35, metallic 1.0, panel seams 0.3mm deep, small bolts and vent slats baked into high-poly or modeled as geo"
+      },
+      {
+        "on": "energy cell / power pack",
+        "type": "translucent glowing polymer",
+        "notes": "emissive cyan #00E5FF at strength 4.0, glass-like surface roughness 0.05, inner volumetric glow effect"
+      },
+      {
+        "on": "grip / handle",
+        "type": "rubberised tactical polymer",
+        "notes": "roughness 0.85, metallic 0.0, diamond-knurl displacement texture, slight subsurface scatter for rubber feel"
+      },
+      {
+        "on": "barrel emitter ring",
+        "type": "polished dark steel with emissive inner ring",
+        "notes": "outer ring roughness 0.2 metallic 1.0, inner channel emissive cyan strength 8.0, tight chamfer bevel"
+      }
+    ],
+    "density": {
+      "scattered": "none \u2014 isolated hero prop, no scatter elements",
+      "control": "n/a"
+    },
+    "scale_notes": "Pistol is approximately 28cm long, 14cm tall grip-to-slide, 4cm wide. Real-world scale critical for correct bevel sizes and greeble proportions. Scene reads at roughly 50cm wide from camera at 85mm focal length."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              2.200000047683716,
+              -1.7999999523162842,
+              0.3499999940395355
+            ],
+            "rotation": [
+              1.4660766124725342,
+              0.0,
+              0.9075711965560913
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Motorcycle",
+            "type": "EMPTY",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Bike.Frame.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Sub.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Frame.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Sub.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Headstock",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Engine",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "BEVEL",
+                "name": "Bevel",
+                "angle_limit": 0.5235987901687622
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.CylHead",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fins",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.3490658402442932,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "ARRAY",
+                "name": "Array",
+                "count": 9
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.OilPan",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Tank",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 482,
+            "polygon_count": 512
+          },
+          {
+            "name": "Bike.Seat",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Seat"
+            ],
+            "material_shaders": [
+              {
+                "name": "Seat",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fairing.Nose",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 178,
+            "polygon_count": 192
+          },
+          {
+            "name": "Bike.Fairing.L",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fairing.R",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Tail",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Windscreen",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Windscreen"
+            ],
+            "material_shaders": [
+              {
+                "name": "Windscreen",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 128,
+            "polygon_count": 140
+          },
+          {
+            "name": "Bike.FW.Tire",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Rubber"
+            ],
+            "material_shaders": [
+              {
+                "name": "Rubber",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 504,
+            "polygon_count": 504
+          },
+          {
+            "name": "Bike.FW.Rim",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.FW.Disc",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.RW.Tire",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Rubber"
+            ],
+            "material_shaders": [
+              {
+                "name": "Rubber",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 504,
+            "polygon_count": 504
+          },
+          {
+            "name": "Bike.RW.Rim",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.RW.Disc",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Fork.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "GoldFork.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "GoldFork.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Fork.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "GoldFork.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "GoldFork.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Swing.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Swing.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.1",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.2",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.3",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.4",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Muffler",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Handlebar",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "BlackPanel.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "BlackPanel.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Chain",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "BlackPanel.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "BlackPanel.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Road",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Road"
+            ],
+            "material_shaders": [
+              {
+                "name": "Road",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Key_Sun",
+            "type": "LIGHT",
+            "location": [
+              5.0,
+              -3.0,
+              6.0
+            ],
+            "rotation": [
+              0.5235987901687622,
+              0.1745329201221466,
+              -0.6108652353286743
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Fill_Sky",
+            "type": "LIGHT",
+            "location": [
+              -3.0,
+              3.0,
+              3.0
+            ],
+            "rotation": [
+              0.9599310755729675,
+              0.0,
+              2.6179938316345215
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Rim_Light",
+            "type": "LIGHT",
+            "location": [
+              -2.5,
+              -0.5,
+              2.5
+            ],
+            "rotation": [
+              0.7853981852531433,
+              0.0,
+              -2.96705961227417
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": null,
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 256
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": true,
+          "background_color": [
+            0.012000000104308128,
+            0.012000000104308128,
+            0.014000000432133675,
+            1.0
+          ],
+          "background_strength": 0.5,
+          "hdri_name": "2k.hdr.001"
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 2125,
+      "notes": ""
+    },
+    {
+      "iteration_index": 1,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              2.200000047683716,
+              -1.7999999523162842,
+              0.3499999940395355
+            ],
+            "rotation": [
+              1.4660766124725342,
+              0.0,
+              0.9075711965560913
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Motorcycle",
+            "type": "EMPTY",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Bike.Frame.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Sub.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Frame.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Sub.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Headstock",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Engine",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "BEVEL",
+                "name": "Bevel",
+                "angle_limit": 0.5235987901687622
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.CylHead",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fins",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.3490658402442932,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "ARRAY",
+                "name": "Array",
+                "count": 9
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.OilPan",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Tank",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 482,
+            "polygon_count": 512
+          },
+          {
+            "name": "Bike.Seat",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "Seat"
+            ],
+            "material_shaders": [
+              {
+                "name": "Seat",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fairing.Nose",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 178,
+            "polygon_count": 192
+          },
+          {
+            "name": "Bike.Fairing.L",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Fairing.R",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Bike.Tail",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Motorcycle",
+            "materials": [
+              "RedFairing"
+            ],
+            "material_shaders": [
+              {
+                "name": "RedFairing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Windscreen",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Windscreen"
+            ],
+            "material_shaders": [
+              {
+                "name": "Windscreen",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 128,
+            "polygon_count": 140
+          },
+          {
+            "name": "Bike.FW.Tire",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Rubber"
+            ],
+            "material_shaders": [
+              {
+                "name": "Rubber",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 504,
+            "polygon_count": 504
+          },
+          {
+            "name": "Bike.FW.Rim",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.FW.Disc",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.RW.Tire",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Rubber"
+            ],
+            "material_shaders": [
+              {
+                "name": "Rubber",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 504,
+            "polygon_count": 504
+          },
+          {
+            "name": "Bike.RW.Rim",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Chrome.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "Chrome.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.RW.Disc",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Aluminum"
+            ],
+            "material_shaders": [
+              {
+                "name": "Aluminum",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Fork.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "GoldFork.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "GoldFork.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Fork.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "GoldFork.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "GoldFork.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Swing.L",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Swing.R",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Frame"
+            ],
+            "material_shaders": [
+              {
+                "name": "Frame",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.1",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.2",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.3",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Exh.4",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Muffler",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "Exhaust"
+            ],
+            "material_shaders": [
+              {
+                "name": "Exhaust",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 64,
+            "polygon_count": 34
+          },
+          {
+            "name": "Bike.Handlebar",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "BlackPanel.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "BlackPanel.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Bike.Chain",
+            "type": "CURVE",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Motorcycle",
+            "materials": [
+              "BlackPanel.001"
+            ],
+            "material_shaders": [
+              {
+                "name": "BlackPanel.001",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ]
+          },
+          {
+            "name": "Road",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Road"
+            ],
+            "material_shaders": [
+              {
+                "name": "Road",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Key_Sun",
+            "type": "LIGHT",
+            "location": [
+              5.0,
+              -3.0,
+              6.0
+            ],
+            "rotation": [
+              0.5235987901687622,
+              0.1745329201221466,
+              -0.6108652353286743
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Fill_Sky",
+            "type": "LIGHT",
+            "location": [
+              -3.0,
+              3.0,
+              3.0
+            ],
+            "rotation": [
+              0.9599310755729675,
+              0.0,
+              2.6179938316345215
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Rim_Light",
+            "type": "LIGHT",
+            "location": [
+              -2.5,
+              -0.5,
+              2.5
+            ],
+            "rotation": [
+              0.7853981852531433,
+              0.0,
+              -2.96705961227417
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": null,
+        "mode": "OBJECT",
+        "render": {
+          "engine": "CYCLES",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 256
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": true,
+          "background_color": [
+            0.012000000104308128,
+            0.012000000104308128,
+            0.014000000432133675,
+            1.0
+          ],
+          "background_strength": 0.5,
+          "hdri_name": "2k.hdr.001"
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 32,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "success",
+  "error_message": "",
+  "script_rescue_triggered": false
+}

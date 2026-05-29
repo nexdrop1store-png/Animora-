@@ -1,0 +1,5424 @@
+{
+  "turn_index": 24,
+  "user_message": "set up a three-point studio lighting for a portrait",
+  "started_at": "2026-05-28T10:44:44Z",
+  "finished_at": "2026-05-28T10:52:02Z",
+  "intent": "unknown",
+  "persona": "generalist",
+  "model": "claude-sonnet-4-6",
+  "routing_reason": "non-execution-default (plan=trial)",
+  "spec": {
+    "subject": "a studio portrait subject (implied human bust/head) under classic three-point lighting",
+    "framing": {
+      "camera": "eye-level slight three-quarter front",
+      "lens_mm": 85,
+      "angle": "portrait hero shot"
+    },
+    "lighting": {
+      "time_of_day": "studio neutral",
+      "key": "warm-neutral area light at 45\u00b0 camera-left and 45\u00b0 above subject, 5500K, full intensity, soft large source (~0.6m\u00b2) to wrap slightly without losing shape",
+      "fill": "cool-tinted area light at 30\u00b0 camera-right, 7000K, 0.4\u00d7 key intensity, positioned at face height to reduce harsh shadow depth without flattening form",
+      "rim": "backlight placed directly behind-right of subject, 6000K, 0.6\u00d7 key intensity, narrow strip light to create edge separation from background and add depth",
+      "mood": "intimate and polished \u2014 classic Rembrandt-adjacent drama without being ominous; clean and professional"
+    },
+    "palette": {
+      "dominant": "warm skin-tone mid-value neutrals, approximately #C49A7A-ish",
+      "accent": "cool grey-blue shadow areas, approximately #4A5A6B-ish",
+      "neutral": "medium dark grey seamless background, approximately #2A2A2A"
+    },
+    "composition": {
+      "foreground": "shallow empty space between camera and subject \u2014 no foreground clutter",
+      "midground": "portrait subject centered with slight offset toward camera-right to complement key light direction",
+      "background": "seamless dark grey studio backdrop, soft and out of focus to isolate subject",
+      "hero": "the lit side of the subject's face \u2014 the key-lit cheek and eye catch"
+    },
+    "materials": [
+      {
+        "on": "studio backdrop / background plane",
+        "type": "matte seamless paper",
+        "notes": "roughness 1.0, no specularity, very dark grey base color (~0.06 value), slight vignette falloff toward edges via light placement"
+      },
+      {
+        "on": "key light fixture",
+        "type": "large soft box area light",
+        "notes": "area light ~0.6m \u00d7 0.6m, positioned 1.2m from subject, 5500K, shadows soft"
+      },
+      {
+        "on": "fill light fixture",
+        "type": "medium soft box area light",
+        "notes": "area light ~0.4m \u00d7 0.4m, positioned 1.5m from subject, 7000K, intensity 40% of key"
+      },
+      {
+        "on": "rim light fixture",
+        "type": "narrow strip area light",
+        "notes": "area light ~0.2m \u00d7 0.8m, positioned 0.9m behind-right of subject at head height, 6000K, intensity 60% of key"
+      }
+    ],
+    "density": {
+      "scattered": "none \u2014 clean studio environment, no scattered elements",
+      "control": "N/A"
+    },
+    "scale_notes": "Portrait subject (head/bust stand-in) approximately 1.7m tall total; camera placed ~1.8m from subject. Key light at ~1.2m lateral offset and 1.0m above eye level. Rim light ~0.8m behind subject. Entire scene footprint roughly 3m \u00d7 3m. Current scene Cube can serve as subject placeholder at 1.7m scale."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Dragon",
+            "type": "EMPTY",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Dragon.Body",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.18000000715255737
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.14000000059604645,
+              0.11999999731779099,
+              0.20000000298023224
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Belly",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.03999999910593033,
+              0.14000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.10000000149011612,
+              0.07999999821186066,
+              0.15000000596046448
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Belly"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Belly",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Neck",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.029999999329447746,
+              0.3400000035762787
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.054999999701976776,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Head",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.05999999865889549,
+              0.41999998688697815
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.09000000357627869,
+              0.07999999821186066,
+              0.07999999821186066
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Snout",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.38999998569488525
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05000000074505806,
+              0.03999999910593033,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Nostril.L",
+            "type": "MESH",
+            "location": [
+              -0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.Nostril.R",
+            "type": "MESH",
+            "location": [
+              0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.EyeWhite.L",
+            "type": "MESH",
+            "location": [
+              -0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.EyeWhite.R",
+            "type": "MESH",
+            "location": [
+              0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.L",
+            "type": "MESH",
+            "location": [
+              -0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.R",
+            "type": "MESH",
+            "location": [
+              0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Horn.L",
+            "type": "MESH",
+            "location": [
+              -0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Horn.R",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Ear.L",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              0.4000000059604645,
+              -0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Ear.R",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              -0.4000000059604645,
+              0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Leg.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Leg.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Paw.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Leg.HL",
+            "type": "MESH",
+            "location": [
+              -0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Leg.HR",
+            "type": "MESH",
+            "location": [
+              0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Paw.HL",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.HR",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Claw.FL_0",
+            "type": "MESH",
+            "location": [
+              -0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_1",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_2",
+            "type": "MESH",
+            "location": [
+              -0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_0",
+            "type": "MESH",
+            "location": [
+              0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_1",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_2",
+            "type": "MESH",
+            "location": [
+              0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tail_0",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.10000000149011612,
+              0.07999999821186066
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03799999877810478,
+              0.04560000076889992,
+              0.03799999877810478
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_1",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03200000151991844,
+              0.03840000182390213,
+              0.03200000151991844
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_2",
+            "type": "MESH",
+            "location": [
+              0.07999999821186066,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.026000000536441803,
+              0.031199999153614044,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_3",
+            "type": "MESH",
+            "location": [
+              0.11999999731779099,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.019999999552965164,
+              0.024000000208616257,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_4",
+            "type": "MESH",
+            "location": [
+              0.15000000596046448,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.014000000432133675,
+              0.01679999940097332,
+              0.014000000432133675
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.TailTip",
+            "type": "MESH",
+            "location": [
+              0.17000000178813934,
+              0.11999999731779099,
+              0.07000000029802322
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              -0.5
+            ],
+            "scale": [
+              0.017999999225139618,
+              0.004999999888241291,
+              0.02199999988079071
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.WingBone.L",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingBone.R",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingMem.L",
+            "type": "MESH",
+            "location": [
+              -0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.WingMem.R",
+            "type": "MESH",
+            "location": [
+              0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              -0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.Jaw",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.375
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.029999999329447746,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tooth_0",
+            "type": "MESH",
+            "location": [
+              -0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_1",
+            "type": "MESH",
+            "location": [
+              -0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_2",
+            "type": "MESH",
+            "location": [
+              0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_3",
+            "type": "MESH",
+            "location": [
+              0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Studio.Ground",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              -0.029999999329447746
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Studio.Ground"
+            ],
+            "material_shaders": [
+              {
+                "name": "Studio.Ground",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Light.Key",
+            "type": "LIGHT",
+            "location": [
+              -0.6000000238418579,
+              -0.5,
+              0.699999988079071
+            ],
+            "rotation": [
+              0.8726646304130554,
+              -0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Fill",
+            "type": "LIGHT",
+            "location": [
+              0.6000000238418579,
+              -0.30000001192092896,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.6981316804885864,
+              0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Rim",
+            "type": "LIGHT",
+            "location": [
+              0.0,
+              0.699999988079071,
+              0.6000000238418579
+            ],
+            "rotation": [
+              2.268928050994873,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              0.20000000298023224,
+              -0.75,
+              0.2199999988079071
+            ],
+            "rotation": [
+              1.6094263792037964,
+              -2.419617572968491e-08,
+              0.2606023848056793
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [],
+            "material_shaders": [],
+            "vertex_count": 8,
+            "polygon_count": 6
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.550000011920929,
+            0.5299999713897705,
+            0.5,
+            1.0
+          ],
+          "background_strength": 0.30000001192092896
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 19,
+      "notes": ""
+    },
+    {
+      "iteration_index": 1,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Dragon",
+            "type": "EMPTY",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Dragon.Body",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.18000000715255737
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.14000000059604645,
+              0.11999999731779099,
+              0.20000000298023224
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Belly",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.03999999910593033,
+              0.14000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.10000000149011612,
+              0.07999999821186066,
+              0.15000000596046448
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Belly"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Belly",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Neck",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.029999999329447746,
+              0.3400000035762787
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.054999999701976776,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Head",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.05999999865889549,
+              0.41999998688697815
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.09000000357627869,
+              0.07999999821186066,
+              0.07999999821186066
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Snout",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.38999998569488525
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05000000074505806,
+              0.03999999910593033,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Nostril.L",
+            "type": "MESH",
+            "location": [
+              -0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.Nostril.R",
+            "type": "MESH",
+            "location": [
+              0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.EyeWhite.L",
+            "type": "MESH",
+            "location": [
+              -0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.EyeWhite.R",
+            "type": "MESH",
+            "location": [
+              0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.L",
+            "type": "MESH",
+            "location": [
+              -0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.R",
+            "type": "MESH",
+            "location": [
+              0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Horn.L",
+            "type": "MESH",
+            "location": [
+              -0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Horn.R",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Ear.L",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              0.4000000059604645,
+              -0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Ear.R",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              -0.4000000059604645,
+              0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Leg.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Leg.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Paw.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Leg.HL",
+            "type": "MESH",
+            "location": [
+              -0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Leg.HR",
+            "type": "MESH",
+            "location": [
+              0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Paw.HL",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.HR",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Claw.FL_0",
+            "type": "MESH",
+            "location": [
+              -0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_1",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_2",
+            "type": "MESH",
+            "location": [
+              -0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_0",
+            "type": "MESH",
+            "location": [
+              0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_1",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_2",
+            "type": "MESH",
+            "location": [
+              0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tail_0",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.10000000149011612,
+              0.07999999821186066
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03799999877810478,
+              0.04560000076889992,
+              0.03799999877810478
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_1",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03200000151991844,
+              0.03840000182390213,
+              0.03200000151991844
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_2",
+            "type": "MESH",
+            "location": [
+              0.07999999821186066,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.026000000536441803,
+              0.031199999153614044,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_3",
+            "type": "MESH",
+            "location": [
+              0.11999999731779099,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.019999999552965164,
+              0.024000000208616257,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_4",
+            "type": "MESH",
+            "location": [
+              0.15000000596046448,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.014000000432133675,
+              0.01679999940097332,
+              0.014000000432133675
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.TailTip",
+            "type": "MESH",
+            "location": [
+              0.17000000178813934,
+              0.11999999731779099,
+              0.07000000029802322
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              -0.5
+            ],
+            "scale": [
+              0.017999999225139618,
+              0.004999999888241291,
+              0.02199999988079071
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.WingBone.L",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingBone.R",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingMem.L",
+            "type": "MESH",
+            "location": [
+              -0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.WingMem.R",
+            "type": "MESH",
+            "location": [
+              0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              -0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.Jaw",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.375
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.029999999329447746,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tooth_0",
+            "type": "MESH",
+            "location": [
+              -0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_1",
+            "type": "MESH",
+            "location": [
+              -0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_2",
+            "type": "MESH",
+            "location": [
+              0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_3",
+            "type": "MESH",
+            "location": [
+              0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Studio.Ground",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              -0.029999999329447746
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Studio.Ground"
+            ],
+            "material_shaders": [
+              {
+                "name": "Studio.Ground",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Light.Key",
+            "type": "LIGHT",
+            "location": [
+              -0.6000000238418579,
+              -0.5,
+              0.699999988079071
+            ],
+            "rotation": [
+              0.8726646304130554,
+              -0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Fill",
+            "type": "LIGHT",
+            "location": [
+              0.6000000238418579,
+              -0.30000001192092896,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.6981316804885864,
+              0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Rim",
+            "type": "LIGHT",
+            "location": [
+              0.0,
+              0.699999988079071,
+              0.6000000238418579
+            ],
+            "rotation": [
+              2.268928050994873,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              0.20000000298023224,
+              -0.75,
+              0.2199999988079071
+            ],
+            "rotation": [
+              1.6094263792037964,
+              -2.419617572968491e-08,
+              0.2606023848056793
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [],
+            "material_shaders": [],
+            "vertex_count": 8,
+            "polygon_count": 6
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.550000011920929,
+            0.5299999713897705,
+            0.5,
+            1.0
+          ],
+          "background_strength": 0.30000001192092896
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 403,
+      "notes": ""
+    },
+    {
+      "iteration_index": 2,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Dragon",
+            "type": "EMPTY",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Dragon.Body",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.18000000715255737
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.14000000059604645,
+              0.11999999731779099,
+              0.20000000298023224
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Belly",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.03999999910593033,
+              0.14000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.10000000149011612,
+              0.07999999821186066,
+              0.15000000596046448
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Belly"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Belly",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Neck",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.029999999329447746,
+              0.3400000035762787
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.054999999701976776,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Head",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.05999999865889549,
+              0.41999998688697815
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.09000000357627869,
+              0.07999999821186066,
+              0.07999999821186066
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 266,
+            "polygon_count": 288
+          },
+          {
+            "name": "Dragon.Snout",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.38999998569488525
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.05000000074505806,
+              0.03999999910593033,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [
+              {
+                "type": "SUBSURF",
+                "name": "Subsurf",
+                "levels": 2
+              }
+            ],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Nostril.L",
+            "type": "MESH",
+            "location": [
+              -0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.Nostril.R",
+            "type": "MESH",
+            "location": [
+              0.014999999664723873,
+              -0.14499999582767487,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.009999999776482582,
+              0.00800000037997961,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 26,
+            "polygon_count": 32
+          },
+          {
+            "name": "Dragon.EyeWhite.L",
+            "type": "MESH",
+            "location": [
+              -0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.EyeWhite.R",
+            "type": "MESH",
+            "location": [
+              0.04800000041723251,
+              -0.10000000149011612,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.02800000086426735,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.EyeWhite"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.EyeWhite",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.L",
+            "type": "MESH",
+            "location": [
+              -0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Eye.R",
+            "type": "MESH",
+            "location": [
+              0.05000000074505806,
+              -0.10499999672174454,
+              0.4399999976158142
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02199999988079071,
+              0.02199999988079071,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Eye"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Eye",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 114,
+            "polygon_count": 128
+          },
+          {
+            "name": "Dragon.Horn.L",
+            "type": "MESH",
+            "location": [
+              -0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Horn.R",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.009999999776482582,
+              0.5
+            ],
+            "rotation": [
+              0.30000001192092896,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.014999999664723873,
+              0.014999999664723873,
+              0.05999999865889549
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 9,
+            "polygon_count": 9
+          },
+          {
+            "name": "Dragon.Ear.L",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              0.4000000059604645,
+              -0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Ear.R",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.019999999552965164,
+              0.44999998807907104
+            ],
+            "rotation": [
+              0.0,
+              -0.4000000059604645,
+              0.30000001192092896
+            ],
+            "scale": [
+              0.029999999329447746,
+              0.004999999888241291,
+              0.02500000037252903
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Leg.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Leg.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.05000000074505806,
+              0.03999999910593033
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.02800000086426735,
+              0.02800000086426735,
+              0.07000000029802322
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 24,
+            "polygon_count": 14
+          },
+          {
+            "name": "Dragon.Paw.FL",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.FR",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.07000000029802322,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.03999999910593033,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Leg.HL",
+            "type": "MESH",
+            "location": [
+              -0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Leg.HR",
+            "type": "MESH",
+            "location": [
+              0.10000000149011612,
+              0.009999999776482582,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.04500000178813934,
+              0.05000000074505806,
+              0.03999999910593033
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 62,
+            "polygon_count": 72
+          },
+          {
+            "name": "Dragon.Paw.HL",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Paw.HR",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              -0.029999999329447746,
+              -0.019999999552965164
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.04500000178813934,
+              0.017999999225139618
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Claw.FL_0",
+            "type": "MESH",
+            "location": [
+              -0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_1",
+            "type": "MESH",
+            "location": [
+              -0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FL_2",
+            "type": "MESH",
+            "location": [
+              -0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_0",
+            "type": "MESH",
+            "location": [
+              0.057999998331069946,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_1",
+            "type": "MESH",
+            "location": [
+              0.07000000029802322,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Claw.FR_2",
+            "type": "MESH",
+            "location": [
+              0.0820000022649765,
+              -0.0949999988079071,
+              -0.02500000037252903
+            ],
+            "rotation": [
+              0.4000000059604645,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004999999888241291,
+              0.004999999888241291,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tail_0",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.10000000149011612,
+              0.07999999821186066
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03799999877810478,
+              0.04560000076889992,
+              0.03799999877810478
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_1",
+            "type": "MESH",
+            "location": [
+              0.03999999910593033,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03200000151991844,
+              0.03840000182390213,
+              0.03200000151991844
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_2",
+            "type": "MESH",
+            "location": [
+              0.07999999821186066,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.026000000536441803,
+              0.031199999153614044,
+              0.026000000536441803
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_3",
+            "type": "MESH",
+            "location": [
+              0.11999999731779099,
+              0.18000000715255737,
+              0.05000000074505806
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.019999999552965164,
+              0.024000000208616257,
+              0.019999999552965164
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tail_4",
+            "type": "MESH",
+            "location": [
+              0.15000000596046448,
+              0.15000000596046448,
+              0.05999999865889549
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.014000000432133675,
+              0.01679999940097332,
+              0.014000000432133675
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.TailTip",
+            "type": "MESH",
+            "location": [
+              0.17000000178813934,
+              0.11999999731779099,
+              0.07000000029802322
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              -0.5
+            ],
+            "scale": [
+              0.017999999225139618,
+              0.004999999888241291,
+              0.02199999988079071
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.WingBone.L",
+            "type": "MESH",
+            "location": [
+              -0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingBone.R",
+            "type": "MESH",
+            "location": [
+              0.09000000357627869,
+              0.05000000074505806,
+              0.30000001192092896
+            ],
+            "rotation": [
+              0.699999988079071,
+              -0.20000000298023224,
+              0.0
+            ],
+            "scale": [
+              0.012000000104308128,
+              0.012000000104308128,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 16,
+            "polygon_count": 10
+          },
+          {
+            "name": "Dragon.WingMem.L",
+            "type": "MESH",
+            "location": [
+              -0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.WingMem.R",
+            "type": "MESH",
+            "location": [
+              0.10999999940395355,
+              0.03999999910593033,
+              0.23999999463558197
+            ],
+            "rotation": [
+              0.15000000596046448,
+              -0.10000000149011612,
+              0.0
+            ],
+            "scale": [
+              0.05999999865889549,
+              0.004999999888241291,
+              0.10000000149011612
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Wing"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Wing",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Dragon.Jaw",
+            "type": "MESH",
+            "location": [
+              0.0,
+              -0.11999999731779099,
+              0.375
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.03500000014901161,
+              0.029999999329447746,
+              0.012000000104308128
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Scales"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Scales",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 42,
+            "polygon_count": 50
+          },
+          {
+            "name": "Dragon.Tooth_0",
+            "type": "MESH",
+            "location": [
+              -0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_1",
+            "type": "MESH",
+            "location": [
+              -0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_2",
+            "type": "MESH",
+            "location": [
+              0.004000000189989805,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Dragon.Tooth_3",
+            "type": "MESH",
+            "location": [
+              0.012000000104308128,
+              -0.13500000536441803,
+              0.38199999928474426
+            ],
+            "rotation": [
+              3.1415927410125732,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              0.004000000189989805,
+              0.004000000189989805,
+              0.00800000037997961
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": "Dragon",
+            "materials": [
+              "Dragon.Bone"
+            ],
+            "material_shaders": [
+              {
+                "name": "Dragon.Bone",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 7,
+            "polygon_count": 7
+          },
+          {
+            "name": "Studio.Ground",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              -0.029999999329447746
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Studio.Ground"
+            ],
+            "material_shaders": [
+              {
+                "name": "Studio.Ground",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 4,
+            "polygon_count": 1
+          },
+          {
+            "name": "Light.Key",
+            "type": "LIGHT",
+            "location": [
+              -0.6000000238418579,
+              -0.5,
+              0.699999988079071
+            ],
+            "rotation": [
+              0.8726646304130554,
+              -0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Fill",
+            "type": "LIGHT",
+            "location": [
+              0.6000000238418579,
+              -0.30000001192092896,
+              0.4000000059604645
+            ],
+            "rotation": [
+              0.6981316804885864,
+              0.5235987901687622,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Light.Rim",
+            "type": "LIGHT",
+            "location": [
+              0.0,
+              0.699999988079071,
+              0.6000000238418579
+            ],
+            "rotation": [
+              2.268928050994873,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              0.20000000298023224,
+              -0.75,
+              0.2199999988079071
+            ],
+            "rotation": [
+              1.6094263792037964,
+              -2.419617572968491e-08,
+              0.2606023848056793
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [],
+            "material_shaders": [],
+            "vertex_count": 8,
+            "polygon_count": 6
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.550000011920929,
+            0.5299999713897705,
+            0.5,
+            1.0
+          ],
+          "background_strength": 0.30000001192092896
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 25,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "error",
+  "error_message": "unknown: Unexpected error: WebSocketDisconnect: ",
+  "script_rescue_triggered": false
+}

@@ -1,0 +1,9 @@
+;!@Install@!UTF-8!
+Title="Animora Setup"
+BeginPrompt="Install Animora 5.1.1 to your computer?\n\nThis will install Animora to your local AppData folder and create Desktop / Start Menu shortcuts."
+ExtractTitle="Animora Setup"
+ExtractDialogText="Extracting Animora files..."
+ExtractCancelText="Cancel"
+GUIFlags="64+8"
+RunProgram="setup.bat"
+;!@InstallEnd@!

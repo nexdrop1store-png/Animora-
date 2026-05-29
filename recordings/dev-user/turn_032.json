@@ -1,0 +1,183 @@
+{
+  "turn_index": 32,
+  "user_message": "try the absolute minimum test. make it complex",
+  "started_at": "2026-05-28T11:55:57Z",
+  "finished_at": "2026-05-28T12:00:31Z",
+  "intent": "dense_scene",
+  "persona": "environment_artist",
+  "model": "claude-opus-4-7",
+  "routing_reason": "execution-default (intent=dense_scene, plan=trial)",
+  "spec": {
+    "subject": "a single grey cube \u2014 the absolute minimum 3D primitive \u2014 rendered with maximum material, lighting, and environmental complexity",
+    "framing": {
+      "camera": "low three-quarter front, slightly below equator of the cube",
+      "lens_mm": 85,
+      "angle": "hero shot"
+    },
+    "lighting": {
+      "time_of_day": "golden hour",
+      "key": "warm directional sun from camera-left, 5500K, high intensity casting hard shadow",
+      "fill": "cool sky bounce from camera-right, 8000K, 30% of key intensity, soft and diffuse",
+      "rim": "strong warm backlight from camera-right-rear, 6000K, separating cube edges from background",
+      "mood": "dramatic"
+    },
+    "palette": {
+      "dominant": "warm amber and burnt sienna ground plane \u2014 #C8873A-ish",
+      "accent": "deep blue-violet shadow sides of cube \u2014 #2E2A4F-ish",
+      "neutral": "hazy ochre-tinted sky horizon, softly overblown at sun position"
+    },
+    "composition": {
+      "foreground": "cracked dry earth with fine dust particles catching backlight, scattered micro-pebbles",
+      "midground": "the cube sitting directly on terrain, casting a long dramatic shadow toward camera",
+      "background": "low horizon, atmospheric haze, faint distant hills implied by depth fog",
+      "hero": "the cube itself \u2014 one illuminated face, one shadowed face, one rim-lit edge"
+    },
+    "materials": [
+      {
+        "on": "Cube",
+        "type": "rough concrete with surface micro-detail",
+        "notes": "roughness 0.85, subtle normal-mapped surface noise at 0.5mm scale, no specularity, slight subsurface scatter near edges where light bleeds"
+      },
+      {
+        "on": "ground plane / terrain",
+        "type": "cracked dry clay earth",
+        "notes": "procedural crack pattern, displacement 2\u20134mm depth, roughness 0.95, warm sandy base with darker crack crevices, dust particle layer on top"
+      },
+      {
+        "on": "atmosphere / volume",
+        "type": "volumetric scatter fog",
+        "notes": "very low density, anisotropy 0.3 forward scatter, warm tint at horizon, contributes depth separation between cube and background"
+      }
+    ],
+    "density": {
+      "scattered": "small rocks and pebbles \u2014 sparse in foreground, thinning toward midground; fine dust/sand particles suspended near ground, light density",
+      "control": "natural random rotation on all axes, scale variation 0.3x\u20131.8x per rock, no grid; cluster bias near cube base organically, Poisson-disk spacing minimum"
+    },
+    "scale_notes": "Cube is exactly 1m \u00d7 1m \u00d7 1m (Blender default scale). Ground plane extends 20m in each direction from cube. Camera sits roughly 5m back and 0.4m below cube equator. Pebbles range 3\u201315cm diameter. Scene total read: approximately 10m wide in frame."
+  },
+  "iterations": [
+    {
+      "iteration_index": 0,
+      "scene_graph_before": {
+        "scene_name": "Scene",
+        "frame_current": 1,
+        "frame_start": 1,
+        "frame_end": 250,
+        "objects": [
+          {
+            "name": "Cube",
+            "type": "MESH",
+            "location": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": true,
+            "modifiers": [],
+            "parent": null,
+            "materials": [
+              "Material"
+            ],
+            "material_shaders": [
+              {
+                "name": "Material",
+                "use_nodes": true,
+                "surface_shader": "BSDF_PRINCIPLED"
+              }
+            ],
+            "vertex_count": 8,
+            "polygon_count": 6
+          },
+          {
+            "name": "Light",
+            "type": "LIGHT",
+            "location": [
+              4.076245307922363,
+              1.0054539442062378,
+              5.903861999511719
+            ],
+            "rotation": [
+              0.6503279805183411,
+              0.055217113345861435,
+              1.8663908243179321
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          },
+          {
+            "name": "Camera",
+            "type": "CAMERA",
+            "location": [
+              7.358891487121582,
+              -6.925790786743164,
+              4.958309173583984
+            ],
+            "rotation": [
+              1.1093189716339111,
+              0.0,
+              0.8149281740188599
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "visible": true,
+            "selected": false,
+            "modifiers": [],
+            "parent": null
+          }
+        ],
+        "active_object": "Cube",
+        "mode": "OBJECT",
+        "render": {
+          "engine": "BLENDER_EEVEE",
+          "resolution_x": 1920,
+          "resolution_y": 1080,
+          "film_transparent": false,
+          "samples": 4096
+        },
+        "world": {
+          "name": "World",
+          "use_hdri": false,
+          "background_color": [
+            0.05087608844041824,
+            0.05087608844041824,
+            0.05087608844041824,
+            1.0
+          ],
+          "background_strength": 1.0
+        }
+      },
+      "scripts_emitted": [],
+      "tool_use_names": [],
+      "tool_results": [],
+      "hd_capture_filename": null,
+      "artists_eye_verdict": null,
+      "duration_ms": 69,
+      "notes": ""
+    }
+  ],
+  "final_review": null,
+  "outcome": "success",
+  "error_message": "",
+  "script_rescue_triggered": false
+}

@@ -41,17 +41,36 @@ _loaded: list = []
 
 def _import_modules() -> list:
     import importlib
+    # Pure utility modules — imported for their side-effect of being loadable;
+    # no register/unregister hooks. Doing the import here surfaces any
+    # import-time failures (missing `keyring`, etc.) during addon load.
+    from . import api_validator, credentials  # noqa: F401
+
     from . import (
+        ads,
         auth,
+        border_glow,
+        bundle,
         operators,
         panel,
         preferences,
+        preview_icons,
+        state,
         vision,
         ws_client,
     )
     from .ui import chat_display, properties as props_panel
 
-    return [preferences, auth, ws_client, vision, operators, panel, chat_display, props_panel]
+    # Registration order matters:
+    #   - preview_icons before panel (panel uses icon_value lookups)
+    #   - state before panel (panel reads state on draw)
+    #   - panel before border_glow / ads (both need SpaceAnimora active)
+    #   - bundle LAST: its auto-launch/auto-connect uses preferences, auth,
+    #     operators, ws_client — all must be registered first. No-op unless
+    #     a bundle_config.json shipped alongside the addon (recording build).
+    return [preferences, auth, ws_client, vision, preview_icons, state,
+            operators, panel, border_glow, ads, chat_display, props_panel,
+            bundle]
 
 
 def register() -> None:

@@ -1,0 +1,26 @@
+Windows Registry Editor Version 5.00
+
+; Animora — register .anim and .blend file extensions to open with Animora
+; Apply via: double-click this file, OR run `reg import animora_register_anim.reg`
+; Uninstall: see animora_unregister_anim.reg
+
+; ProgID definition: animorafile -> Animora.exe
+[HKEY_CURRENT_USER\Software\Classes\animorafile]
+@="Animora File"
+
+[HKEY_CURRENT_USER\Software\Classes\animorafile\DefaultIcon]
+@="\"C:\\Users\\Administrator\\Desktop\\Animora\\build\\windows\\bin\\blender.exe\",1"
+
+[HKEY_CURRENT_USER\Software\Classes\animorafile\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\animorafile\shell\open]
+
+[HKEY_CURRENT_USER\Software\Classes\animorafile\shell\open\command]
+@="\"C:\\Users\\Administrator\\Desktop\\Animora\\build\\windows\\bin\\blender.exe\" \"%1\""
+
+; .anim extension -> animorafile
+[HKEY_CURRENT_USER\Software\Classes\.anim]
+@="animorafile"
+
+[HKEY_CURRENT_USER\Software\Classes\.anim\OpenWithProgids]
+"animorafile"=""

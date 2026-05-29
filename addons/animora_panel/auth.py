@@ -97,6 +97,33 @@ def clear_tokens() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Dev-mode sign-in bypass
+# ---------------------------------------------------------------------------
+
+def dev_signin() -> None:
+    """Synthesise a local-dev session without going through PKCE.
+
+    Used when Preferences > Add-ons > Animora > Dev Mode is enabled. The
+    backend (`ai-backend/dev_server.py`) accepts any token string as a
+    trial-plan claim, so we use a placeholder access_token of "dev". No
+    keyring write — the synthetic token has no value and shouldn't persist
+    beyond the running session.
+
+    Production sign-in (PKCE → auth-server → real JWT) is unchanged.
+    """
+    session.user_id = "dev-user"
+    session.email = "dev@local"
+    session.plan = "trial"
+    session.trial_end = time.time() + 365 * 86400
+    session.access_token = "dev"
+    session.refresh_token = ""
+    session.token_expires_at = time.time() + 365 * 86400
+    session.device_id = "dev-device"
+    session.signed_in = True
+    log.info("Dev sign-in: synthetic session created (no PKCE, no auth-server)")
+
+
+# ---------------------------------------------------------------------------
 # PKCE helpers
 # ---------------------------------------------------------------------------
 
