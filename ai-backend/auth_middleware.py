@@ -20,6 +20,70 @@ class AuthError(Exception):
         self.code = code
 
 
+# ── Supabase token validation ───────────────────────────────────────────
+# The desktop app signs in via Supabase (PKCE device hand-off) and sends a
+# Supabase access token. Those are signed by Supabase, not our JWT_SECRET,
+# so the legacy decode_token() below can't verify them. We verify by asking
+# Supabase who the token belongs to (GET /auth/v1/user) — this uses the
+# PUBLIC publishable/anon key, needs no Supabase JWT secret, and works for
+# both HS256 and asymmetric Supabase projects.
+SUPABASE_URL = os.environ.get(
+    "SUPABASE_URL", "https://iyvchfmuyllovfoztbfw.supabase.co").rstrip("/")
+SUPABASE_ANON_KEY = os.environ.get(
+    "SUPABASE_ANON_KEY", "sb_publishable_23yhg9XIzsNmc9SbiDe-dg_tSFfAS59")
+# Free V1 plan for every signed-in user; paid tiers are server-authoritative later.
+_DEFAULT_PLAN = "free"
+
+
+def _looks_like_supabase(token: str) -> bool:
+    """Peek at the unverified issuer to route Supabase tokens to Supabase
+    validation (vs. our own dev/auth-server JWTs)."""
+    try:
+        iss = str(jwt.get_unverified_claims(token).get("iss", ""))
+    except JWTError:
+        return False
+    return "supabase" in iss or iss.endswith("/auth/v1")
+
+
+async def _validate_supabase(token: str) -> TokenClaims:
+    import httpx
+    try:
+        unverified = jwt.get_unverified_claims(token)
+    except JWTError as exc:
+        raise AuthError(f"Malformed token: {exc}", "invalid_token") from exc
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={"Authorization": f"Bearer {token}", "apikey": SUPABASE_ANON_KEY},
+            )
+    except Exception as exc:  # network / DNS
+        raise AuthError(f"Auth service unreachable: {exc}", "auth_unreachable") from exc
+    if resp.status_code != 200:
+        raise AuthError("Invalid or expired session", "invalid_token")
+    user = resp.json()
+    uid = user.get("id") or str(unverified.get("sub", ""))
+    if not uid:
+        raise AuthError("No user id in token", "invalid_token")
+    return TokenClaims(
+        user_id=uid,
+        plan=_DEFAULT_PLAN,
+        trial_end=None,
+        device_id=str((user.get("user_metadata") or {}).get("device_id", "")),
+        seats_used=1,
+        exp=float(unverified.get("exp", time.time() + 3600)),
+    )
+
+
+async def validate_token(token: str) -> TokenClaims:
+    """Single async entry point used by the WS handler. Routes Supabase
+    tokens to Supabase verification; everything else (dev_server / a future
+    auth-server) uses the local-JWT decode_token() below."""
+    if _looks_like_supabase(token):
+        return await _validate_supabase(token)
+    return decode_token(token)
+
+
 def decode_token(token: str) -> TokenClaims:
     # H5 — Enforce issuer + audience. python-jose validates both when the
     # `issuer` / `audience` kwargs are passed; if a claim is missing or

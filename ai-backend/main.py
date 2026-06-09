@@ -25,7 +25,7 @@ from .anthropic_client import (
     _classify_error,
     fingerprint_key,
 )
-from .auth_middleware import AuthError, check_plan_access, check_rate_limit, decode_token
+from .auth_middleware import AuthError, check_plan_access, check_rate_limit, validate_token
 from .config import settings
 from .key_source import NoKeyAvailable, pick_key
 from .observability import configure as configure_logging, logger
@@ -105,7 +105,7 @@ async def websocket_endpoint(
     # bogus token attacker can send. Failed handshakes close with a
     # generic 1008 (policy violation) and no body.
     try:
-        claims = decode_token(token)
+        claims = await validate_token(token)
         check_plan_access(claims)
     except AuthError as exc:
         log.info("ws.auth.rejected", extra={
