@@ -56,12 +56,21 @@ from ai_backend.config import settings
 from ai_backend.eval.benchmarks import BENCHMARKS, Benchmark
 from ai_backend.eval.scoring import (
     aggregate_by_category,
+    aggregate_cost_by_category,
+    aggregate_critic_by_category,
     compare_to_baseline,
+    estimate_cost_usd,
+    evaluate_targets,
     format_regression_report,
+    render_tool_calls_as_bpy,
     score_against_benchmark,
+    total_cost_usd,
 )
 from ai_backend.observability import configure
+from ai_backend.orchestrator.critic import reconstruct_scene_graph
+from ai_backend.orchestrator.events import bus
 from ai_backend.orchestrator.streaming import stream_response
+from ai_backend.orchestrator.tool_result_coordinator import ToolResultCoordinator
 from ai_backend.quality_enforcer import validate_script
 
 
@@ -97,6 +106,20 @@ class BenchmarkResult:
     notes: list[str] = field(default_factory=list)
     # The raw script in case we want to inspect later
     script_excerpt: str = ""
+    # Stage 3B — deterministic critic score on the reconstructed scene
+    # (0–1; -1.0 = not computed / escape-hatch build). Lets the eval
+    # report structural quality alongside the regex pass/fail.
+    critic_score: float = -1.0
+    critic_passed: bool = False
+    critic_errors: list[str] = field(default_factory=list)
+    # Stage 7 — was the FIRST executed step a sound foundation? (sane
+    # scale, valid parent). The brief: "the first action must establish
+    # the correct foundation." None = no execution step / not applicable.
+    first_step_ok: bool | None = None
+    # Stage 8 — estimated USD cost of this benchmark from model + tokens
+    # (list prices, cold cache → conservative upper bound). The secondary
+    # axis: optimised only after quality, never at its expense.
+    cost_usd: float = 0.0
 
     def score_summary(self) -> str:
         if self.ok:
@@ -129,6 +152,97 @@ def _apply_verdict(bench: Benchmark, result: BenchmarkResult, script: str) -> No
 
 # ── The actual runner ──────────────────────────────────────────────────
 
+# ── Phase B — real token usage (finding C fix) ──────────────────────────
+# stream_response emits an `llm.stream_completed` bus event per iteration
+# carrying the SDK's real input/output token counts + stop_reason. We
+# subscribe once and accumulate per session_id, so the eval reports REAL
+# tokens (and real truncation) instead of the old char-count estimate —
+# no signature change to stream_response, which keeps production untouched.
+_TOKEN_TOTALS: dict[str, dict[str, Any]] = {}
+_usage_listener_registered = False
+
+
+async def _accumulate_usage(payload: dict[str, Any]) -> None:
+    sid = payload.get("session_id", "")
+    if not sid:
+        return
+    acc = _TOKEN_TOTALS.setdefault(
+        sid, {"input": 0, "output": 0, "truncated": False, "model": ""})
+    acc["input"] += int(payload.get("input_tokens", 0) or 0)
+    acc["output"] += int(payload.get("output_tokens", 0) or 0)
+    if payload.get("stop_reason") == "max_tokens":
+        acc["truncated"] = True
+    # Capture the routed model so cost uses the right tier (Opus vs Sonnet)
+    # rather than the default fallback.
+    if payload.get("model"):
+        acc["model"] = payload["model"]
+
+
+def _ensure_usage_listener() -> None:
+    global _usage_listener_registered
+    if not _usage_listener_registered:
+        bus.on("llm.stream_completed", _accumulate_usage)
+        _usage_listener_registered = True
+
+
+class _HeadlessExecutor(ToolResultCoordinator):
+    """Eval-only stand-in for the Blender addon.
+
+    In production the addon runs each tool_use in Blender and POSTs a
+    tool_result back; main.py feeds it to `coordinator.resolve()`, and the
+    agentic loop awaits those before continuing. The eval has no Blender,
+    so without a coordinator `stream_response` takes its single-shot path
+    and EXITS after iteration 0 — which is exactly why the harness only
+    ever saw one slice of a build and complex multi-part scenes looked
+    empty (the keystone limitation this fixes).
+
+    This synthesizes a SUCCESS tool_result for every emitted tool_use so
+    the loop runs the full multi-iteration build. Read-only inspections
+    (get_scene_info / get_object_info) return a scene reconstructed from
+    the calls so far, giving the model coherent continuity across
+    iterations; viewport_screenshot returns a headless marker (offline
+    eval has no pixels — vision quality is still only measurable live).
+    """
+
+    def __init__(self, registry: dict[str, dict[str, Any]],
+                 captured_calls: list[dict[str, Any]],
+                 session_id: str = "eval") -> None:
+        super().__init__(session_id)
+        self._registry = registry        # tool_use_id → {name, input}
+        self._captured = captured_calls   # grows as _on_tool_call fires
+
+    async def await_results(self, tool_use_ids, *, timeout_sec=180.0,
+                            cancel_event=None):
+        # Resolve every still-pending id with a synthetic success BEFORE
+        # delegating, so the parent's gather returns immediately (there is
+        # no real addon to wait on). Already-resolved ids (e.g. rejected by
+        # the validator) are left untouched.
+        for tid in tool_use_ids:
+            fut = self._futures.get(tid)
+            if fut is not None and not fut.done():
+                self.resolve(tid, self._synthesize(tid))
+        return await super().await_results(
+            tool_use_ids, timeout_sec=timeout_sec, cancel_event=cancel_event)
+
+    def _synthesize(self, tid: str) -> dict[str, Any]:
+        meta = self._registry.get(tid, {})
+        name = meta.get("name", "")
+        inp = meta.get("input") or {}
+        if name in ("get_scene_info", "get_object_info"):
+            scene = reconstruct_scene_graph(self._captured)
+            return {"tool_use_id": tid, "is_error": False,
+                    "output": json.dumps(scene)[:4000], "error": ""}
+        if name == "viewport_screenshot":
+            return {"tool_use_id": tid, "is_error": False, "error": "",
+                    "output": "[headless eval — screenshot taken; pixels "
+                              "unavailable offline, continue building]"}
+        # Mutations + everything else: report success with a short echo so
+        # the model knows the step landed and advances to the next part.
+        label = inp.get("name") or inp.get("kind") or name
+        return {"tool_use_id": tid, "is_error": False, "error": "",
+                "output": f"{name} succeeded ({label})."}
+
+
 async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult:
     """Execute one benchmark and return its scored result."""
     started = time.monotonic()
@@ -137,12 +251,19 @@ async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult
 
     captured_script: list[str] = []
     captured_tool_calls: list[dict[str, Any]] = []
+    tool_registry: dict[str, dict[str, Any]] = {}  # tool_use_id → {name, input}
 
     async def _on_token(_tok: str) -> None:
         pass  # don't print streaming — too noisy for harness output
 
-    async def _on_tool_call(name: str, _id: str, inp: dict[str, Any]) -> None:
+    async def _on_tool_call(name: str, _id: str, inp: dict[str, Any],
+                            **_kwargs: Any) -> None:
+        # stream_response passes extra kwargs (iteration, user_intent) the
+        # live WS path uses; the harness ignores them. **_kwargs keeps this
+        # callback forward-compatible so a new orchestrator arg can't crash
+        # the eval (the TypeError this replaced).
         captured_tool_calls.append({"name": name, "input": inp})
+        tool_registry[_id] = {"name": name, "input": inp}  # for the executor
         # Both the renamed escape hatch and any legacy execute_blender_script
         # carry the bpy body in `script`. Capture either for scoring.
         if name in ("execute_animora_code", "execute_blender_script"):
@@ -151,6 +272,13 @@ async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult
     # We need a unique session_id per call so observability events stay
     # separate across runs.
     session_id = f"eval-{bench.name}-{int(time.time())}"
+    _ensure_usage_listener()
+    _TOKEN_TOTALS.pop(session_id, None)  # clean slate for this benchmark
+
+    # Keystone: a headless executor stands in for the Blender addon so the
+    # agentic loop runs MULTI-iteration (without it, stream_response exits
+    # after iteration 0 and complex builds can't be measured at all).
+    executor = _HeadlessExecutor(tool_registry, captured_tool_calls, session_id)
 
     try:
         output = await stream_response(
@@ -165,6 +293,7 @@ async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult
             prev_scene_graph=None,
             hd_capture=None,
             session_id=session_id,
+            coordinator=executor,
         )
     except Exception as exc:
         result.notes.append(f"orchestrator raised {type(exc).__name__}: {exc}")
@@ -173,12 +302,23 @@ async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult
 
     result.elapsed_ms = int((time.monotonic() - started) * 1000)
 
-    # Pull observations from the orchestrator's bus events? Easier to just
-    # introspect the last stream result via a private attribute — but the
-    # orchestrator doesn't return it. So we extract what we can from the
-    # captured callbacks + a follow-up direct call would be wasteful. The
-    # streaming function already logged the relevant numbers; for the
-    # harness we re-derive what we can from the captured script.
+    if os.getenv("ANIMORA_EVAL_DEBUG"):
+        from collections import Counter
+        _names = Counter(tc.get("name") for tc in captured_tool_calls)
+        _scene = reconstruct_scene_graph(captured_tool_calls)
+        print(f"[debug] {bench.name}: {len(captured_tool_calls)} tool calls "
+              f"{dict(_names)} | reconstructed objects="
+              f"{len(_scene.get('objects', []))}", file=sys.stderr)
+
+    # Phase B — REAL token usage + truncation from the bus events that
+    # fired during this benchmark's stream (finding C fix). Replaces the
+    # old char-count estimate; feeds estimate_cost_usd a true number.
+    usage = _TOKEN_TOTALS.pop(
+        session_id, {"input": 0, "output": 0, "truncated": False, "model": ""})
+    result.input_tokens = int(usage["input"])
+    result.output_tokens = int(usage["output"])
+    result.truncated = bool(usage["truncated"])  # real stop_reason == max_tokens
+    result.model = usage.get("model", "") or result.model
 
     if captured_script:
         script = captured_script[-1]
@@ -187,48 +327,51 @@ async def _run_one(client: AnthropicClient, bench: Benchmark) -> BenchmarkResult
         v = validate_script(script)
         result.script_validator_ok = v.ok
         result.script_validator_reason = v.reason
-
-        # Rough output_tokens estimate from script length (≈ 3.5 chars/tok).
-        # We don't have direct access to the SDK's usage object here without
-        # plumbing it through stream_response. For now, char-based heuristic.
-        result.output_tokens = len(script) // 3 + len(output) // 3
     else:
-        # No tool_call captured — either it's a pure question (intentional)
-        # or the model never produced a script (regression).
+        # No bpy script captured — atomic build or pure-question turn.
         result.script_length = 0
         result.script_validator_ok = True  # nothing to validate
-        result.output_tokens = len(output) // 3
 
-    # Truncation heuristic — if the captured assistant text or script ends
-    # mid-line / mid-string-literal, it's probably truncated. Loose check
-    # for the eval; stop_reason would be more precise but that requires
-    # plumbing the StreamResult through stream_response.
-    if result.output_tokens >= 32000:
-        result.truncated = True
-
-    # Build a unified scoring text: the bpy script (if any) plus a
-    # textual representation of every non-script tool call. This lets
-    # benchmark.required_ops regexes match patterns like `use_asset(`
-    # or `request_final_review(` even when the model never emitted a
-    # bpy script. Without this, asset-first benchmarks (Sprint 3D)
-    # would pass vacuously when the model called use_asset directly.
-    scoring_text_parts: list[str] = []
-    if captured_script:
-        scoring_text_parts.append(captured_script[-1])
-    for tc in captured_tool_calls:
-        name = tc.get("name", "")
-        if name in ("execute_animora_code", "execute_blender_script"):
-            continue  # already captured above
-        # Render as `<tool_name>(key1="val1", key2="val2")` so regexes
-        # matching the call shape work uniformly.
-        inp = tc.get("input", {}) or {}
-        kv = ", ".join(
-            f'{k}="{str(v)[:80]}"' for k, v in inp.items() if isinstance(k, str)
-        )
-        scoring_text_parts.append(f"# tool_use: {name}({kv})")
-    scoring_text = "\n".join(scoring_text_parts)
+    # Build a unified scoring text: the real bpy script (escape-hatch
+    # builds) PLUS a bpy-equivalent rendering of every atomic tool call.
+    # render_tool_calls_as_bpy is the MCP-pivot bridge — it lets the
+    # benchmark regexes + structural counters (all written for the legacy
+    # bpy-script era) score an atomic build correctly. Without it, every
+    # atomic build false-failed on "missing op primitive_cube_add(" etc.
+    real_script = captured_script[-1] if captured_script else ""
+    scoring_text = (real_script + "\n"
+                    + render_tool_calls_as_bpy(captured_tool_calls)).strip()
 
     _apply_verdict(bench, result, scoring_text)
+
+    # Stage 3B — score the reconstructed scene with the deterministic
+    # critic. Gives the eval a structural-quality signal (materials,
+    # part count, placement) independent of the regex pass/fail. The
+    # benchmark's own aesthetic floors inform the critic params.
+    try:
+        # Absolute import: the runner is bootstrapped as a top-level
+        # 'ai_backend' package (see header), so a relative '..orchestrator'
+        # import has no parent package and raises ImportError. This is the
+        # path that silently zeroed every critic_score in a direct run.
+        from ai_backend.orchestrator.critic import first_step_ok, score_tool_calls
+        critic_report = score_tool_calls(
+            captured_tool_calls,
+            require_materials=bool(getattr(bench, "require_material", False)),
+            require_light=(getattr(bench, "min_light_sources", 0) > 0),
+            expected_min_objects=max(1, getattr(bench, "min_distinct_objects", 0)),
+        )
+        result.critic_score = critic_report.score
+        result.critic_passed = critic_report.passed
+        result.critic_errors = [f.check_id for f in critic_report.errors]
+        # Stage 7 — first-step soundness.
+        result.first_step_ok = first_step_ok(captured_tool_calls)
+    except Exception as exc:  # critic is advisory — never fail the run
+        result.notes.append(f"critic_score_failed: {exc}")
+
+    # Stage 8 — estimate cost from the recorded model + token usage.
+    result.cost_usd = estimate_cost_usd(
+        result.model, result.input_tokens, result.output_tokens)
+
     return result
 
 
@@ -236,35 +379,80 @@ def _format_report(results: list[BenchmarkResult]) -> str:
     """Return a Markdown summary suitable for piping into a file."""
     n_pass = sum(1 for r in results if r.ok)
     n_total = len(results)
+    dict_results = [asdict(r) for r in results]
+
+    # Stage 7 — overall quality rollups.
+    scored = [r for r in results if r.critic_score >= 0]
+    overall_critic = (round(sum(r.critic_score for r in scored) / len(scored), 3)
+                      if scored else None)
+    fs_judged = [r for r in results if r.first_step_ok is not None]
+    first_step_acc = (sum(1 for r in fs_judged if r.first_step_ok) / len(fs_judged)
+                      if fs_judged else None)
+    crit_by_cat = aggregate_critic_by_category(dict_results)
+    comp_score = crit_by_cat.get("composition")
+    # Stage 8 — cost rollups.
+    cost_by_cat = aggregate_cost_by_category(dict_results)
+    run_cost = total_cost_usd(dict_results)
+    mean_cost = round(run_cost / n_total, 6) if n_total else 0.0
+    # Quality-per-dollar (efficiency): mean critic score earned per dollar
+    # of run spend. Higher = more quality for the money. Only meaningful
+    # when we have both a critic score and a non-zero cost.
+    qpd = (round(overall_critic / run_cost, 1)
+           if overall_critic is not None and run_cost > 0 else None)
+
     lines = [
         "# Animora eval scorecard",
         "",
         f"**Result: {n_pass}/{n_total} passed**",
-        "",
     ]
+    if overall_critic is not None:
+        lines.append(f"**Mean critic score: {overall_critic:.2f}**")
+    if first_step_acc is not None:
+        lines.append(f"**First-step accuracy: {first_step_acc:.0%}** "
+                     f"({sum(1 for r in fs_judged if r.first_step_ok)}/{len(fs_judged)})")
+    if comp_score is not None:
+        lines.append(f"**Composition critic score: {comp_score:.2f}** "
+                     f"(the MCP's known weak spot)")
+    lines.append(f"**Run cost: ${run_cost:.4f}** (mean ${mean_cost:.4f}/benchmark, "
+                 f"list prices, cold cache)")
+    if qpd is not None:
+        lines.append(f"**Quality per dollar: {qpd:.1f}** (mean critic ÷ run cost)")
+    lines.append("")
 
-    # Per-category aggregate — first thing readers want to see. Categories
-    # are derived from the benchmark name prefix (primitive.*, vehicle.*).
-    cat_scores = aggregate_by_category([asdict(r) for r in results])
+    # Per-category aggregate — pass rate + mean critic + target + mean cost.
+    cat_scores = aggregate_by_category(dict_results)
+    targets = evaluate_targets(dict_results)
     if cat_scores:
         lines.append("## By category")
         lines.append("")
-        lines.append("| category | pass rate | passed / total |")
-        lines.append("|---|---|---|")
+        lines.append("| category | pass rate | mean critic | target | mean cost | passed / total |")
+        lines.append("|---|---|---|---|---|---|")
         for cat in sorted(cat_scores):
             s = cat_scores[cat]
-            lines.append(f"| {cat} | {s.pass_rate:.0%} | {s.passed} / {s.total} |")
+            mc = crit_by_cat.get(cat)
+            mc_str = f"{mc:.2f}" if mc is not None else "—"
+            tgt = targets.get(cat)
+            tgt_str = "—"
+            if tgt is not None:
+                tgt_str = "MET" if tgt.met else f"BELOW ({tgt.reason})"
+            cc = cost_by_cat.get(cat)
+            cc_str = f"${cc:.4f}" if cc is not None else "—"
+            lines.append(
+                f"| {cat} | {s.pass_rate:.0%} | {mc_str} | {tgt_str} | {cc_str} | "
+                f"{s.passed} / {s.total} |")
         lines.append("")
 
     lines.append("## All benchmarks")
     lines.append("")
-    lines.append("| benchmark | result | output toks | script len | issues |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| benchmark | result | critic | first step | output toks | cost | issues |")
+    lines.append("|---|---|---|---|---|---|---|")
     for r in results:
         issues = "; ".join(r.notes) if r.notes else "—"
+        crit = f"{r.critic_score:.2f}" if r.critic_score >= 0 else "—"
+        fs = "—" if r.first_step_ok is None else ("ok" if r.first_step_ok else "BAD")
         lines.append(
-            f"| {r.name} | {r.score_summary()} | {r.output_tokens} | "
-            f"{r.script_length} | {issues} |"
+            f"| {r.name} | {r.score_summary()} | {crit} | {fs} | "
+            f"{r.output_tokens} | ${r.cost_usd:.4f} | {issues} |"
         )
 
     lines.append("")
@@ -349,12 +537,38 @@ async def _main(args: argparse.Namespace) -> int:
 
         client = AnthropicClient(api_key=api_key, session_id="eval-harness")
 
+        best_of = max(1, int(getattr(args, "best_of", 1) or 1))
         results = []
         for bench in benches:
             print(f"running {bench.name} ... ", end="", flush=True)
-            result = await _run_one(client, bench)
+            if best_of == 1:
+                result = await _run_one(client, bench)
+            else:
+                # Stage 3B — best-of-N: run the benchmark N times, keep
+                # the candidate with the highest critic score (richer,
+                # better-structured build). Reports best/mean/worst so
+                # we can see the model's consistency on this prompt.
+                candidates = []
+                for _ in range(best_of):
+                    candidates.append(await _run_one(client, bench))
+                scores = [c.critic_score for c in candidates]
+                # Pick the highest critic score; tie-break on regex pass.
+                best_idx = max(
+                    range(len(candidates)),
+                    key=lambda i: (candidates[i].critic_score,
+                                   1 if candidates[i].ok else 0, -i),
+                )
+                result = candidates[best_idx]
+                result.notes.append(
+                    f"best_of_{best_of}: best={max(scores):.2f} "
+                    f"mean={sum(scores)/len(scores):.2f} worst={min(scores):.2f} "
+                    f"(picked candidate {best_idx})"
+                )
             results.append(result)
-            print(result.score_summary(), f"({result.elapsed_ms} ms, {result.output_tokens} tok)")
+            cs = (f" critic={result.critic_score:.2f}"
+                  if result.critic_score >= 0 else "")
+            print(result.score_summary(),
+                  f"({result.elapsed_ms} ms, {result.output_tokens} tok{cs})")
 
     report = _format_report(results)
 
@@ -379,7 +593,21 @@ async def _main(args: argparse.Namespace) -> int:
     # cause spurious diffs in version control.
     if args.output_baseline:
         baseline = [
-            {"name": r.name, "ok": r.ok, "notes": r.notes}
+            {
+                "name": r.name,
+                "ok": r.ok,
+                "notes": r.notes,
+                # Stage 7 — freeze the quality signals so the gate can
+                # detect critic-score + first-step regressions, not just
+                # pass/fail flips. -1.0 / null where not computed.
+                "critic_score": r.critic_score,
+                "first_step_ok": r.first_step_ok,
+                # Stage 8 — freeze the estimated cost so the gate can flag
+                # quality-neutral cost increases (waste). Raw token counts
+                # stay out of the baseline (they churn every run); the
+                # derived cost is the comparable signal.
+                "cost_usd": r.cost_usd,
+            }
             for r in results
         ]
         Path(args.output_baseline).write_text(
@@ -424,6 +652,11 @@ def main() -> int:
         help="Don't call the API; re-score the dump from --input-json",
     )
     parser.add_argument("--input-json", help="Prior JSON dump to rescore (used with --skip-llm)")
+    parser.add_argument(
+        "--best-of", type=int, default=1,
+        help="Stage 3B: run each benchmark N times and keep the highest "
+             "critic-scoring build. Reports best/mean/worst per benchmark.",
+    )
     args = parser.parse_args()
 
     return asyncio.run(_main(args))

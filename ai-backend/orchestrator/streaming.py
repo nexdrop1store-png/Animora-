@@ -22,11 +22,13 @@ from typing import Any
 
 from ..anthropic_client import AnthropicClient, StreamCancelled, StreamResult
 from ..assets.fetcher import AssetFetchError, fetch_asset
+from ..vision_buffer import get_latest_hd_capture
 from ..assets.query import format_for_model as format_assets_for_model
 from ..assets.query import relevant_assets
 from ..quality_enforcer import validate_script
 from ..scene_intelligence import build_scene_context
 from .context_builder import build as build_context, build_tool_result_message
+from .critic import first_step_diagnosis, run_scene_critic
 from .events import bus
 from .intent import classify as classify_intent, try_fast_path as try_intent_fast_path
 from .personas import load_persona_extension
@@ -46,7 +48,15 @@ log = logging.getLogger("animora.streaming")
 # ── Agentic loop bounds (Phase 8) ──────────────────────────────────────
 # Configurable via constants at the top so a single PR can tune the
 # trade-off between quality and cost without touching the loop body.
-_MAX_AGENT_ITERATIONS = 3
+# Raised 3 → 5 (grey-couch fix). A hero build spends its budget on:
+# iteration 0 (the model's tentative first move / inspect, often a
+# single call), iteration 1 (blockout), iteration 2 (the material
+# rescue), iteration 3 (lighting + camera rescue), iteration 4
+# (correction headroom). At 3 the material rescue landed on the LAST
+# iteration and got cut off, shipping grey. 5 gives the rescues room
+# to actually complete. The wall-clock cap (_MAX_AGENT_WALL_CLOCK_SEC)
+# is the real safety ceiling for runaway turns.
+_MAX_AGENT_ITERATIONS = 8  # Phase A: extra headroom for gated refinement steps
 # Bail before Anthropic rejects the request at its 200k input ceiling.
 _MAX_ACCUMULATED_INPUT_TOKENS = 150_000
 # Total wall-clock across all iterations (per-stream timeout is already 600s).
@@ -87,6 +97,61 @@ _ENABLE_SPEC_BUILDER = _flag("ANIMORA_ENABLE_SPEC", default=False)
 # loop is "show me anything in < 20s" right now.
 _EXECUTION_MAX_TOKENS = int(os.environ.get("ANIMORA_EXEC_MAX_TOKENS", "8192"))
 
+# Stage 1 — Loop enforcer. The training brief: "Build the loop enforcer
+# that makes blind chaining impossible." Mechanics: at most ONE
+# mutation tool may dispatch per iteration. Read-only tools
+# (get_scene_info, get_object_info, viewport_screenshot) and backend
+# signals (request_final_review) are NOT gated. Subsequent mutations
+# in the same stream get a synthetic "deferred" tool_result so the
+# Anthropic API still sees a result for every tool_use_id, and the
+# next iteration auto-injects a forced viewport screenshot so the
+# model's CAPTURE+CRITIQUE step actually fires. Toggle off via env
+# var during later-stage development.
+# Phase A (loop enforcer, ON by default). The ORIGINAL strict gate capped EVERY
+# mutation to one per iteration, which produced single-cube couches (a hero asset
+# needs ~22 mutations but only got ~3/turn). The fix is granularity: blind
+# chaining is only a real risk for REFINEMENT edits that depend on the current
+# visual state (move it, modify it, delete it). Additive BLOCKOUT (placing leg 1
+# then leg 2, materialing parts, parenting a hierarchy) needs no screenshot
+# between calls and may batch freely. So the gate now defers only subsequent
+# REFINEMENT ops, forcing a capture+critique between them, while additive ops run
+# uncapped. Set ANIMORA_ENFORCE_LOOP=0 to fully disable for debugging.
+_ENFORCE_LOOP = _flag("ANIMORA_ENFORCE_LOOP", default=True)
+
+# Tools that COUNT AS A MUTATION (any of these means "the scene changed this
+# iteration" → force a CAPTURE before the next one). Read-only tools
+# (get_scene_info, get_object_info, viewport_screenshot) are intentionally NOT
+# here — the model inspects freely. Backend signals (request_final_review,
+# use_asset) route before the gate. execute_animora_code counts as ONE mutation
+# (one script, one undo entry, one post-script HD capture).
+_LOOP_ENFORCER_MUTATION_TOOLS: frozenset[str] = frozenset({
+    "execute_animora_code", "execute_blender_script",
+    "create_primitive", "create_light", "create_camera",
+    "set_transform", "add_modifier", "apply_material",
+    "set_parent", "delete_object", "duplicate_object",
+    "set_world", "load_asset",
+    # `use_asset` is NOT here — it's a backend signal that returns
+    # early in _on_tool_call before the enforcer gate runs.
+})
+
+# REFINEMENT tools — the subset that is GATED (only the first per iteration
+# dispatches; subsequent ones defer until a capture). These are the edits whose
+# correctness depends on SEEING the current result, so chaining them blind is
+# the failure the enforcer exists to stop:
+#   • set_transform  — moving/scaling is inherently visual ("is it in the right
+#     place now?"); the classic blind-chain failure (objects scattered).
+#   • delete_object  — destructive; verify what you're removing.
+#   • set_world      — a global lighting/background change you should see.
+#   • execute_*      — opaque; a script can do any state-dependent edit.
+# Everything else is ADDITIVE and batches freely: create_*, duplicate,
+# apply_material, set_parent, AND add_modifier (a bevel/subsurf on a fresh part
+# is finishing the blockout, not an iterative edit — gating it would throttle
+# legitimate multi-part builds to one modifier per iteration).
+_REFINEMENT_TOOLS: frozenset[str] = frozenset({
+    "set_transform", "delete_object", "set_world",
+    "execute_animora_code", "execute_blender_script",
+})
+
 
 async def stream_response(
     user_message: str,
@@ -108,6 +173,7 @@ async def stream_response(
     send_quality_retry_event=None,  # Phase 5.5 — async fn(payload) for retrying/retry_succeeded/retry_exhausted
     on_inline_quality_check=None,   # Phase 5.5 — sync fn(verdict) main.py uses to skip its background check
     on_spec_built=None,             # Quality Plan §5.1 — sync fn(Spec) so main.py can pass it to final_review
+    get_live_scene_graph=None,      # Stage 3A — sync fn()->dict returning the freshest scene graph for the critic-correction loop
 ) -> str:
     """Stream an LLM response to the client.
 
@@ -432,13 +498,84 @@ async def stream_response(
         "still", "composition", "diorama", "tableau",
     )
     _HERO_MIN_CALLS = 5
+    # Post-mortem fix: "scene" noun classes need a higher minimum part
+    # count than a single asset. A beach with 3 grey planes is a
+    # blockout, not a beach. A couch with 1 cube is a footrest. These
+    # nouns trigger the scene-floor rescue below with thresholds 8-12.
+    _SCENE_NOUNS = frozenset({
+        "scene", "environment", "landscape", "beach", "forest", "desert",
+        "mountain", "city", "street", "room", "kitchen", "office",
+        "living", "bedroom", "bathroom", "diorama", "tableau",
+        "still", "composition",
+    })
+    _SCENE_MIN_PARTS = 6  # absolute minimum for ANY "scene" noun
     _user_lower = user_message.lower()
     is_hero_request = (
         is_execution_intent
         and any(_user_lower.lstrip().startswith(v) for v in _HERO_VERBS)
         and any(noun in _user_lower for noun in _HERO_NOUNS)
     )
+    is_scene_request = (
+        is_hero_request
+        and any(noun in _user_lower for noun in _SCENE_NOUNS)
+    )
     hero_hint_injected = False
+    scene_floor_rescue_attempted = False
+
+    # Stage 3A — Critic-driven correction. The deterministic critic
+    # (orchestrator/critic.py) runs on the live scene after each
+    # iteration and, when it finds structural ERRORS the cheap
+    # count-based rescues missed (floating objects, extreme scale, flat
+    # composition, default names, partial materials), feeds its
+    # actionable findings back so the model fixes them — the CORE
+    # RULE's CRITIQUE → CORRECT step, executed at runtime. Bounded so a
+    # model that keeps ignoring the critic can't loop forever.
+    _MAX_CRITIC_CORRECTIONS = 2
+    critic_correction_attempts = 0
+
+    # Sprint 2 — Mechanical enforcement of v21's CHECKLIST gates.
+    # The v21 master prompt has hard rules for materials ("default
+    # Blender grey on ANY visible part fails the check") and finishing
+    # ("hero builds get a key light + hero camera by default"). The
+    # cofounder's testing showed the model passes its own CRITIQUE
+    # step without honouring these. Rather than add more prompt text,
+    # we enforce the rules at the agentic-loop layer by counting tool
+    # calls and injecting a corrective user-role message when a gate
+    # fails. Single-shot per turn per gate (so we don't loop forever
+    # if the model ignores us — at worst we burn one extra iteration
+    # then bail).
+    #
+    # The counters track ATOMIC tool usage only. If the model reaches
+    # for execute_animora_code, we skip both rescues — the escape-hatch
+    # script could legitimately handle materials + lights inline, and
+    # we can't see inside the script without parsing it.
+    atomic_create_count = 0    # create_primitive + duplicate_object
+    atomic_material_count = 0  # apply_material
+    atomic_light_count = 0     # create_light
+    atomic_camera_count = 0    # create_camera
+    used_escape_hatch = False  # execute_animora_code fired this turn
+    material_rescue_attempted = False
+    lighting_rescue_attempted = False
+
+    # Stage 6 — First-step hardening. The brief: "the very first action
+    # must establish the correct foundation (scale, proportion, layout)."
+    # Stage 7 made first_step_ok MEASURABLE in the eval; Stage 6 ENFORCES
+    # it at runtime. We accumulate the turn's atomic tool calls (name +
+    # input) across iterations so `first_step_diagnosis` can judge the
+    # FIRST real action, and a single-shot gate (below) injects a
+    # foundation-fix correction when that first move is unsound (exploded/
+    # microscopic scale, or material/parent/transform before any geometry).
+    turn_tool_calls: list[dict] = []
+    first_step_rescue_attempted = False
+
+    # Stage 1 — Loop enforcer per-iteration state. The flag is reset at
+    # the top of every iteration's loop body so it gates within ONE
+    # iteration only (the model can re-emit deferred mutations on the
+    # next iteration after seeing the forced screenshot). Tracking
+    # which tool_use_ids we deferred so we can synthesize their
+    # tool_results via the coordinator. Same single-shot pattern as
+    # the existing rescue flags.
+    enforcer_log_emitted = False  # log "enforcer.enabled" once per turn
 
     # Sprint 3 follow-up (rescue v2): when the rescue branch fires, we
     # set this for the FOLLOWING iteration only. Forces the model to
@@ -486,6 +623,14 @@ async def stream_response(
         # addon with the resolved local path. id → (asset_kind, ok)
         # populated as fetches complete; used to synthesise tool_results.
         asset_fetch_outcomes: dict[str, dict[str, Any]] = {}
+        # Stage 1 — Loop enforcer per-iteration state. Tracks the first
+        # mutation tool that successfully dispatched this iteration and
+        # the ids of any subsequent mutations we deferred so the
+        # synthetic-resolve loop after coordinator.await_results can
+        # close out their futures with a clear "deferred" message.
+        iter_mutation_dispatched: bool = False    # any mutation → force capture
+        iter_refinement_dispatched: bool = False  # a gated refinement already ran
+        deferred_mutation_ids: dict[str, str] = {}  # id → tool name
 
         async def _on_tool_call(name: str, tool_use_id: str,
                                  tool_input: dict[str, Any]) -> None:
@@ -571,6 +716,47 @@ async def stream_response(
                     # for an addon response that will never come.
                     rejected_tool_use_ids[tool_use_id] = verdict.reason
                     return
+            # Stage 1 — Loop enforcer gate. At most ONE mutation tool
+            # may dispatch per iteration. Read-only tools
+            # (get_scene_info, get_object_info, viewport_screenshot)
+            # bypass; backend signals (request_final_review, use_asset)
+            # already returned early above. The first mutation
+            # dispatches normally; subsequent mutations get a
+            # synthetic "deferred" tool_result resolved against the
+            # coordinator after await_results returns. Toggle off via
+            # ANIMORA_ENFORCE_LOOP=0 for later-stage development.
+            if _ENFORCE_LOOP and name in _LOOP_ENFORCER_MUTATION_TOOLS:
+                nonlocal iter_mutation_dispatched, iter_refinement_dispatched
+                # Any mutation means the scene changed → force a CAPTURE before
+                # the next iteration (the screenshot-injection block below).
+                iter_mutation_dispatched = True
+                # Only REFINEMENT edits are gated: the first dispatches, the rest
+                # defer until the model has seen the result. Additive blockout
+                # (create_*, duplicate, apply_material, set_parent) batches freely.
+                if name in _REFINEMENT_TOOLS:
+                    if iter_refinement_dispatched:
+                        deferred_mutation_ids[tool_use_id] = name
+                        await bus.emit("enforcer.mutation.deferred", {
+                            "session_id": session_id,
+                            "iteration": iteration,
+                            "tool": name,
+                            "tool_use_id": tool_use_id,
+                        })
+                        log.info(
+                            "enforcer.mutation.deferred session=%s iter=%d "
+                            "tool=%s tool_use_id=%s — chained refinement blocked",
+                            session_id, iteration, name, tool_use_id,
+                        )
+                        return  # do NOT dispatch — synthesise tool_result later
+                    # First refinement this iteration — claim the slot.
+                    iter_refinement_dispatched = True
+                    await bus.emit("enforcer.mutation.dispatched", {
+                        "session_id": session_id,
+                        "iteration": iteration,
+                        "tool": name,
+                        "tool_use_id": tool_use_id,
+                    })
+
             await send_tool_call_cb(name, tool_use_id, tool_input,
                                      iteration=iteration, user_intent=user_message)
             await bus.emit("tool.dispatched", {
@@ -714,6 +900,25 @@ async def stream_response(
         if any(tc.get("name") in _MUTATION_TOOLS for tc in result.tool_calls):
             script_was_dispatched = True
 
+        # Sprint 2 — per-iteration counter updates for the material /
+        # finished-by-default rescues below. Walk this iteration's
+        # tool_calls and bump cumulatives.
+        for tc in result.tool_calls:
+            tn = tc.get("name", "")
+            # Stage 6 — record name+input in turn order so the first-step
+            # gate can judge the FIRST real action of the whole turn.
+            turn_tool_calls.append({"name": tn, "input": tc.get("input") or {}})
+            if tn in ("create_primitive", "duplicate_object"):
+                atomic_create_count += 1
+            elif tn == "apply_material":
+                atomic_material_count += 1
+            elif tn == "create_light":
+                atomic_light_count += 1
+            elif tn == "create_camera":
+                atomic_camera_count += 1
+            elif tn in ("execute_animora_code", "execute_blender_script"):
+                used_escape_hatch = True
+
         # Detect empty / whitespace-only scripts in any tool_use that fired.
         for tc in result.tool_calls:
             if tc.get("name") in ("execute_animora_code", "execute_blender_script"):
@@ -838,15 +1043,19 @@ async def stream_response(
                 )
             break
 
-        # Hard stops before another iteration
-        if iteration >= _MAX_AGENT_ITERATIONS - 1:
-            log.info("Agent loop: hit MAX_AGENT_ITERATIONS=%d, stopping",
-                     _MAX_AGENT_ITERATIONS)
-            await bus.emit("agent.loop_exit", {
-                "session_id": session_id, "reason": "max_iterations",
-                "iteration": iteration,
-            })
-            break
+        # NOTE (grey-couch fix): we deliberately DO NOT break here on
+        # `iteration >= _MAX_AGENT_ITERATIONS - 1`. That early break —
+        # which sat BEFORE the await_results section below — abandoned
+        # the FINAL iteration's tool calls: they were dispatched during
+        # the stream but never awaited, so materials emitted by the
+        # material-rescue on the last allowed iteration landed in-flight
+        # after the loop had already exited, and the scene the critic
+        # saw was stale (still grey). The `for iteration in
+        # range(_MAX_AGENT_ITERATIONS)` bound already stops the loop
+        # after the last iteration — but now the last iteration runs to
+        # completion (dispatch → await → apply) first. The token /
+        # wall-clock / cancel emergency bails below stay as immediate
+        # breaks; those are genuine runaway-protection, not normal exit.
 
         if accumulated_input_tokens >= _MAX_ACCUMULATED_INPUT_TOKENS:
             log.warning("Agent loop: input token cap reached (%d ≥ %d), stopping",
@@ -977,6 +1186,27 @@ async def stream_response(
                 "is_error": False,
                 "output": "Quality system will inspect the result.",
             })
+        # Stage 1 — Loop enforcer: synthesise a "deferred" tool_result
+        # for every mutation that was blocked by the gate. The
+        # Anthropic API requires a tool_result for every tool_use_id;
+        # the message tells the model to re-emit the call on the next
+        # iteration after reviewing the forced screenshot we inject
+        # below.
+        for rid, dn in deferred_mutation_ids.items():
+            coordinator.resolve(rid, {
+                "tool_use_id": rid,
+                "is_error": False,
+                "output": (
+                    f"[Animora loop enforcer] Deferred — Animora's "
+                    f"inspect-execute-verify rule allows only one "
+                    f"state-changing refinement per cycle (additive "
+                    f"creation may batch; edits like {dn} may not). The "
+                    f"prior step in this iteration was captured and is "
+                    f"shown to you below. After reviewing it, re-emit this "
+                    f"{dn}(...) call on the next iteration if it is "
+                    f"still the right next step, or revise your plan."
+                ),
+            })
         # Sprint 3B: use_asset calls that FAILED at the fetch stage get
         # a synthesised error tool_result so the model knows the fallback
         # path is required. Successful fetches were already dispatched
@@ -1047,6 +1277,90 @@ async def stream_response(
                 except Exception as exc:
                     log.debug("addon-unresponsive notice send failed: %s", exc)
 
+        # Stage 1 — Loop enforcer forced-screenshot injection. If a
+        # mutation actually dispatched this iteration, the next
+        # iteration MUST start from a viewport screenshot — this is
+        # the CAPTURE step of the CORE RULE and the second half of
+        # "blocks chained edits without a capture+critique between
+        # them." If the first mutation's outcome already carries an
+        # hd_capture_b64 (execute_animora_code embeds one
+        # automatically), we don't need to do anything. Otherwise we
+        # pull the latest HD frame from the per-session vision buffer
+        # (the addon pushes captures continuously after exec-pause
+        # ends). build_tool_result_message attaches the bytes as an
+        # image content block on the first matching tool_result.
+        if _ENFORCE_LOOP and iter_mutation_dispatched:
+            # Find the first tool_use_id from result.tool_calls that
+            # was a mutation AND whose outcome doesn't already have
+            # an HD capture attached — that's where we inject.
+            first_mut_id: str | None = None
+            for tc in result.tool_calls:
+                tid = tc.get("id", "")
+                tname = tc.get("name", "")
+                if tname not in _LOOP_ENFORCER_MUTATION_TOOLS:
+                    continue
+                if tid in deferred_mutation_ids:
+                    continue
+                if tid in rejected_tool_use_ids:
+                    continue
+                # Skip if the addon already embedded a capture (script
+                # tool — execute_animora_code — does this natively).
+                existing = outcomes.get(tid) or {}
+                if existing.get("hd_capture_b64"):
+                    first_mut_id = None
+                    break
+                first_mut_id = tid
+                break
+            if first_mut_id is not None:
+                try:
+                    latest = await get_latest_hd_capture(session_id)
+                except Exception as exc:
+                    log.debug("enforcer.screenshot.fetch_failed: %s", exc)
+                    latest = None
+                if latest is not None:
+                    jpeg_bytes, _trigger = latest
+                    import base64 as _b64
+                    target = outcomes.get(first_mut_id) or {
+                        "tool_use_id": first_mut_id,
+                        "is_error": False,
+                        "output": "",
+                        "error": "",
+                    }
+                    target["hd_capture_b64"] = _b64.b64encode(jpeg_bytes).decode()
+                    target["hd_media_type"] = "image/jpeg"
+                    outcomes[first_mut_id] = target
+                    await bus.emit("enforcer.screenshot.injected", {
+                        "session_id": session_id,
+                        "iteration": iteration,
+                        "tool_use_id": first_mut_id,
+                        "bytes": len(jpeg_bytes),
+                    })
+                    log.info(
+                        "enforcer.screenshot.injected session=%s iter=%d "
+                        "tool_use_id=%s bytes=%d — forced CAPTURE step",
+                        session_id, iteration, first_mut_id, len(jpeg_bytes),
+                    )
+                else:
+                    # No frame in the buffer — addon hasn't pushed one
+                    # yet (paused / never started). Continue; the next
+                    # iteration's natural flow will catch up. Log so we
+                    # can spot this if it ever becomes the common case.
+                    log.info(
+                        "enforcer.screenshot.unavailable session=%s iter=%d "
+                        "tool_use_id=%s — vision buffer empty, continuing",
+                        session_id, iteration, first_mut_id,
+                    )
+
+        # One-time per-turn log so we can confirm the enforcer is alive
+        # in dev_server.log without grepping every iteration.
+        if _ENFORCE_LOOP and not enforcer_log_emitted:
+            log.info(
+                "enforcer.enabled session=%s ANIMORA_ENFORCE_LOOP=1 — "
+                "one mutation per iteration; subsequent mutations deferred",
+                session_id,
+            )
+            enforcer_log_emitted = True
+
         # Build the user-role message that carries tool_result + HD image
         # back to the model for iteration N+1.
         accumulated_messages.append(build_tool_result_message(outcomes, all_ids))
@@ -1098,6 +1412,276 @@ async def stream_response(
                 "calls=%d threshold=%d — nudging model to continue building",
                 session_id, iteration, len(all_ids), _HERO_MIN_CALLS,
             )
+
+        # ── Stage 6 — First-step foundation gate ───────────────────────
+        # Runs FIRST in the rescue chain (before scene-floor / material /
+        # lighting): the brief says "the very first action must establish
+        # the correct foundation," so we fix a bad foundation before any
+        # parts get piled on top of it. The deterministic diagnosis is the
+        # same one Stage 7's eval scores — an exploded/microscopic first
+        # primitive, or a build that opened with a material/parent/
+        # transform before any geometry existed. Single-shot per turn,
+        # skipped for the escape hatch (we can't introspect a bpy script),
+        # and only when the model actually created something.
+        first_step_verdict, first_step_reason = first_step_diagnosis(turn_tool_calls)
+        if (
+            first_step_verdict is False
+            and atomic_create_count > 0
+            and not used_escape_hatch
+            and not first_step_rescue_attempted
+            and iteration < _MAX_AGENT_ITERATIONS - 1
+        ):
+            first_step_rescue_attempted = True
+            accumulated_messages.append({
+                "role": "user",
+                "content": (
+                    f"[ANIMORA FIRST-STEP GATE] Your foundation is wrong: "
+                    f"{first_step_reason}. The first object you place sets "
+                    f"the scale and proportion the whole build inherits — a "
+                    f"broken foundation cascades into every part added after "
+                    f"it.\n\n"
+                    f"Fix the foundational form NOW, before adding anything "
+                    f"else: bring the base object to a sane, real-world scale "
+                    f"with set_transform (a piece of furniture is on the "
+                    f"order of 1-3 m, a room/scene ground on the order of "
+                    f"5-20 m — never hundreds of units, never a fraction of "
+                    f"a unit). If the foundation object is missing entirely, "
+                    f"create the largest base form first with create_primitive "
+                    f"at a sane scale. Only once the foundation is correct, "
+                    f"continue building on top of it."
+                ),
+            })
+            next_tool_choice = {"type": "any"}
+            await bus.emit("first_step.rescue.triggered", {
+                "session_id": session_id, "iteration": iteration,
+                "reason": first_step_reason,
+            })
+            log.info(
+                "first_step_rescue.triggered session=%s iter=%d — %s",
+                session_id, iteration, first_step_reason,
+            )
+
+        # ── Post-mortem — Scene-floor part-count gate ──────────────────
+        # The beach failure: user said "build a beach", model created
+        # 3 planes named Sand / Ocean / Shoreline, closed the turn.
+        # That's a blockout, not a beach. For "scene" noun classes —
+        # beach, forest, room, kitchen, city, etc. — we enforce a
+        # minimum part count of _SCENE_MIN_PARTS before any other
+        # rescue fires. Skip when escape hatch was used (the script
+        # could legitimately build dozens of parts).
+        if (
+            is_scene_request
+            and atomic_create_count > 0
+            and atomic_create_count < _SCENE_MIN_PARTS
+            and not used_escape_hatch
+            and not scene_floor_rescue_attempted
+            and iteration < _MAX_AGENT_ITERATIONS - 1
+        ):
+            scene_floor_rescue_attempted = True
+            accumulated_messages.append({
+                "role": "user",
+                "content": (
+                    f"[ANIMORA SCENE-FLOOR GATE] You created "
+                    f"{atomic_create_count} objects for a SCENE request. "
+                    f"A scene is composed of multiple distinct elements — "
+                    f"foreground / midground / background — not a single "
+                    f"primitive. A beach has sand AND ocean AND palm "
+                    f"trees AND rocks AND a sky/sun. A room has walls "
+                    f"AND floor AND furniture AND lighting. A forest "
+                    f"has terrain AND many trees AND undergrowth AND a "
+                    f"sun.\n\n"
+                    f"Continue building on this iteration. Add at least "
+                    f"{_SCENE_MIN_PARTS - atomic_create_count} more "
+                    f"distinct elements that belong in the scene the user "
+                    f"asked for. Use your own knowledge of what the "
+                    f"real-world scene contains — you are an Anthropic "
+                    f"model and you know what a beach / forest / room / "
+                    f"kitchen looks like. Then apply materials. Don't "
+                    f"emit a closing 'Build complete' message — the "
+                    f"scene isn't built yet."
+                ),
+            })
+            next_tool_choice = {"type": "any"}
+            await bus.emit("scene_floor.rescue.triggered", {
+                "session_id": session_id, "iteration": iteration,
+                "atomic_create_count": atomic_create_count,
+                "scene_min_parts": _SCENE_MIN_PARTS,
+            })
+            log.info(
+                "scene_floor_rescue.triggered session=%s iter=%d "
+                "creates=%d/%d — forcing more scene elements",
+                session_id, iteration, atomic_create_count, _SCENE_MIN_PARTS,
+            )
+
+        # ── Sprint 2 — Material completeness gate ──────────────────────
+        # The v21 master prompt's ARTIST'S-EYE CHECKLIST mandates that
+        # "every visible surface has a Principled BSDF material applied;
+        # default Blender grey on ANY visible part fails the check."
+        # The cofounder's testing showed the model is passing its own
+        # CRITIQUE step without ever calling apply_material — couches
+        # ship grey. This gate enforces the rule mechanically:
+        #
+        #   • Fires when the model has created atomic objects but
+        #     applied materials to FEWER than half of them (post-mortem:
+        #     was == 0; partial output where the model materialed only
+        #     2 of 6 parts was passing this check and shipping grey
+        #     parts. Now we want roughly 1 material per object on
+        #     average, allowing for reused material names across parts).
+        #   • Skips when the model used execute_animora_code (the
+        #     script could legitimately handle materials inline; we
+        #     can't see inside it from the tool-call counts).
+        #   • Single-shot per turn — material_rescue_attempted guards
+        #     against infinite loop if the model keeps ignoring us.
+        #   • Only fires if another iteration is available.
+        elif (
+            atomic_create_count > 0
+            and atomic_material_count * 2 < atomic_create_count
+            and not used_escape_hatch
+            and not material_rescue_attempted
+            and iteration < _MAX_AGENT_ITERATIONS - 1
+        ):
+            material_rescue_attempted = True
+            accumulated_messages.append({
+                "role": "user",
+                "content": (
+                    f"[ANIMORA MATERIAL-COMPLETENESS GATE] You created "
+                    f"{atomic_create_count} objects but only applied "
+                    f"{atomic_material_count} material(s). The Artist's-"
+                    f"Eye CHECKLIST requires every visible surface to "
+                    f"have a Principled BSDF material applied — default "
+                    f"Blender grey on ANY visible part fails the check.\n\n"
+                    f"On this iteration, apply materials to EVERY "
+                    f"created object that doesn't have one yet, using "
+                    f"your own knowledge of what the asset is supposed "
+                    f"to look like (wood tones for wood, fabric for "
+                    f"upholstery, sand for sand, water for water, foliage "
+                    f"green for leaves, etc.). Reuse material names across "
+                    f"parts that share a surface. Don't emit a closing "
+                    f"'Build complete' message — fix the materials first."
+                ),
+            })
+            next_tool_choice = {"type": "any"}
+            await bus.emit("material.rescue.triggered", {
+                "session_id": session_id, "iteration": iteration,
+                "atomic_create_count": atomic_create_count,
+                "atomic_material_count": atomic_material_count,
+            })
+            log.info(
+                "material_rescue.triggered session=%s iter=%d "
+                "creates=%d materials=%d — forcing material apply",
+                session_id, iteration, atomic_create_count, atomic_material_count,
+            )
+
+        # ── Sprint 2 — Finished-by-default gate (lighting + camera) ────
+        # The v21 master prompt's COMPOSITION & TASTE section: "when the
+        # user asks for a finished asset or scene, also add a key light
+        # and a hero camera so the result is ready to render." The model
+        # routinely ships finished hero builds without lights or cameras.
+        # Gate mechanics mirror the material rescue above — fires once,
+        # only on hero requests, only when atomic-only (the escape hatch
+        # script might set them up inline).
+        elif (  # elif: don't trigger both rescues in the same iteration
+            is_hero_request
+            and atomic_create_count > 0
+            and atomic_light_count == 0
+            and atomic_camera_count == 0
+            and not used_escape_hatch
+            and not lighting_rescue_attempted
+            and iteration < _MAX_AGENT_ITERATIONS - 1
+        ):
+            lighting_rescue_attempted = True
+            accumulated_messages.append({
+                "role": "user",
+                "content": (
+                    f"[ANIMORA FINISHED-BY-DEFAULT GATE] You built "
+                    f"{atomic_create_count} objects for a hero scene but "
+                    f"have not added a key light or a hero camera. The "
+                    f"COMPOSITION & TASTE section of your discipline "
+                    f"says hero builds get a key light + hero camera by "
+                    f"default so the result is ready to render.\n\n"
+                    f"On this iteration, add at least one create_light "
+                    f"(typically a Sun or Area light positioned to read "
+                    f"the asset's silhouette) and one create_camera "
+                    f"(set_active=True, framed on the asset). Then close "
+                    f"the turn."
+                ),
+            })
+            next_tool_choice = {"type": "any"}
+            await bus.emit("lighting.rescue.triggered", {
+                "session_id": session_id, "iteration": iteration,
+                "atomic_create_count": atomic_create_count,
+            })
+            log.info(
+                "lighting_rescue.triggered session=%s iter=%d "
+                "creates=%d lights=0 cameras=0 — forcing key light + hero camera",
+                session_id, iteration, atomic_create_count,
+            )
+
+        # ── Stage 3A — Critic-driven CRITIQUE → CORRECT step ────────────
+        # Runs ONLY when none of the cheap count-based rescues above
+        # fired this iteration (they're the fast first pass for the
+        # common cases). The deterministic critic inspects the live
+        # scene and catches the broader structural defects the count
+        # rescues can't see: floating objects, extreme scale, flat
+        # composition (everything heaped at origin), default-named
+        # objects, and partial-material output that slipped the count
+        # threshold. When it finds ERRORS, the model gets the exact
+        # findings and one more iteration to fix them. This is the
+        # runtime expression of the CORE RULE's verify-then-correct
+        # discipline. Bounded by _MAX_CRITIC_CORRECTIONS.
+        elif (
+            get_live_scene_graph is not None
+            and is_execution_intent
+            and not used_escape_hatch
+            and critic_correction_attempts < _MAX_CRITIC_CORRECTIONS
+            and iteration < _MAX_AGENT_ITERATIONS - 1
+            and atomic_create_count > 0
+        ):
+            try:
+                live = get_live_scene_graph() or {}
+            except Exception as exc:
+                log.debug("critic_correction.live_scene_failed: %s", exc)
+                live = {}
+            if isinstance(live, dict) and live.get("objects"):
+                report = run_scene_critic(
+                    live,
+                    require_materials=True,
+                    require_light=is_hero_request,
+                    expected_min_objects=(
+                        _SCENE_MIN_PARTS if is_scene_request else 1
+                    ),
+                )
+                if (not report.passed) and report.errors:
+                    critic_correction_attempts += 1
+                    accumulated_messages.append({
+                        "role": "user",
+                        "content": (
+                            "[ANIMORA CRITIQUE — fix before finishing]\n\n"
+                            "I reviewed the scene against the quality "
+                            "checklist and it isn't ready yet. Specific "
+                            "issues found:\n"
+                            f"{report.actionable_text()}\n\n"
+                            "On this iteration, fix each issue above using "
+                            "your own knowledge of what the result should "
+                            "look like. Don't rebuild what's already "
+                            "correct — target the specific problems. Don't "
+                            "emit a closing 'Build complete' message until "
+                            "these are addressed."
+                        ),
+                    })
+                    next_tool_choice = {"type": "any"}
+                    await bus.emit("critic.correction.triggered", {
+                        "session_id": session_id, "iteration": iteration,
+                        "attempt": critic_correction_attempts,
+                        "score": report.score,
+                        "error_checks": [f.check_id for f in report.errors],
+                    })
+                    log.info(
+                        "critic_correction.triggered session=%s iter=%d "
+                        "attempt=%d score=%.2f errors=%s — feeding findings back",
+                        session_id, iteration, critic_correction_attempts,
+                        report.score, [f.check_id for f in report.errors],
+                    )
 
         await bus.emit("agent.iteration_done", {
             "session_id": session_id, "iteration": iteration,

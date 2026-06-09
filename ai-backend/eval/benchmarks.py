@@ -104,7 +104,14 @@ BENCHMARKS: tuple[Benchmark, ...] = (
             r"primitive_ico_sphere_add\(",
             r"primitive_cylinder_add\(",
         ),
-        required_named=True,
+        # Calibrated (2026-06): a literal single-primitive request may keep
+        # the primitive's common name — this benchmark tests primitive
+        # SUBSTITUTION + dimensions, not naming. The "no Blender default
+        # names" discipline targets multi-part builds (a sofa's parts must
+        # be Seat/Armrest, not Cube.001/Cube.002); those keep
+        # required_named=True and pass. Naming a requested cube "Cube" is
+        # accurate, not throwaway.
+        required_named=False,
         require_material=False,
         budget_tokens=1500,
         notes="Regression: model used to substitute sphere.",
@@ -118,7 +125,7 @@ BENCHMARKS: tuple[Benchmark, ...] = (
             r"primitive_uv_sphere_add\(",
             r"primitive_ico_sphere_add\(",
         ),
-        required_named=True,
+        required_named=False,  # calibrated — see primitive.cube
         require_material=False,
         budget_tokens=1500,
         notes="Regression: Sonnet turned cuboid into ovoid. Sized box.",
@@ -129,7 +136,7 @@ BENCHMARKS: tuple[Benchmark, ...] = (
         expected_intent=frozenset({"hard_surface_model", "simple_edit"}),
         required_ops=(r"primitive_uv_sphere_add\(",),
         forbidden_ops=(r"primitive_cube_add\(", r"primitive_ico_sphere_add\("),
-        required_named=True,
+        required_named=False,  # calibrated — see primitive.cube
         require_material=False,
         budget_tokens=1500,
     ),
@@ -139,7 +146,7 @@ BENCHMARKS: tuple[Benchmark, ...] = (
         expected_intent=frozenset({"hard_surface_model", "simple_edit"}),
         required_ops=(r"primitive_cylinder_add\(",),
         forbidden_ops=(r"primitive_cone_add\(", r"primitive_cube_add\("),
-        required_named=True,
+        required_named=False,  # calibrated — see primitive.cube
         budget_tokens=1500,
     ),
     Benchmark(
@@ -566,6 +573,95 @@ BENCHMARKS: tuple[Benchmark, ...] = (
             "Hero room: floor + ≥1 wall + sofa or chair + table + lamp "
             "+ ≥2 lights + ≥3 distinct materials. A single grey plane "
             "fails."
+        ),
+    ),
+
+    # ── Sprint 1 Deep — Style-adjective benchmarks ──────────────────────
+    # These test that the model READ the user's style adjective(s) and
+    # applied the STYLE-ADJECTIVE LEXICON from master prompt v18. A
+    # generic "sideboard with wood material" passes the wooden chair
+    # benchmark above but should FAIL these — the prompts demand a
+    # specific style. Expected to fail on master@v17 and pass on @v18.
+    Benchmark(
+        name="furniture.sideboard.luxury_vintage",
+        prompt="Build a luxury vintage wooden sideboard",
+        expected_intent=frozenset({"hard_surface_model"}),
+        required_ops=(
+            r"primitive_(cube|cylinder|torus)_add\(|create_primitive",
+            r"materials\.(new|append)\(|apply_material",
+            # luxury signature: at least one bevel modifier (ornate detail)
+            r"BEVEL|kind=[\"']bevel[\"']",
+        ),
+        forbidden_ops=(),
+        required_named=True,
+        require_material=True,
+        require_material_variety=True,  # walnut + brass = 2 slots minimum
+        require_modifiers=True,          # bevel on cabinet/edges
+        min_distinct_objects=10,         # cabinet + 4 legs + 3 doors + 3 handles minimum
+        budget_tokens=10000,
+        notes=(
+            "Luxury vintage signature: distressed walnut PRIMARY + brass "
+            "ACCENT hardware + ornate bevels (width 0.008-0.012). The "
+            "model must hit ≥2 distinct materials AND ≥1 bevel modifier. "
+            "Generic 'single material cube' fails the variety check."
+        ),
+    ),
+    Benchmark(
+        name="furniture.chair.modern_minimalist",
+        prompt="Build a modern minimalist chair",
+        expected_intent=frozenset({"hard_surface_model"}),
+        required_ops=(
+            r"primitive_(cube|cylinder)_add\(|create_primitive",
+            r"materials\.(new|append)\(|apply_material",
+        ),
+        forbidden_ops=(
+            # minimalist forbids ornate bevels. width > 0.005 = ornate.
+            # This catches "model interpreted minimalist as luxury".
+            r"width=0\.0(08|09|1[0-9])",
+            # No metallic accents on a minimalist chair (rejects luxury
+            # interpretation that would add brass/chrome).
+            r"metallic\s*=\s*1\.0|metallic=1\.0",
+        ),
+        required_named=True,
+        require_material=True,
+        # Minimalist intentionally uses ONE shared material slot. Don't
+        # require variety — that would penalise correct minimalist output.
+        require_material_variety=False,
+        min_distinct_objects=4,          # seat + ≥3 legs minimum (backless stool OK)
+        budget_tokens=5000,
+        notes=(
+            "Modern minimalist signature: single matte material slot "
+            "reused across all parts, no ornament, micro-chamfer only "
+            "(bevel width ≤ 0.005). The forbidden_ops catch "
+            "mis-interpretations that add luxury ornament or chrome."
+        ),
+    ),
+    Benchmark(
+        name="furniture.shelf.industrial",
+        prompt="Build an industrial metal shelf",
+        expected_intent=frozenset({"hard_surface_model"}),
+        required_ops=(
+            r"primitive_cube_add\(|create_primitive",
+            r"materials\.(new|append)\(|apply_material",
+            # Industrial signature: must include a metallic material.
+            r"metallic\s*=\s*1\.0|metallic=1\.0",
+        ),
+        forbidden_ops=(
+            # Industrial banishes warm wood tones. The audit's vintage
+            # walnut [0.20, 0.10, 0.05] and oak [0.30, 0.18, 0.10] would
+            # trigger these. Note: 0.30 R is borderline; catch obvious
+            # warm-brown only.
+            r"base_color=\[0\.[2-5][0-9]?\s*,\s*0\.1[0-9]?\s*,\s*0\.0",
+        ),
+        required_named=True,
+        require_material=True,
+        min_distinct_objects=5,         # back + ≥3 shelves + side support OR bolts
+        budget_tokens=6500,
+        notes=(
+            "Industrial signature: raw steel (metallic=1.0) primary + "
+            "exposed structure (visible bolts as small cubes/cylinders) "
+            "+ no warm wood tones. The forbidden_ops catch the "
+            "mis-interpretation 'industrial' → 'rustic wood'."
         ),
     ),
 )

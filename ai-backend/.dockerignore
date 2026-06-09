@@ -1,0 +1,12 @@
+# NEVER let a secret or dev-only file into the image.
+.env
+.env.*
+*.env
+**/__pycache__/
+*.pyc
+dev_server.py
+tests/
+eval/baseline_run.json
+eval_*_run.json
+eval_*_report.md
+*.log

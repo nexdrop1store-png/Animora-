@@ -10,17 +10,16 @@ Handles:
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import logging
 import os
-import secrets
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import Optional
 
 import bpy
+
+from . import auth_core
 
 log = logging.getLogger("animora.auth")
 
@@ -128,11 +127,14 @@ def dev_signin() -> None:
 # ---------------------------------------------------------------------------
 
 def generate_pkce() -> tuple[str, str]:
-    """Return (code_verifier, code_challenge)."""
-    code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
-    digest = hashlib.sha256(code_verifier.encode()).digest()
-    code_challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
-    return code_verifier, code_challenge
+    """Return (code_verifier, code_challenge). Delegates to the pure,
+    unit-tested core so there is one PKCE implementation."""
+    return auth_core.generate_pkce()
+
+
+def generate_state() -> str:
+    """Random CSRF state (delegates to the pure core)."""
+    return auth_core.generate_state()
 
 
 # ---------------------------------------------------------------------------
@@ -194,65 +196,62 @@ def _install_key_path():
 # ---------------------------------------------------------------------------
 
 def exchange_code(code: str, code_verifier: str) -> bool:
-    """POST /token to auth server. Returns True on success."""
+    """Exchange the one-time code + verifier + device_id for a Supabase
+    session at the Edge Function. Returns True on success. On any HTTP
+    failure (expired/used code, wrong verifier, device mismatch) returns
+    False so the caller discards the pending request and restarts."""
     import json
+    import urllib.error
     import urllib.request
 
-    from .preferences import get_prefs
-
-    prefs = get_prefs()
-    url = f"{prefs.effective_auth_url()}/token"
-    payload = json.dumps({
-        "code": code,
-        "code_verifier": code_verifier,
-        "device_fingerprint": compute_device_fingerprint(),
-    }).encode()
-
+    device_id = compute_device_fingerprint()
+    url, headers, body = auth_core.build_exchange_request(code, code_verifier, device_id)
     try:
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-        _apply_token_response(data)
+        _apply_session(auth_core.parse_session_response(data))
+        session.device_id = device_id
         return True
+    except urllib.error.HTTPError as exc:
+        log.error("Token exchange failed: HTTP %s (code single-use / device mismatch)", exc.code)
+        return False
     except Exception as exc:
         log.error("Token exchange failed: %s", exc)
         return False
 
 
-def _apply_token_response(data: dict) -> None:
-    session.access_token = data["access_token"]
-    session.refresh_token = data["refresh_token"]
-    session.token_expires_at = time.time() + data.get("expires_in", 3600)
-    session.user_id = data.get("user_id", "")
-    session.email = data.get("email", "")
-    session.plan = data.get("plan", "trial")
-    session.trial_end = data.get("trial_end")
+def _apply_session(norm: dict) -> None:
+    """Apply a normalized Supabase session (from exchange or refresh)."""
+    session.access_token = norm["access_token"]
+    session.refresh_token = norm["refresh_token"]
+    session.token_expires_at = norm["expires_at"]
+    session.user_id = norm["user_id"]
+    session.email = norm["email"]
+    session.plan = norm["plan"]            # "free" for V1 (server-authoritative later)
     session.signed_in = True
     save_tokens(session.access_token, session.refresh_token)
+    if session.email and _keyring_available():
+        import keyring
+        keyring.set_password(KEYRING_SERVICE, KEYRING_USER_EMAIL, session.email)
     log.info("Signed in as %s (plan: %s)", session.email, session.plan)
 
 
 def refresh_access_token() -> bool:
+    """Refresh the Supabase session using the stored refresh token. Supabase
+    rotates the refresh token, so we persist the new one."""
     import json
     import urllib.request
-
-    from .preferences import get_prefs
 
     if not session.refresh_token:
         return False
 
-    prefs = get_prefs()
-    url = f"{prefs.effective_auth_url()}/token/refresh"
-    payload = json.dumps({
-        "refresh_token": session.refresh_token,
-        "device_fingerprint": compute_device_fingerprint(),
-    }).encode()
-
+    url, headers, body = auth_core.build_refresh_request(session.refresh_token)
     try:
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-        _apply_token_response(data)
+        _apply_session(auth_core.parse_session_response(data))
         return True
     except Exception as exc:
         log.warning("Token refresh failed: %s", exc)
@@ -289,24 +288,10 @@ def stop_refresh_thread() -> None:
 # ---------------------------------------------------------------------------
 
 def sign_out() -> None:
-    import json
-    import urllib.request
-
-    from .preferences import get_prefs
-
-    prefs = get_prefs()
-    if session.access_token:
-        try:
-            url = f"{prefs.effective_auth_url()}/session"
-            req = urllib.request.Request(
-                url,
-                method="DELETE",
-                headers={"Authorization": f"Bearer {session.access_token}"},
-            )
-            urllib.request.urlopen(req, timeout=5)
-        except Exception:
-            pass
-
+    """Global sign-out: clear the OS-secure-store tokens and reset session.
+    Supabase sessions are stateless JWTs + a rotating refresh token, so
+    discarding the refresh token locally is a complete sign-out for the
+    device (no server round trip required)."""
     clear_tokens()
     session.__init__()  # type: ignore[misc]
     log.info("Signed out")

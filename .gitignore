@@ -84,3 +84,6 @@ dev_server.log
 # Claude Code local state
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
+
+# Stage 3C captured demonstrations (local artifact)
+demonstrations/

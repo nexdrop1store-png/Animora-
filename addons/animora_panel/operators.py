@@ -14,18 +14,19 @@ import json
 import logging
 import threading
 import webbrowser
-from urllib.parse import urlencode
 
 import bpy
 from bpy.types import Operator
 
-from . import auth, ws_client
+from . import auth, auth_core, deep_link, ws_client
 from .preferences import get_prefs
 
 log = logging.getLogger("animora.operators")
 
-# Shared state written by operators, read by panel
+# Pending-auth state, kept together until the callback returns (Step 1 of
+# the device hand-off). Written by OT_AnimoraSignIn, read by the poll timer.
 _pkce_verifier: str = ""
+_pending_state: str = ""
 _pending_auth: bool = False
 
 
@@ -35,58 +36,58 @@ class OT_AnimoraSignIn(Operator):
     bl_description = "Sign in to your Animora account"
 
     def execute(self, context: bpy.types.Context):
-        global _pkce_verifier, _pending_auth
+        global _pkce_verifier, _pending_state, _pending_auth
         prefs = get_prefs()
 
-        # Dev-mode shortcut: skip PKCE/browser/auth-server entirely and
-        # connect straight to the local dev backend. Production sign-in
-        # (Dev Mode off) is unchanged.
+        # Dev-mode shortcut: skip PKCE/browser/Supabase entirely and connect
+        # straight to the local dev backend. Real sign-in (Dev Mode off) runs
+        # the full Supabase device hand-off below.
         if prefs.dev_mode:
             auth.dev_signin()
             _connect_ws()
             self.report({"INFO"}, "Connected to local dev backend")
             return {"FINISHED"}
 
+        # Step 1 — generate + keep together until the callback returns.
         code_verifier, code_challenge = auth.generate_pkce()
+        state = auth.generate_state()
         _pkce_verifier = code_verifier
+        _pending_state = state
         _pending_auth = True
 
-        device_fp = auth.compute_device_fingerprint()
-        params = urlencode({
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
-            "redirect_uri": "animora://auth",
-            "device_fingerprint": device_fp,
-        })
-        url = f"{prefs.effective_auth_url()}/authorize?{params}"
-        log.info("Opening auth URL in browser")
+        device_id = auth.compute_device_fingerprint()
+        # Step 2 — open the system browser to the website's sign-in page.
+        url = auth_core.build_signin_url(
+            prefs.effective_website_base(),
+            code_challenge=code_challenge,
+            device_id=device_id,
+            state=state,
+            device_label=auth_core.device_label(),
+        )
+        log.info("Opening Animora sign-in in the browser")
         webbrowser.open(url)
         self.report({"INFO"}, "Browser opened — complete sign-in, then return here")
         return {"FINISHED"}
 
 
 class OT_AnimoraHandleAuthCallback(Operator):
-    """Called by the animora:// URL handler with the authorization code."""
+    """Manual fallback: complete sign-in from a pasted animora:// callback
+    URL. The normal path is the file-drop poll timer (_poll_auth_callback);
+    this exists for environments where the OS scheme couldn't be wired."""
     bl_idname = "animora.handle_auth_callback"
     bl_label = "Handle Auth Callback"
 
-    code: bpy.props.StringProperty()  # type: ignore[assignment]
+    url: bpy.props.StringProperty()  # type: ignore[assignment]
 
     def execute(self, context: bpy.types.Context):
-        global _pending_auth
-        if not _pending_auth or not _pkce_verifier:
-            self.report({"ERROR"}, "No pending auth — please click Sign In first")
+        parsed = auth_core.parse_callback_url(self.url)
+        if not parsed:
+            self.report({"ERROR"}, "Not a valid animora://auth/callback URL")
             return {"CANCELLED"}
-
-        def _exchange():
-            ok = auth.exchange_code(self.code, _pkce_verifier)
-            if ok:
-                _connect_ws()
-            else:
-                log.error("Auth code exchange failed")
-
-        threading.Thread(target=_exchange, daemon=True).start()
-        _pending_auth = False
+        code, state = parsed
+        if not _complete_auth(code, state):
+            self.report({"ERROR"}, "Sign-in failed — please click Sign In again")
+            return {"CANCELLED"}
         return {"FINISHED"}
 
 
@@ -105,50 +106,92 @@ class OT_AnimoraSignOut(Operator):
         return {"FINISHED"}
 
 
+# Re-entrancy guard: set while we programmatically clear the input field so
+# the property `update` callback doesn't treat the clear as a new submit.
+_suppress_input_update = False
+
+
+def _send_current_input() -> bool:
+    """Send whatever is currently in the input field, then clear it. Shared
+    by the SEND button and the Enter/commit path so there is exactly one
+    send implementation. Returns True if a message was sent."""
+    from . import state as state_module
+    wm = bpy.context.window_manager
+    text = (getattr(wm, "animora_input_text", "") or "").strip()
+    if not text:
+        return False
+    if not ws_client.client.connected:
+        log.warning("Send ignored — not connected (sign in first)")
+        return False
+
+    prefs = get_prefs()
+    ws_client.client.send_message(text, context_flags={
+        "share_viewport": prefs.share_viewport,
+        "share_scene_graph": prefs.share_scene_graph,
+    })
+
+    _append_chat("user", text)
+    state_module.set_quality_notice(None)
+    assistant_item = wm.animora_chat_history.add()
+    assistant_item.role = "assistant"
+    assistant_item.content = ""
+
+    state_module.set_state(state_module.S.SUBMITTING, "Sent. Waiting for Animora…")
+
+    def _to_thinking():
+        if state_module.state.current == state_module.S.SUBMITTING:
+            state_module.set_state(state_module.S.THINKING)
+        return None
+    bpy.app.timers.register(_to_thinking, first_interval=0.25)
+
+    # Clear the field WITHOUT re-triggering the commit→send callback.
+    global _suppress_input_update
+    _suppress_input_update = True
+    try:
+        wm.animora_input_text = ""
+    finally:
+        _suppress_input_update = False
+
+    for area in (bpy.context.screen.areas if bpy.context.screen else []):
+        if area.type == "VIEW_3D":
+            area.tag_redraw()
+    return True
+
+
+def _on_input_committed(self, context) -> None:
+    """`update` callback on animora_input_text. Fires when the field is
+    COMMITTED (the user presses Enter, or clicks away/onto SEND). Sending
+    here makes Enter submit (#1) and a single SEND click submit (#2) — the
+    first click commits the field, which sends. The actual send is deferred
+    to a 0-delay timer because calling the WS / ops from inside a property
+    update callback is unsafe."""
+    if _suppress_input_update:
+        return
+    text = (getattr(self, "animora_input_text", "") or "").strip()
+    if not text:
+        return
+
+    def _deferred():
+        try:
+            _send_current_input()
+        except Exception as exc:  # a timer must never raise
+            log.error("Deferred send failed: %s", exc)
+        return None
+    bpy.app.timers.register(_deferred, first_interval=0.0)
+
+
 class OT_AnimoraSendMessage(Operator):
     bl_idname = "animora.send_message"
     bl_label = "Send"
-    bl_description = "Send message to Animora AI"
+    bl_description = "Send your message to Animora (or just press Enter)"
 
     def execute(self, context: bpy.types.Context):
-        from . import state as state_module
-        wm = context.window_manager
-        text = getattr(wm, "animora_input_text", "").strip()
-        if not text:
-            return {"CANCELLED"}
         if not ws_client.client.connected:
             self.report({"WARNING"}, "Not connected — sign in first")
             return {"CANCELLED"}
-
-        prefs = get_prefs()
-        ws_client.client.send_message(text, context_flags={
-            "share_viewport": prefs.share_viewport,
-            "share_scene_graph": prefs.share_scene_graph,
-        })
-
-        # Append user message to chat history + reset old quality notice
-        _append_chat("user", text)
-        state_module.set_quality_notice(None)
-        # Pre-allocate an empty assistant turn so the panel can show the
-        # "composing…" placeholder + cursor while THINKING.
-        wm = context.window_manager
-        assistant_item = wm.animora_chat_history.add()
-        assistant_item.role = "assistant"
-        assistant_item.content = ""
-
-        # State: SUBMITTING (very brief) → THINKING (waiting for first token)
-        state_module.set_state(state_module.S.SUBMITTING, "Sent. Waiting for Animora…")
-        # Bump straight to THINKING after a brief delay so the dots animate
-        import bpy
-        def _to_thinking():
-            if state_module.state.current == state_module.S.SUBMITTING:
-                state_module.set_state(state_module.S.THINKING)
-            return None
-        bpy.app.timers.register(_to_thinking, first_interval=0.25)
-
-        wm.animora_input_text = ""
-        if context.area:
-            context.area.tag_redraw()
+        # The field's commit callback may have already sent (single click /
+        # Enter); if so the field is empty and this is a harmless no-op.
+        _send_current_input()
         return {"FINISHED"}
 
 
@@ -191,6 +234,78 @@ def _connect_ws() -> None:
     )
 
 
+def _run_on_main_thread(fn) -> None:
+    """Schedule `fn` on Blender's main thread (bpy is not thread-safe)."""
+    def _once():
+        fn()
+        return None  # returning None unregisters this one-shot timer
+    bpy.app.timers.register(_once, first_interval=0.0)
+
+
+def _complete_auth(code: str, state: str) -> bool:
+    """Step 3–4: verify state, then exchange the one-time code for a Supabase
+    session on a background thread; connect the WS on success. Returns False
+    on a state mismatch (possible CSRF) or when no sign-in is pending."""
+    global _pending_auth
+    if not _pending_auth or not _pkce_verifier:
+        log.warning("Auth callback with no pending request — ignoring")
+        return False
+    if not auth_core.verify_state(_pending_state, state):
+        log.error("Auth callback state mismatch — ignoring (possible CSRF)")
+        _pending_auth = False
+        return False
+    verifier = _pkce_verifier
+    _pending_auth = False
+
+    def _exchange():
+        if auth.exchange_code(code, verifier):
+            _run_on_main_thread(_connect_ws)
+        else:
+            log.error("Auth code exchange failed")
+
+    threading.Thread(target=_exchange, daemon=True).start()
+    return True
+
+
+def _poll_auth_callback() -> float:
+    """bpy.app.timers tick: pick up an animora:// callback dropped by the
+    forwarder and complete sign-in. Cheap no-op when nothing is pending."""
+    try:
+        if _pending_auth:
+            url = deep_link.read_and_consume_callback()
+            if url:
+                parsed = auth_core.parse_callback_url(url)
+                if parsed:
+                    _complete_auth(*parsed)
+                else:
+                    log.warning("Ignored malformed animora:// callback")
+    except Exception as exc:  # a timer must never raise
+        log.debug("Auth poll tick error: %s", exc)
+    return 1.0  # seconds to next tick
+
+
+def _app_version() -> str:
+    import importlib
+    try:
+        pkg = importlib.import_module(__package__ or "animora_panel")
+        return ".".join(str(x) for x in getattr(pkg, "bl_info", {}).get("version", (1, 0, 0)))
+    except Exception:
+        return "1.0.0"
+
+
+class OT_AnimoraFeedback(Operator):
+    bl_idname = "animora.feedback"
+    bl_label = "Send Feedback"
+    bl_description = "Open the Animora feedback page in your browser"
+
+    def execute(self, context: bpy.types.Context):
+        prefs = get_prefs()
+        url = auth_core.feedback_url(prefs.effective_website_base(), _app_version())
+        webbrowser.open(url)
+        self.report({"INFO"}, "Opened Animora feedback in your browser")
+        return {"FINISHED"}
+
+
 def _on_stream_token(token: str) -> None:
     """Append the new token to the latest assistant turn. The empty
     assistant item is pre-allocated by OT_AnimoraSendMessage so the
@@ -217,6 +332,15 @@ def _on_tool_call(msg: dict) -> None:
     tool_use_id = msg.get("tool_use_id", "")
     iteration = msg.get("iteration", 0)
     user_intent = msg.get("user_intent", "")
+
+    # Post-mortem fix — make the viewport render-responsive ONCE per
+    # session, before the first build step. Enables background shader
+    # compilation (so EEVEE doesn't freeze the main thread compiling
+    # materials) and flips to MATERIAL_PREVIEW while the scene is still
+    # empty (instant switch; later materials then compile incrementally
+    # off the main thread). This is what fixes the "compiling EEVEE
+    # shaders" hang.
+    _ensure_render_responsive()
 
     # Sprint 4E — Per-iteration undo grouping. Push ONE
     # `bpy.ops.ed.undo_push` per new (session, iteration) tuple. All
@@ -378,6 +502,148 @@ def _post_to_chat(role: str, content: str) -> None:
 # Reset to -1 on session restart / addon reload.
 _last_iteration_undo_pushed: int = -1
 
+# Post-mortem fix — one-time-per-session viewport responsiveness setup.
+# Set once we've enabled background shader compilation + switched to
+# MATERIAL_PREVIEW. Cleared on addon reload (module re-import).
+_render_responsive_done: bool = False
+
+
+def _ensure_render_responsive() -> None:
+    """Show material colors WITHOUT triggering EEVEE shader compilation.
+
+    The "compiling EEVEE shaders → Animora not responding" hang is
+    EEVEE compiling material shaders on Blender's main thread whenever
+    the viewport is in MATERIAL_PREVIEW or RENDERED mode. We sidestep
+    it completely:
+
+      • Keep the viewport in SOLID mode (no EEVEE, no shader compile,
+        never freezes).
+      • Set SOLID mode's color source to 'MATERIAL' so it shows each
+        material's flat viewport-display color (`material.diffuse_color`,
+        which `_atomic_apply_material` now writes from the base color).
+
+    SOLID + color='MATERIAL' reads a flat per-material color property —
+    instant, no compile, no GPU shader work. The user sees colored
+    geometry instead of grey, and the viewport stays responsive no
+    matter how many materials the build creates. Full PBR (roughness,
+    metallic, lighting) is still there for when the user hits F12 or
+    switches to Rendered themselves.
+
+    Idempotent: guarded by `_render_responsive_done`, runs at most once
+    between addon reloads. Never raises into the caller.
+    """
+    global _render_responsive_done
+    if _render_responsive_done:
+        return
+    _render_responsive_done = True
+
+    import bpy
+
+    try:
+        if bpy.context.screen is None:
+            # No screen yet (early in startup) — un-set the guard so we
+            # retry on the next tool_call when the screen exists.
+            _render_responsive_done = False
+            return
+        switched = False
+        for area in bpy.context.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for space in area.spaces:
+                if space.type != "VIEW_3D":
+                    continue
+                shading = space.shading
+                # Only adjust SOLID — never override an explicit
+                # RENDERED / MATERIAL / WIREFRAME choice the user made.
+                if shading.type == "SOLID":
+                    try:
+                        shading.color_type = "MATERIAL"
+                        switched = True
+                    except (AttributeError, TypeError):
+                        pass
+        # Report the FINAL viewport state via print() so it actually
+        # shows in the Blender system console (the addon's log.info is
+        # suppressed — Blender only surfaces print() + WARNING+).
+        states = []
+        for area in bpy.context.screen.areas:
+            if area.type == "VIEW_3D":
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        sh = space.shading
+                        states.append(
+                            f"type={sh.type} "
+                            f"color_type={getattr(sh, 'color_type', 'N/A')}"
+                        )
+        print(f"[ANIMORA DIAG] render_responsive: switched={switched} "
+              f"viewport_shading=[{'; '.join(states) or '(no VIEW_3D)'}]")
+        _force_viewport_redraw()
+    except Exception as exc:
+        print(f"[ANIMORA DIAG] render_responsive failed: {exc}")
+
+
+def log_material_diagnostic() -> None:
+    """Ground-truth material diagnostic — logs, for every mesh in the
+    scene, whether it has a material and what its viewport display color
+    is. This is THE answer to 'why is the build grey':
+
+      • mesh with materials=[] (or all None)  → materials NOT applied
+        (the model skipped apply_material, or the rescue didn't fire).
+      • mesh with a material whose diffuse_color is greyish
+        (R≈G≈B, mid value)                    → grey COLOR was chosen.
+      • mesh with a vivid diffuse_color but viewport still grey
+        → the SOLID color_type switch didn't take (see
+          render_responsive log above).
+
+    Called once at turn_complete. Uses print() so it ALWAYS shows in the
+    Blender system console — the addon's log.info is suppressed (Blender
+    only surfaces print() + WARNING+ to the console).
+    """
+    try:
+        import bpy
+        meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+        if not meshes:
+            print("[ANIMORA DIAG] material_diagnostic: no mesh objects in scene")
+            return
+        n_with = 0
+        n_without = 0
+        sample_lines: list[str] = []
+        for o in meshes:
+            mats = [m for m in (o.data.materials or []) if m is not None]
+            if mats:
+                n_with += 1
+                m = mats[0]
+                dc = tuple(round(c, 3) for c in m.diffuse_color)
+                # Also pull the Principled BSDF Base Color node value, in
+                # case diffuse_color (viewport display) wasn't set but the
+                # node was — that pinpoints exactly which write happened.
+                base = None
+                try:
+                    if m.use_nodes:
+                        bsdf = m.node_tree.nodes.get("Principled BSDF")
+                        if bsdf is not None:
+                            base = tuple(round(c, 3)
+                                         for c in bsdf.inputs["Base Color"].default_value)
+                except Exception:
+                    pass
+                r, g, b = dc[0], dc[1], dc[2]
+                greyish = (max(r, g, b) - min(r, g, b)) < 0.06
+                if len(sample_lines) < 8:
+                    sample_lines.append(
+                        f"{o.name}→{m.name} diffuse={dc} base={base}"
+                        f"{' [GREYISH]' if greyish else ''}"
+                    )
+            else:
+                n_without += 1
+                if len(sample_lines) < 8:
+                    sample_lines.append(f"{o.name}→NO MATERIAL")
+        print(
+            f"[ANIMORA DIAG] material_diagnostic: {n_with}/{len(meshes)} "
+            f"meshes have a material, {n_without} have NONE.\n"
+            f"[ANIMORA DIAG]   " + "\n[ANIMORA DIAG]   ".join(sample_lines)
+        )
+    except Exception as exc:
+        print(f"[ANIMORA DIAG] material_diagnostic failed: {exc}")
+
 
 def _maybe_push_iteration_undo(iteration: int, user_intent: str) -> None:
     """Push exactly ONE bpy.ops.ed.undo_push per new agent iteration.
@@ -402,6 +668,167 @@ def _maybe_push_iteration_undo(iteration: int, user_intent: str) -> None:
     except Exception as exc:
         log.debug("undo_push failed (%s) — continuing", exc)
     _last_iteration_undo_pushed = idx
+
+
+# ── Sprint 1 Deep — Batched deferred-cleanup drain ────────────────────
+# On a hero turn (e.g., the v17 chair example with ~22 atomic calls in
+# iteration 1) the previous "one bpy.app.timers.register per tool" path
+# pushed 22+ callbacks onto the main thread in rapid succession. Each
+# callback did: append a chat history entry → tag_redraw ANIMORA area
+# → vision.end_exec_pause. tag_redraw forces panel.py's draw() to run,
+# and panel.py iterates the full wm.animora_chat_history (which grew
+# to 50+ entries during the turn). The compounded O(N) per-redraw cost
+# manifested as a 30-60s main-thread freeze — looked like a hang.
+#
+# Fix: a single shared drain timer that batches every queued cleanup
+# per tick, appends ALL chat entries in one Python loop, calls
+# `tag_redraw` exactly once at the end, and balances the vision
+# exec-pause counter for each queued entry. Callers append to
+# `_pending_cleanups` instead of registering their own timer.
+
+# Queue of {"chat_line": str, "balance_exec_pause": bool, "force_redraw": bool}.
+# Strings only — no closures held — so the queue is cheap to drain.
+_pending_cleanups: list[dict] = []
+_drain_timer_registered: bool = False
+
+# Per-turn cap on tool-success chat lines (the ✓ entries). When 22
+# atomic tools fire in one iteration the chat becomes noise; cap at
+# this many displayed ✓ lines per turn and emit a single
+# "… N more steps completed" summary at the end. Error chat lines are
+# never capped — failures always show.
+#
+# Sprint 1.x: raised from 8 → 16 so the user can see both the
+# iteration 0 blockout AND iteration 1 material/parent phase land in
+# the chat. The cofounder's couch test showed 8 lines all from iter 0
+# (legs being placed) and 14 hidden behind "… N more build steps
+# completed", which hid the entire material-apply phase from view.
+# 16 covers a typical hero turn (10-14 blockout + 4-6 material/parent).
+_TOOL_RESULT_CHAT_CAP_PER_TURN = 16
+_tool_result_chat_count_this_turn: int = 0
+_tool_result_chat_suppressed_count: int = 0
+
+
+def reset_per_turn_chat_caps() -> None:
+    """Called by ws_client at the start of a new user_message so the per-turn
+    chat caps reset. Idempotent — safe to call when no turn is active."""
+    global _tool_result_chat_count_this_turn, _tool_result_chat_suppressed_count
+    _tool_result_chat_count_this_turn = 0
+    _tool_result_chat_suppressed_count = 0
+
+
+def _enqueue_cleanup(
+    *,
+    chat_line: str = "",
+    balance_exec_pause: bool = False,
+    force_redraw: bool = True,
+) -> None:
+    """Append one cleanup entry to the drain queue and ensure the drain
+    timer is registered. The drain timer runs on the main thread and
+    processes ALL queued entries in a single tick."""
+    global _drain_timer_registered, _tool_result_chat_count_this_turn
+    global _tool_result_chat_suppressed_count
+    # Per-turn cap on ✓ tool-success lines: count and either keep or
+    # bucket-into-summary.
+    if chat_line and chat_line.startswith("✓"):
+        if _tool_result_chat_count_this_turn >= _TOOL_RESULT_CHAT_CAP_PER_TURN:
+            _tool_result_chat_suppressed_count += 1
+            chat_line = ""  # drop the per-tool line; the summary will surface at end-of-turn
+        else:
+            _tool_result_chat_count_this_turn += 1
+    _pending_cleanups.append({
+        "chat_line": chat_line,
+        "balance_exec_pause": balance_exec_pause,
+        "force_redraw": force_redraw,
+    })
+    if not _drain_timer_registered:
+        try:
+            import bpy
+            bpy.app.timers.register(_drain_cleanups, first_interval=0.0)
+            _drain_timer_registered = True
+        except Exception as exc:
+            # If the timer won't register, drain inline so we still ship
+            # the cleanup (loses the latency win, but stays correct).
+            log.debug("drain.timer.register_failed: %s", exc)
+            _drain_cleanups()
+
+
+def _drain_cleanups():
+    """Single main-thread tick: process every queued cleanup entry,
+    coalesce the panel redraw to ONE tag_redraw at the end, and
+    balance the vision exec-pause counter. Returns None to drop the
+    timer registration when the queue is empty."""
+    global _drain_timer_registered, _tool_result_chat_suppressed_count
+    if not _pending_cleanups:
+        _drain_timer_registered = False
+        return None
+
+    # Snapshot + clear so callers can enqueue more while we process.
+    pending = _pending_cleanups.copy()
+    _pending_cleanups.clear()
+
+    try:
+        import bpy
+        from . import vision
+        wm = bpy.context.window_manager
+        has_chat = hasattr(wm, "animora_chat_history")
+        chat_added = 0
+        needs_redraw = False
+        exec_pauses_to_balance = 0
+
+        for entry in pending:
+            line = entry.get("chat_line") or ""
+            if line and has_chat:
+                try:
+                    item = wm.animora_chat_history.add()
+                    item.role = "assistant"
+                    item.content = line
+                    chat_added += 1
+                except Exception as exc:
+                    log.debug("drain.chat_append failed: %s", exc)
+            if entry.get("force_redraw"):
+                needs_redraw = True
+            if entry.get("balance_exec_pause"):
+                exec_pauses_to_balance += 1
+
+        # ONE tag_redraw at the end — covers every panel append this batch.
+        if needs_redraw or chat_added:
+            try:
+                if bpy.context.screen is not None:
+                    for area in bpy.context.screen.areas:
+                        if area.type in ("ANIMORA", "VIEW_3D"):
+                            area.tag_redraw()
+            except Exception as exc:
+                log.debug("drain.tag_redraw failed: %s", exc)
+
+        # Balance the vision exec-pause counter — once per queued entry
+        # that incremented it on the critical path.
+        for _ in range(exec_pauses_to_balance):
+            try:
+                vision.end_exec_pause()
+            except Exception:
+                pass
+    except Exception as exc:
+        log.warning("drain.tick.crashed: %s", exc)
+
+    # If more entries arrived during processing, keep the timer alive.
+    if _pending_cleanups:
+        return 0.0
+    _drain_timer_registered = False
+    return None
+
+
+def flush_turn_end_chat_summary() -> None:
+    """Called at end-of-turn (by main.py via WS turn_complete handler in
+    ws_client.py) to surface the suppressed tool-result count if we hit
+    the per-turn cap. Cheap; idempotent."""
+    global _tool_result_chat_suppressed_count
+    if _tool_result_chat_suppressed_count > 0:
+        _enqueue_cleanup(
+            chat_line=f"… {_tool_result_chat_suppressed_count} more build steps completed.",
+            balance_exec_pause=False,
+            force_redraw=True,
+        )
+        _tool_result_chat_suppressed_count = 0
 
 
 def _force_viewport_redraw() -> None:
@@ -899,6 +1326,21 @@ def _get_object_info(tool_use_id: str, name: str) -> None:
             "error": f"Object '{name}' not found",
         })
         return
+    # Stage 1 — primitive 2 (read_object). Material slot names are
+    # included so the model can verify "did I apply a material to this
+    # object" with a single tool call. Without this, checking
+    # materials requires a full serialize_scene_graph walk. Empty list
+    # means the object has no material slots (mesh / curve / etc.) or
+    # no data block (empty, light, camera).
+    materials: list[str] = []
+    if obj.data is not None and hasattr(obj.data, "materials"):
+        try:
+            materials = [
+                m.name if m is not None else ""
+                for m in obj.data.materials
+            ]
+        except Exception:
+            materials = []
     info = {
         "name": obj.name,
         "type": obj.type,
@@ -907,6 +1349,7 @@ def _get_object_info(tool_use_id: str, name: str) -> None:
         "scale": list(obj.scale),
         "parent": obj.parent.name if obj.parent else None,
         "modifiers": [{"type": m.type, "name": m.name} for m in obj.modifiers],
+        "materials": materials,
         "vertex_count": len(obj.data.vertices) if obj.data and hasattr(obj.data, "vertices") else None,
     }
     ws_client.client.send_json({
@@ -1282,38 +1725,18 @@ def _atomic_run(tool_use_id: str, label: str, fn) -> None:
         return
 
     # ── Deferred off-critical-path cleanup ─────────────────────────────
-    # Everything below is UX polish: the backend already has the
-    # tool_result and can spawn the next iteration. These can run a few
-    # ms later without anyone noticing.
+    # Sprint 1 Deep: replaced "one timer per tool" with a single batched
+    # drain queue. _enqueue_cleanup appends the chat line + signals the
+    # vision exec-pause balance, and ensures the shared drain timer is
+    # registered. On a 22-tool hero turn this collapses 22 main-thread
+    # timer callbacks + 22 panel redraws into ONE drain pass with ONE
+    # final tag_redraw — fixing the 30-60s freeze the cofounder hit.
     chat_summary = summary or label
-
-    def _deferred_cleanup():
-        try:
-            if chat_summary:
-                _post_to_chat("assistant", f"✓ {chat_summary}")
-        except Exception as exc:
-            log.debug("deferred.chat_post failed: %s", exc)
-        try:
-            _force_viewport_redraw()
-        except Exception as exc:
-            log.debug("deferred.redraw failed: %s", exc)
-        # Resume vision LAST so the post-tool capture lands on the next
-        # depsgraph tick — the model gets the visual state of the
-        # mutation on the next iteration without us blocking the
-        # critical path on a capture.
-        try:
-            vision.end_exec_pause()
-        except Exception:
-            pass
-        return None
-
-    try:
-        bpy.app.timers.register(_deferred_cleanup, first_interval=0.0)
-    except Exception as exc:
-        # If the timer can't register, do the cleanup inline as a
-        # fallback — we lose the latency win but stay correct.
-        log.debug("deferred.timer.register_failed: %s", exc)
-        _deferred_cleanup()
+    _enqueue_cleanup(
+        chat_line=f"✓ {chat_summary}" if chat_summary else "",
+        balance_exec_pause=True,
+        force_redraw=True,
+    )
 
 
 # ── Inspect ────────────────────────────────────────────────────────────
@@ -1659,18 +2082,24 @@ def _atomic_apply_material(tool_use_id: str, tool_input: dict) -> None:
                 bsdf.inputs["Emission Color"].default_value = em
                 if "Emission Strength" in bsdf.inputs:
                     bsdf.inputs["Emission Strength"].default_value = emission_strength
+        # Post-mortem fix — set the material's VIEWPORT DISPLAY color
+        # (diffuse_color) to match the base color. SOLID shading mode
+        # with color_type='MATERIAL' reads this flat property directly
+        # and shows the color with ZERO EEVEE shader compilation. This
+        # is how the user sees colors without the "compiling EEVEE
+        # shaders" hang — we never need MATERIAL_PREVIEW / RENDERED.
+        # Roughness/metallic on diffuse_color don't matter; it's a flat
+        # solid-mode swatch. The full PBR values still live on the BSDF
+        # for when the user renders.
+        try:
+            mat.diffuse_color = base_color
+        except Exception:
+            pass
         # Ensure target's first material slot is this material
         if obj.data.materials:
             obj.data.materials[0] = mat
         else:
             obj.data.materials.append(mat)
-        # Sprint 4F — REMOVED the automatic MATERIAL_PREVIEW shading
-        # switch. It triggered Cycles/EEVEE shader compilation on the
-        # main thread (5-30s, blocking, viewport goes black) — which is
-        # the "sphere vanished" symptom the cofounder reported. If the
-        # user wants MATERIAL_PREVIEW they can hit Z and pick it; the
-        # model can also call execute_animora_code with an explicit
-        # shading switch if needed.
         return (
             f"Applied material '{mat_name}' to {target}",
             f"object={target}",
@@ -2139,6 +2568,7 @@ _classes = [
     OT_AnimoraInterrupt,
     OT_AnimoraSelfTest,
     OT_AnimoraQuickSettings,
+    OT_AnimoraFeedback,
 ]
 
 
@@ -2147,15 +2577,28 @@ def register() -> None:
         bpy.utils.register_class(cls)
 
     bpy.types.WindowManager.animora_input_text = bpy.props.StringProperty(
-        name="Message", default=""
+        name="Message", default="",
+        # Send on commit so Enter and a single SEND click both submit.
+        update=_on_input_committed,
     )
     bpy.types.WindowManager.animora_chat_history = bpy.props.CollectionProperty(
         type=AnimoraChatItem
     )
     bpy.types.WindowManager.animora_chat_index = bpy.props.IntProperty(default=0)
 
+    # Register the animora:// scheme (runtime fallback to the installer) and
+    # start the callback poll timer that completes browser sign-in.
+    try:
+        deep_link.register_scheme()
+    except Exception as exc:
+        log.warning("animora:// scheme registration skipped: %s", exc)
+    if not bpy.app.timers.is_registered(_poll_auth_callback):
+        bpy.app.timers.register(_poll_auth_callback, first_interval=1.0)
+
 
 def unregister() -> None:
+    if bpy.app.timers.is_registered(_poll_auth_callback):
+        bpy.app.timers.unregister(_poll_auth_callback)
     del bpy.types.WindowManager.animora_input_text
     del bpy.types.WindowManager.animora_chat_history
     del bpy.types.WindowManager.animora_chat_index

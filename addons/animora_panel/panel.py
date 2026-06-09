@@ -234,6 +234,12 @@ class ANIMORA_PT_main(Panel):
         # Input area
         self._draw_input(outer, wm)
 
+        # Feedback — always reachable; opens the website feedback page in the
+        # system browser (attaches the user's account if signed in there).
+        fb = outer.row()
+        fb.scale_y = 0.85
+        fb.operator("animora.feedback", text="Send Feedback", icon="HELP")
+
         # Dev tools footer — Self-Test button. Only shown in dev mode
         # to avoid cluttering the production UX. Hidden at narrow widths.
         if prefs.dev_mode and not is_narrow:
@@ -386,10 +392,20 @@ class ANIMORA_PT_main(Panel):
         convo = layout.column(align=False)
         convo.scale_y = 1.0
 
-        # Show the last N turns. More than ~6 turns gets cluttered in the
-        # narrow panel; older turns are still in wm.animora_chat_history
-        # for the backend's history sync, just not all rendered.
-        visible_turns = list(history)[-12:]
+        # Sprint 1 Deep: bumped from 12 → 30 so hero turns (which can
+        # emit 22 ⏵ tool.start lines + ~8 ✓ result lines + narration)
+        # don't truncate mid-build. Older entries are still in
+        # wm.animora_chat_history for the backend's history sync.
+        # Render-cost is O(N visible) which stays bounded.
+        _VISIBLE_LIMIT = 30
+        total = len(history)
+        visible_turns = list(history)[-_VISIBLE_LIMIT:]
+        if total > _VISIBLE_LIMIT:
+            # Truncation header so it's clear there's more above.
+            hdr = convo.row()
+            hdr.alignment = "CENTER"
+            hdr.label(text=f"… {total - _VISIBLE_LIMIT} earlier entries hidden …", icon="DOT")
+            convo.separator(factor=0.4)
 
         for i, item in enumerate(visible_turns):
             is_user = (item.role == "user")

@@ -10,7 +10,7 @@ from __future__ import annotations
 bl_info = {
     "name": "Animora AI Panel",
     "author": "Animora Technologies",
-    "version": (0, 1, 0),
+    "version": (1, 1, 0),
     "blender": (4, 0, 0),
     "location": "View3D > N-Panel > Animora",
     "description": "AI-powered assistant integrated into the 3D viewport",

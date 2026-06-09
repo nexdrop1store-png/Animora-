@@ -212,6 +212,9 @@ class AnimoraPreferences(AddonPreferences):
         box = layout.box()
         box.label(text="Connection", icon="WORLD")
         box.prop(self, "dev_mode")
+        # Website base — the sign-in/feedback host. Editable so testers can
+        # point at http://localhost:8080; defaults to production.
+        box.prop(self, "website_url", text="Website")
         if self.dev_mode:
             col = box.column(align=True)
             col.prop(self, "backend_url")
@@ -242,6 +245,12 @@ class AnimoraPreferences(AddonPreferences):
         if self.dev_mode:
             return "http://localhost:8001"
         return self.auth_server_url
+
+    def effective_website_base(self) -> str:
+        """Base URL of the sign-in/feedback website. This is the WEBSITE_BASE
+        toggle: set it to http://localhost:8080 to test against a locally
+        served website, or leave it at the production animora.tech."""
+        return (self.website_url or "https://animora.tech").rstrip("/")
 
 
 def get_prefs() -> AnimoraPreferences:

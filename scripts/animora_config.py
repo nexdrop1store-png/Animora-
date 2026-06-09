@@ -23,9 +23,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# ── Animora PRODUCT version (what users see) ────────────────────────────
+# This is Animora's own version, shown in the installer, window title,
+# About box, and splash. It is DELIBERATELY separate from the Blender base
+# version below: users should never see "5.1". Bump this for Animora
+# releases (V1 = 1.x); it has nothing to do with the Blender install dir.
+ANIMORA_VERSION = "1.1.0"
+
 # The Blender release Animora is currently built against.
-# Used by every script that needs to refer to the install version dir
-# (e.g. `{app}/5.1/scripts/addons_core/animora_panel/`).
+# Used ONLY for the internal install version dir Blender requires
+# (e.g. `{app}/5.1/scripts/addons_core/animora_panel/`) — NOT user-facing.
 BLENDER_VERSION = "5.1"
 
 # The patch version (third component) is allowed to drift for security

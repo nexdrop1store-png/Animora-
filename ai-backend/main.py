@@ -148,7 +148,7 @@ async def websocket_endpoint(
     # whenever the dispatch contract changes). When the backend bumps to
     # protocol N but the installed addon is still on N-1, the user gets
     # silent tool_call drops — instead, fire a quality_notice now.
-    _MIN_ADDON_PROTOCOL = 5
+    _MIN_ADDON_PROTOCOL = 6
     addon_proto = int(hello_data.get("addon_protocol_version", 0) or 0)
     addon_version = str(hello_data.get("animora_version", "?"))
     if addon_proto < _MIN_ADDON_PROTOCOL:
@@ -719,6 +719,12 @@ async def _handle_user_message(
     async def send_token(token: str) -> None:
         await _safe_ws_send(websocket, {"type": "stream_token", "token": token})
 
+    # Stage 3C — collect every atomic tool call this turn so an
+    # exemplary build can be captured as a demonstration after the
+    # post-turn critic verdict. Lightweight; always collected (the
+    # capture itself is env-gated and only stores passing builds).
+    turn_tool_calls: list[dict[str, Any]] = []
+
     async def send_tool_call(
         tool_name: str,
         tool_use_id: str,
@@ -727,6 +733,13 @@ async def _handle_user_message(
         iteration: int | None = None,
         user_intent: str = "",
     ) -> None:
+        # Stage 3C — record the call for demonstration capture (cheap;
+        # not gated on recorder.enabled). Skip the heavy script body for
+        # the escape hatch — demonstrations are for the atomic surface.
+        if tool_name not in ("execute_animora_code", "execute_blender_script"):
+            turn_tool_calls.append({"name": tool_name, "input": dict(tool_input or {})})
+        else:
+            turn_tool_calls.append({"name": tool_name, "input": {}})
         # Sprint 4 — feed the recorder before forwarding to the addon
         if recorder.enabled:
             recorder.add_tool_use(tool_name)
@@ -872,6 +885,12 @@ async def _handle_user_message(
             on_inline_quality_check=_on_inline_quality_check,
             # Quality Plan §5.1 — capture spec for final_review
             on_spec_built=_on_spec_built,
+            # Stage 3A — the critic-correction loop reads the freshest
+            # scene graph the addon has pushed (updated on every
+            # depsgraph change during the build, not suppressed by the
+            # vision exec-pause). Returns {} early in a turn before any
+            # push lands; the critic step no-ops on an empty graph.
+            get_live_scene_graph=lambda: session_data.get("scene_context", {}),
         )
     except StreamCancelled:
         # Finalize the recording FIRST — the WS may already be dead;
@@ -945,6 +964,65 @@ async def _handle_user_message(
     last_user_intent = session_data.get("last_user_intent", "")
     last_scene_before = session_data.get("last_scene_before")
     last_scene_after = session_data.get("scene_context")
+
+    # Stage 2 — deterministic scene-data critic. Runs on the post-build
+    # scene graph with zero LLM cost and logs a structured verdict. This
+    # is the live wiring of the critic from orchestrator/critic.py — it
+    # tells us, per build, exactly which structural rubric checks passed
+    # or failed (materials_present, scene_element_count, scale_sanity,
+    # …). Diagnostic-only for now (logs + telemetry); it does not gate
+    # or alter the build. The existing rescue gates in streaming.py
+    # remain the corrective path.
+    if isinstance(last_scene_after, dict) and last_scene_after.get("objects"):
+        try:
+            from .orchestrator.critic import run_scene_critic
+            critic_report = run_scene_critic(
+                last_scene_after,
+                require_materials=True,
+                require_light=False,
+                expected_min_objects=1,
+            )
+            log.info("critic.scene_verdict", extra={
+                "session_id": session_id,
+                "passed": critic_report.passed,
+                "score": critic_report.score,
+                "summary": critic_report.summary,
+                "errors": [f.check_id for f in critic_report.errors],
+                "warnings": [f.check_id for f in critic_report.warnings],
+            })
+            if critic_report.failed:
+                # One readable line listing the actionable findings.
+                log.info("critic.findings session=%s\n%s",
+                         session_id, critic_report.actionable_text())
+            await bus.emit("critic.scene_evaluated", {
+                "session_id": session_id,
+                "passed": critic_report.passed,
+                "score": critic_report.score,
+                "error_checks": [f.check_id for f in critic_report.errors],
+            })
+
+            # Stage 3C — capture exemplary builds as demonstrations.
+            # No-op unless ANIMORA_CAPTURE_DEMOS is set; only stores
+            # builds that pass the critic above the quality threshold.
+            try:
+                from .orchestrator.demonstrations import DemonstrationLibrary
+                mesh_count = sum(
+                    1 for o in last_scene_after.get("objects", [])
+                    if o.get("type") == "MESH"
+                )
+                DemonstrationLibrary().capture(
+                    prompt=last_user_intent,
+                    intent=session_data.get("last_intent", ""),
+                    tool_calls=turn_tool_calls,
+                    critic_score=critic_report.score,
+                    critic_passed=critic_report.passed,
+                    mesh_count=mesh_count,
+                )
+            except Exception as exc:
+                log.debug("demonstration.capture_failed: %s", exc)
+        except Exception as exc:
+            log.debug("critic.scene_verdict_failed: %s", exc)
+
     if last_persona_id and last_user_intent:
         if inline_quality_check_ran["done"]:
             # Sprint 4 — wrap run_final_review so the verdict ALSO

@@ -121,6 +121,117 @@ def has_modifiers(script: str) -> bool:
     return bool(_MODIFIER_NEW_RE.search(script))
 
 
+# ── MCP-pivot bridge: render atomic tool calls as bpy-equivalent text ───
+# The benchmarks + every structural check above were written for the
+# pre-MCP era when the model emitted a bpy SCRIPT (primitive_cube_add(),
+# materials.new(), ...). The system now emits ATOMIC TOOL CALLS
+# (create_primitive, apply_material, ...), which those regexes never
+# match — so a perfect atomic build scored as a total failure.
+#
+# Rather than rewrite all 31 benchmarks + duplicate every counter, we
+# translate the atomic calls into the bpy-equivalent text the existing
+# regexes already understand. ONE function, here, makes the whole scorer
+# architecture-agnostic; escape-hatch (real bpy script) builds are scored
+# by concatenating their actual script, so both paths work.
+_KIND_TO_BPY_OP: dict[str, str] = {
+    "cube": "primitive_cube_add", "cuboid": "primitive_cube_add",
+    "box": "primitive_cube_add",
+    "sphere": "primitive_uv_sphere_add", "uv_sphere": "primitive_uv_sphere_add",
+    "ico_sphere": "primitive_ico_sphere_add", "icosphere": "primitive_ico_sphere_add",
+    "cylinder": "primitive_cylinder_add", "cone": "primitive_cone_add",
+    "torus": "primitive_torus_add", "plane": "primitive_plane_add",
+    "monkey": "primitive_monkey_add", "circle": "primitive_circle_add",
+}
+_MODIFIER_KIND_TO_BPY: dict[str, str] = {
+    "bevel": "BEVEL", "subdivision_surface": "SUBSURF", "subsurf": "SUBSURF",
+    "array": "ARRAY", "mirror": "MIRROR", "solidify": "SOLIDIFY",
+    "decimate": "DECIMATE", "screw": "SCREW", "wireframe": "WIREFRAME",
+}
+
+
+def _fmt_xyz(vec: Any) -> str:
+    try:
+        x, y, z = (float(v) for v in list(vec)[:3])
+        return f"{x}, {y}, {z}"
+    except (TypeError, ValueError):
+        return "0.0, 0.0, 0.0"
+
+
+def _material_key(inp: dict[str, Any]) -> str:
+    """Identity for material-variety counting: an explicit name if given,
+    else the base_color rounded — so distinct colours read as distinct
+    materials and 'one grey on everything' reads as a single material."""
+    nm = inp.get("name")
+    if nm:
+        return str(nm)
+    bc = inp.get("base_color")
+    if isinstance(bc, (list, tuple)):
+        return "color_" + "_".join(f"{round(float(c), 2)}" for c in bc if isinstance(c, (int, float)))
+    return "Mat"
+
+
+def render_tool_calls_as_bpy(tool_calls: list[dict[str, Any]]) -> str:
+    """Translate atomic tool calls into bpy-equivalent text so the
+    benchmark regexes + structural counters score an atomic build exactly
+    as they would the equivalent legacy script. See block comment above."""
+    lines: list[str] = []
+    for tc in tool_calls:
+        name = tc.get("name", "")
+        inp = tc.get("input") or {}
+        if name == "create_primitive":
+            kind = str(inp.get("kind") or "cube").lower()
+            op = _KIND_TO_BPY_OP.get(kind, "primitive_cube_add")
+            lines.append(f"bpy.ops.mesh.{op}(location=({_fmt_xyz(inp.get('location'))}))")
+            if inp.get("name"):
+                lines.append(f'obj.name = "{inp["name"]}"')
+        elif name == "duplicate_object":
+            lines.append('dup = bpy.data.objects.new("dup", None)')
+            if inp.get("name") or inp.get("new_name"):
+                lines.append(f'dup.name = "{inp.get("name") or inp.get("new_name")}"')
+        elif name == "apply_material":
+            lines.append(f'mat = bpy.data.materials.new("{_material_key(inp)}")')
+            lines.append("bsdf = nodes.new('ShaderNodeBsdfPrincipled')  # Principled BSDF")
+            # Render the numeric PBR params so benchmarks that assert a
+            # specific finish (e.g. `metallic=1.0` for industrial shelving)
+            # match an atomic apply_material call, not just the escape hatch.
+            for prop in ("metallic", "roughness", "alpha", "emission_strength"):
+                if inp.get(prop) is not None:
+                    try:
+                        lines.append(f"{prop}={float(inp[prop])}")
+                    except (TypeError, ValueError):
+                        pass
+            lines.append("obj.data.materials.append(mat)")
+        elif name == "create_light":
+            lt = str(inp.get("kind") or inp.get("type") or "point").upper()
+            lines.append(f'light = bpy.data.lights.new(name="{inp.get("name", "Light")}", type="{lt}")')
+            if inp.get("location"):
+                lines.append(f"light_obj.location = ({_fmt_xyz(inp.get('location'))})")
+        elif name == "create_camera":
+            lines.append(f'cam = bpy.data.cameras.new("{inp.get("name", "Camera")}")')
+            if inp.get("location"):
+                lines.append(f"cam_obj.location = ({_fmt_xyz(inp.get('location'))})")
+        elif name == "add_modifier":
+            mt = _MODIFIER_KIND_TO_BPY.get(str(inp.get("kind") or "").lower(),
+                                           str(inp.get("kind") or "BEVEL").upper())
+            lines.append(f'mod = obj.modifiers.new("{inp.get("kind", "mod")}", type="{mt}")')
+        elif name == "set_transform":
+            if inp.get("location"):
+                lines.append(f"obj.location = ({_fmt_xyz(inp.get('location'))})")
+        elif name == "set_world":
+            lines.append("world.use_nodes = True  # set_world")
+        elif name in ("execute_animora_code", "execute_blender_script"):
+            continue  # the real bpy script is concatenated by the caller
+        else:
+            # use_asset / load_asset / request_final_review / set_parent /
+            # delete_object / get_* / viewport_screenshot — keep call syntax
+            # so required_ops that match tool NAMES (e.g. `use_asset\(`) hit.
+            kv = ", ".join(
+                f'{k}="{str(v)[:60]}"' for k, v in inp.items() if isinstance(k, str)
+            )
+            lines.append(f"{name}({kv})")
+    return "\n".join(lines)
+
+
 def score_against_benchmark(
     bench: Benchmark,
     script: str,
@@ -308,7 +419,183 @@ def aggregate_by_category(results: list[dict[str, Any]]) -> dict[str, CategorySc
     return scores
 
 
+def aggregate_critic_by_category(
+    results: list[dict[str, Any]],
+) -> dict[str, float]:
+    """Mean deterministic-critic score per category (Stage 7).
+
+    Only entries with a real critic_score (>= 0; -1.0 means not
+    computed / escape-hatch build) are averaged. Categories whose
+    entries all lack a score are omitted. Accepts dict form like
+    aggregate_by_category."""
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for r in results:
+        score = r.get("critic_score", -1.0)
+        try:
+            score = float(score)
+        except (TypeError, ValueError):
+            continue
+        if score < 0:
+            continue
+        cat = category_of(r["name"])
+        sums[cat] = sums.get(cat, 0.0) + score
+        counts[cat] = counts.get(cat, 0) + 1
+    return {cat: round(sums[cat] / counts[cat], 3) for cat in sums}
+
+
+# ── Stage 8 — Cost model (the SECONDARY axis, optimised after quality) ──
+# Stage 7 made quality measurable + gated. Stage 8 adds cost so we can see
+# — and block — WASTE: spending more without a quality gain. It never
+# lowers the quality floor (the product's "maximum quality always" rule);
+# a change that costs more AND raises quality is not a regression here.
+#
+# List prices in USD per 1M tokens for the logical model names the router
+# emits (orchestrator/router.py). These are Anthropic public list prices;
+# update if your contract differs. Cache discounts are intentionally NOT
+# modelled: the eval is single-shot against a cold cache, so this is a
+# conservative UPPER bound — exactly what a "are we wasting money" signal
+# wants. An unknown model falls back to the Sonnet tier (the orchestrator
+# default) so a cost is never silently zero.
+_MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # logical name:               (input_per_mtok, output_per_mtok)
+    "claude-opus-4-7":            (15.0, 75.0),
+    "claude-sonnet-4-6":          (3.0, 15.0),
+    "claude-haiku-4-5-20251001":  (1.0, 5.0),
+}
+_DEFAULT_PRICING = (3.0, 15.0)  # Sonnet tier — the orchestrator default
+
+
+def estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Estimate one benchmark's USD cost from its model + token usage."""
+    in_price, out_price = _MODEL_PRICING.get(model or "", _DEFAULT_PRICING)
+    try:
+        it = max(0, int(input_tokens))
+        ot = max(0, int(output_tokens))
+    except (TypeError, ValueError):
+        return 0.0
+    return round((it * in_price + ot * out_price) / 1_000_000, 6)
+
+
+def _result_cost(r: dict[str, Any]) -> float:
+    """Cost for one result dict: prefer a stored `cost_usd` (the runner
+    writes it), else estimate on the fly from model + tokens so a loaded
+    baseline that predates the field still aggregates."""
+    c = r.get("cost_usd")
+    if c is not None:
+        try:
+            return max(0.0, float(c))
+        except (TypeError, ValueError):
+            pass
+    return estimate_cost_usd(
+        r.get("model", ""), r.get("input_tokens", 0), r.get("output_tokens", 0))
+
+
+def aggregate_cost_by_category(results: list[dict[str, Any]]) -> dict[str, float]:
+    """Mean estimated USD cost per category. Accepts dict form like the
+    other aggregators."""
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for r in results:
+        cat = category_of(r["name"])
+        sums[cat] = sums.get(cat, 0.0) + _result_cost(r)
+        counts[cat] = counts.get(cat, 0) + 1
+    return {cat: round(sums[cat] / counts[cat], 6) for cat in sums}
+
+
+def total_cost_usd(results: list[dict[str, Any]]) -> float:
+    """Total estimated USD cost of a run."""
+    return round(sum(_result_cost(r) for r in results), 6)
+
+
+# ── Stage 7 — Quality targets (the "beat-the-MCP" bar) ──────────────────
+# The MCP can't run in CI, so instead of comparing against it directly we
+# encode the bar it struggles to clear — composition, organic forms,
+# first-try correctness — as per-category targets: a minimum regex pass
+# rate AND a minimum mean deterministic-critic score. These are ADVISORY
+# (reported, not a hard CI gate) so we don't block every PR while quality
+# climbs; the hard stop is the regression gate above. Tighten over time.
+#
+# Categories come from the benchmark-name prefix (see category_of). A
+# category with no target uses the default.
+QUALITY_TARGETS: dict[str, tuple[float, float]] = {
+    # category:      (min_pass_rate, min_mean_critic_score)
+    "primitive":     (1.00, 0.90),
+    "furniture":     (0.80, 0.85),
+    "scene":         (0.70, 0.75),
+    "composition":   (0.70, 0.80),
+    "vehicle":       (0.60, 0.75),
+    "character":     (0.50, 0.70),
+    "lighting":      (0.70, 0.75),
+    "material":      (0.80, 0.80),
+    "asset":         (0.70, 0.70),
+}
+_DEFAULT_TARGET = (0.60, 0.70)
+
+
+@dataclass
+class TargetStatus:
+    category: str
+    pass_rate: float
+    mean_critic: float
+    min_pass_rate: float
+    min_mean_critic: float
+    met: bool
+    reason: str = ""
+
+
+def evaluate_targets(results: list[dict[str, Any]]) -> dict[str, TargetStatus]:
+    """Report, per category, whether the run clears its quality target.
+    Advisory: surfaced in the scorecard, not a hard CI gate. A category
+    is BELOW if either its pass rate or its mean critic score is under
+    the target."""
+    cats = aggregate_by_category(results)
+    crit = aggregate_critic_by_category(results)
+    out: dict[str, TargetStatus] = {}
+    for cat, cs in cats.items():
+        min_pass, min_crit = QUALITY_TARGETS.get(cat, _DEFAULT_TARGET)
+        pass_rate = cs.pass_rate
+        mean_critic = crit.get(cat, -1.0)
+        below_bits: list[str] = []
+        if pass_rate < min_pass:
+            below_bits.append(f"pass {pass_rate:.0%} < {min_pass:.0%}")
+        # Only judge critic score when we actually computed one for the
+        # category (mean_critic >= 0); escape-hatch-only categories skip.
+        if mean_critic >= 0 and mean_critic < min_crit:
+            below_bits.append(f"critic {mean_critic:.2f} < {min_crit:.2f}")
+        met = not below_bits
+        out[cat] = TargetStatus(
+            category=cat, pass_rate=pass_rate, mean_critic=mean_critic,
+            min_pass_rate=min_pass, min_mean_critic=min_crit, met=met,
+            reason="" if met else "; ".join(below_bits),
+        )
+    return out
+
+
 # ── Regression detection ────────────────────────────────────────────────
+
+# Stage 7 — regression thresholds for critic scores. A benchmark's
+# critic_score dropping more than _SCORE_DROP_THRESHOLD is a regression
+# even if it still passes the regex gate (the grey-couch-that-still-
+# emits-primitive_cube_add failure mode). Category mean drops use a
+# tighter band since they're averaged over multiple benchmarks.
+_SCORE_DROP_THRESHOLD = 0.15
+_CATEGORY_SCORE_DROP = 0.10
+
+# Stage 8 — cost-regression thresholds. A benchmark's estimated cost is a
+# regression when it rises by BOTH >= _COST_REL_INCREASE (relative) AND
+# >= _COST_ABS_FLOOR (absolute — so a cheap benchmark doubling from
+# $0.001 doesn't trip noise) AND its critic_score did NOT improve. The
+# quality guard is the whole point: spending more to get MORE quality is
+# not waste; spending more for the same-or-worse quality is. Cost gating
+# only fires where we can CONFIRM quality stayed flat (both critic scores
+# present) — otherwise it stays silent, so it never blocks a change we
+# can't prove is wasteful.
+_COST_REL_INCREASE = 0.30
+_COST_ABS_FLOOR = 0.01
+_CATEGORY_COST_REL_INCREASE = 0.25
+_QUALITY_GAIN_EPS = 0.02  # critic-score gain above this counts as "improved"
+
 
 @dataclass
 class RegressionReport:
@@ -317,6 +604,16 @@ class RegressionReport:
     newly_passing: list[str] = field(default_factory=list)
     category_drops: list[tuple[str, float, float]] = field(default_factory=list)
     # (category, baseline_rate, new_rate) — only present when drop >= threshold
+    # Stage 7 — critic-score regressions (additive to the pass/fail gate).
+    score_drops: list[tuple[str, float, float]] = field(default_factory=list)
+    # (benchmark_name, baseline_score, new_score)
+    category_score_drops: list[tuple[str, float, float]] = field(default_factory=list)
+    # (category, baseline_mean, new_mean)
+    # Stage 8 — cost regressions (quality-neutral cost increases = waste).
+    cost_regressions: list[tuple[str, float, float]] = field(default_factory=list)
+    # (benchmark_name, baseline_cost_usd, new_cost_usd)
+    category_cost_increases: list[tuple[str, float, float]] = field(default_factory=list)
+    # (category, baseline_mean_cost, new_mean_cost)
     total_baseline: int = 0
     total_new: int = 0
     pass_baseline: int = 0
@@ -324,8 +621,13 @@ class RegressionReport:
 
     @property
     def has_regression(self) -> bool:
-        """True iff anything got worse. The CI gate trips on this."""
-        return bool(self.newly_failing) or bool(self.category_drops)
+        """True iff anything got worse. The CI gate trips on this.
+        Stage 7: includes per-benchmark + per-category critic-score drops
+        (a quality regression that keeps the regex passing still fails).
+        Stage 8: includes quality-neutral cost increases (pure waste)."""
+        return bool(self.newly_failing) or bool(self.category_drops) \
+            or bool(self.score_drops) or bool(self.category_score_drops) \
+            or bool(self.cost_regressions) or bool(self.category_cost_increases)
 
 
 def compare_to_baseline(
@@ -370,10 +672,92 @@ def compare_to_baseline(
             category_drops.append((cat, base_score.pass_rate, new_score.pass_rate))
     category_drops.sort()
 
+    # Stage 7 — per-benchmark critic-score drops. Only compare entries
+    # where BOTH baseline and new have a real score (>= 0). An old
+    # baseline lacking critic_score safe-no-ops here until re-frozen.
+    score_drops: list[tuple[str, float, float]] = []
+    for name, new in new_by_name.items():
+        base = baseline_by_name.get(name)
+        if base is None:
+            continue
+        try:
+            base_s = float(base.get("critic_score", -1.0))
+            new_s = float(new.get("critic_score", -1.0))
+        except (TypeError, ValueError):
+            continue
+        if base_s < 0 or new_s < 0:
+            continue  # not comparable
+        if new_s <= base_s - _SCORE_DROP_THRESHOLD:
+            score_drops.append((name, round(base_s, 3), round(new_s, 3)))
+    score_drops.sort()
+
+    # Stage 7 — per-category mean-critic-score drops.
+    base_crit = aggregate_critic_by_category(baseline_results)
+    new_crit = aggregate_critic_by_category(new_results)
+    category_score_drops: list[tuple[str, float, float]] = []
+    for cat, new_mean in new_crit.items():
+        base_mean = base_crit.get(cat)
+        if base_mean is None:
+            continue
+        if new_mean <= base_mean - _CATEGORY_SCORE_DROP:
+            category_score_drops.append((cat, base_mean, new_mean))
+    category_score_drops.sort()
+
+    # Stage 8 — per-benchmark cost regressions (quality-neutral only). A
+    # cost rise is flagged ONLY when we can confirm the critic score did
+    # not improve — paying more for the same/less quality is the waste we
+    # want to block; paying more for better quality is allowed.
+    cost_regressions: list[tuple[str, float, float]] = []
+    for name, new in new_by_name.items():
+        base = baseline_by_name.get(name)
+        if base is None:
+            continue
+        base_c = _result_cost(base)
+        new_c = _result_cost(new)
+        if base_c <= 0:
+            continue
+        abs_inc = new_c - base_c
+        if abs_inc < _COST_ABS_FLOOR or abs_inc / base_c < _COST_REL_INCREASE:
+            continue
+        try:
+            base_s = float(base.get("critic_score", -1.0))
+            new_s = float(new.get("critic_score", -1.0))
+        except (TypeError, ValueError):
+            continue
+        if base_s < 0 or new_s < 0:
+            continue  # can't confirm quality stayed flat → don't flag
+        if new_s > base_s + _QUALITY_GAIN_EPS:
+            continue  # paid more, got more quality → not waste
+        cost_regressions.append((name, round(base_c, 6), round(new_c, 6)))
+    cost_regressions.sort()
+
+    # Stage 8 — per-category mean-cost increases, same quality guard on
+    # the category mean critic score.
+    base_cost = aggregate_cost_by_category(baseline_results)
+    new_cost = aggregate_cost_by_category(new_results)
+    category_cost_increases: list[tuple[str, float, float]] = []
+    for cat, new_mean_c in new_cost.items():
+        base_mean_c = base_cost.get(cat)
+        if base_mean_c is None or base_mean_c <= 0:
+            continue
+        abs_inc = new_mean_c - base_mean_c
+        if abs_inc < _COST_ABS_FLOOR or abs_inc / base_mean_c < _CATEGORY_COST_REL_INCREASE:
+            continue
+        bc = base_crit.get(cat)
+        nc = new_crit.get(cat)
+        if bc is not None and nc is not None and nc > bc + _QUALITY_GAIN_EPS:
+            continue  # category got more quality for the spend → allowed
+        category_cost_increases.append((cat, round(base_mean_c, 6), round(new_mean_c, 6)))
+    category_cost_increases.sort()
+
     return RegressionReport(
         newly_failing=newly_failing,
         newly_passing=newly_passing,
         category_drops=category_drops,
+        score_drops=score_drops,
+        category_score_drops=category_score_drops,
+        cost_regressions=cost_regressions,
+        category_cost_increases=category_cost_increases,
         total_baseline=len(baseline_results),
         total_new=len(new_results),
         pass_baseline=sum(1 for r in baseline_results if r.get("ok")),
@@ -407,6 +791,40 @@ def format_regression_report(report: RegressionReport) -> str:
                 f"- **{cat}**: {base:.0%} → {new:.0%} "
                 f"({(new - base) * 100:+.0f} pp)"
             )
+        lines.append("")
+
+    if report.score_drops:
+        lines.append(f"### Critic-score regressions ({len(report.score_drops)})")
+        lines.append(
+            "_These still pass the regex gate but their structural "
+            "quality dropped — the grey-couch failure mode._")
+        for name, base, new in report.score_drops:
+            lines.append(f"- `{name}`: critic {base:.2f} → {new:.2f} "
+                         f"({(new - base):+.2f})")
+        lines.append("")
+
+    if report.category_score_drops:
+        lines.append("### Category mean-critic-score drops")
+        for cat, base, new in report.category_score_drops:
+            lines.append(f"- **{cat}**: {base:.2f} → {new:.2f} "
+                         f"({(new - base):+.2f})")
+        lines.append("")
+
+    if report.cost_regressions:
+        lines.append(f"### Cost regressions ({len(report.cost_regressions)})")
+        lines.append(
+            "_Cost rose with no quality gain — pure waste. Spending more "
+            "for BETTER quality is allowed and is not listed here._")
+        for name, base, new in report.cost_regressions:
+            pct = (new - base) / base * 100 if base else 0.0
+            lines.append(f"- `{name}`: ${base:.4f} → ${new:.4f} ({pct:+.0f}%)")
+        lines.append("")
+
+    if report.category_cost_increases:
+        lines.append("### Category mean-cost increases")
+        for cat, base, new in report.category_cost_increases:
+            pct = (new - base) / base * 100 if base else 0.0
+            lines.append(f"- **{cat}**: ${base:.4f} → ${new:.4f} ({pct:+.0f}%)")
         lines.append("")
 
     if report.newly_passing:

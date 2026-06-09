@@ -13,11 +13,20 @@
 ; ============================================================
 
 #define MyAppName        "Animora"
+; BlenderVersion: the INTERNAL Blender base — used ONLY for the {app}\<ver>\
+; install dir Blender requires. Never shown to users.
 #define BlenderVersion   "5.1"
-#define MyAppVersion     "5.1.1"
+; MyAppVersion: Animora's PRODUCT version — what users see in the installer,
+; Programs list, and About. Keep in sync with ANIMORA_VERSION in
+; scripts/animora_config.py. (V1 = 1.x; intentionally NOT the Blender 5.1.)
+#define MyAppVersion     "1.1.0"
 #define MyAppPublisher   "Animora Technologies"
 #define MyAppURL         "https://animora.tech"
 #define MyAppExeName     "Animora.exe"
+; The windowed launcher (renamed blender-launcher.exe by stage_for_installer).
+; Launching THIS instead of Animora.exe avoids the console/terminal window
+; that Animora.exe (a console-subsystem binary) pops up on start.
+#define MyAppLauncher    "Animora-launcher.exe"
 #define MyAppId          "{{C9F5B8A2-3D7E-4A91-9F2C-1E5B8C7A4D63}"
 
 [Setup]
@@ -99,9 +108,11 @@ Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\animora-backe
 Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\bundle_config.json"; DestDir: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
+; Launch via the windowed launcher (no console window); keep the Animora.exe
+; icon for the shortcut's appearance.
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppLauncher}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppLauncher}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppLauncher}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Registry]
 ; .anim file association → animorafile ProgID
@@ -124,7 +135,7 @@ Filename: "{tmp}\VC_redist.x64.exe"; \
   StatusMsg: "Installing Microsoft Visual C++ Redistributable…"; \
   Check: VCRedistNeedsInstall; \
   Flags: waituntilterminated
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppLauncher}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; Clean up runtime caches (don't touch user data in AppData\Roaming).

@@ -85,6 +85,14 @@ class AnimoraWSClient:
                 pass
 
     def send_message(self, text: str, context_flags: dict | None = None) -> None:
+        # Sprint 1 Deep: reset the per-turn chat caps so the next turn
+        # gets a fresh ✓-line budget. Safe to call at any time
+        # (idempotent when no turn is active).
+        try:
+            from . import operators as _ops
+            _ops.reset_per_turn_chat_caps()
+        except Exception:
+            pass
         payload = json.dumps({
             "type": "user_message",
             "text": text,
@@ -213,7 +221,8 @@ class AnimoraWSClient:
             #   3 = + tool.start handler + per-iteration undo + presence verify
             #   4 = + vision exec-pause + execute_animora_code (rename + no MATERIAL_PREVIEW switch)
             #   5 = + critical-path tool_result send (defer scene_diff / chat / HD capture)
-            "addon_protocol_version": 5,
+            #   6 = + batched drain queue (no per-tool timer storm) + per-turn ✓-line cap
+            "addon_protocol_version": 6,
             "settings": settings,
         }
 
@@ -341,10 +350,18 @@ class AnimoraWSClient:
                 args_summary = str(msg.get("args_summary", ""))[:120]
                 display = f"⏵ {tool_name}({args_summary})" if args_summary else f"⏵ {tool_name}"
                 detail = args_summary or tool_name.replace("_", " ").title()
-                # Append run-log chat line + flip status pill to the
-                # specific tool. Both hops to the main thread because
-                # they touch wm collections / area redraws.
-                self._schedule_main_thread(lambda d=display: self._append_assistant_chat(d))
+                # Sprint 1 Deep: route the ⏵ chat append through the
+                # batched drain queue in operators._enqueue_cleanup so
+                # 22 tool.start events in iteration 1 don't fire 22
+                # individual timer callbacks. The status-pill flip
+                # stays on its own main-thread hop (it's fast +
+                # latency-sensitive, no chat history involved).
+                def _enqueue_tool_start(d=display):
+                    from . import operators as _ops
+                    _ops._enqueue_cleanup(
+                        chat_line=d, balance_exec_pause=False, force_redraw=True,
+                    )
+                self._schedule_main_thread(_enqueue_tool_start)
                 self._schedule_main_thread(
                     lambda d=detail, t=tool_name: self._set_state("EXECUTING", d, t)
                 )
@@ -399,6 +416,32 @@ class AnimoraWSClient:
             elif msg_type == "turn_complete":
                 # Server says LLM + tool dispatch are done. Auto-return
                 # the panel to IDLE so the user doesn't have to STOP.
+                # Sprint 1 Deep: flush the suppressed-tool-result
+                # summary line if the per-turn ✓ cap kicked in.
+                def _turn_complete_flush():
+                    from . import operators as _ops
+                    try:
+                        _ops.flush_turn_end_chat_summary()
+                    except Exception as exc:
+                        log.debug("turn_complete.flush_failed: %s", exc)
+                    # Diagnostic: log the material state of every mesh so
+                    # we can see definitively why a build is grey
+                    # (not-applied vs grey-color vs viewport-not-showing).
+                    try:
+                        _ops.log_material_diagnostic()
+                    except Exception as exc:
+                        log.debug("turn_complete.material_diagnostic_failed: %s", exc)
+                self._schedule_main_thread(_turn_complete_flush)
+                # NOTE: the MATERIAL_PREVIEW switch is NOT done here.
+                # Switching shading at turn_complete forces EEVEE to
+                # compile EVERY material in the scene at once on the
+                # main thread — that was the "compiling EEVEE shaders"
+                # hang. Instead, operators._ensure_render_responsive()
+                # switches to MATERIAL_PREVIEW EARLY (while the scene
+                # is still empty, so the switch is instant) and enables
+                # background shader compilation, so per-material
+                # compiles happen incrementally and off the main
+                # thread as materials are applied.
                 self._schedule_main_thread(
                     lambda: self._set_state("COMPLETE", "")
                 )

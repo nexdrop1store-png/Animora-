@@ -1,0 +1,1221 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 354bfcff..0a2bbe78 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -113,7 +113,7 @@ include(build_files/cmake/macros.cmake)
+ 
+ blender_project_hack_pre()
+ 
+-project(Blender)
++project(Animora)
+ 
+ blender_project_hack_post()
+ 
+@@ -205,9 +205,9 @@ if(WIN32)
+   add_definitions(
+     # This is the app ID used for file registration, given it's used from several modules
+     # there really is no nice way to get this information consistent without a global define.
+-    -DBLENDER_WIN_APPID="blender.${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}"
++    -DBLENDER_WIN_APPID="animora.${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}"
+     # This is the name that will be shown in the taskbar and OpenWith windows UI
+-    -DBLENDER_WIN_APPID_FRIENDLY_NAME="Blender ${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}"
++    -DBLENDER_WIN_APPID_FRIENDLY_NAME="Animora ${BLENDER_VERSION_MAJOR}.${BLENDER_VERSION_MINOR}"
+   )
+ endif()
+ 
+diff --git a/intern/ghost/intern/GHOST_SystemPathsWin32.cc b/intern/ghost/intern/GHOST_SystemPathsWin32.cc
+index 71d6d45a..53e01ad7 100644
+--- a/intern/ghost/intern/GHOST_SystemPathsWin32.cc
++++ b/intern/ghost/intern/GHOST_SystemPathsWin32.cc
+@@ -32,7 +32,8 @@ const char *GHOST_SystemPathsWin32::getSystemDir(int, const char *versionstr) co
+ 
+   if (hResult == S_OK) {
+     conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
+-    strcat(knownpath, "\\Blender Foundation\\Blender\\");
++    /* Animora: was "\\Blender Foundation\\Blender\\" — branded path. */
++    strcat(knownpath, "\\Animora Technologies\\Animora\\");
+     strcat(knownpath, versionstr);
+     system_dir = knownpath;
+   }
+@@ -53,7 +54,8 @@ const char *GHOST_SystemPathsWin32::getUserDir(int, const char *versionstr) cons
+ 
+   if (hResult == S_OK) {
+     conv_utf_16_to_8(knownpath_16, knownpath, MAX_PATH * 3);
+-    strcat(knownpath, "\\Blender Foundation\\Blender\\");
++    /* Animora: was "\\Blender Foundation\\Blender\\" — branded path. */
++    strcat(knownpath, "\\Animora Technologies\\Animora\\");
+     strcat(knownpath, versionstr);
+     user_dir = knownpath;
+   }
+diff --git a/intern/ghost/intern/GHOST_SystemWin32.cc b/intern/ghost/intern/GHOST_SystemWin32.cc
+index daae2140..5089d281 100644
+--- a/intern/ghost/intern/GHOST_SystemWin32.cc
++++ b/intern/ghost/intern/GHOST_SystemWin32.cc
+@@ -642,7 +642,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
+     wc.hCursor = ::LoadCursor(0, IDC_ARROW);
+     wc.hbrBackground = (HBRUSH)GetStockObject(DKGRAY_BRUSH);
+     wc.lpszMenuName = 0;
+-    wc.lpszClassName = L"GHOST_WindowClass";
++    wc.lpszClassName = L"Animora.MainWindow";
+ 
+     /* Use #RegisterClassEx for setting small icon. */
+     if (::RegisterClassW(&wc) == 0) {
+@@ -657,7 +657,7 @@ GHOST_TSuccess GHOST_SystemWin32::exit()
+ {
+   GHOST_TSuccess success = GHOST_System::exit();
+   /* All windows created with the specified class must be destroyed before unregistering it. */
+-  ::UnregisterClassW(L"GHOST_WindowClass", ::GetModuleHandle(0));
++  ::UnregisterClassW(L"Animora.MainWindow", ::GetModuleHandle(0));
+   return success;
+ }
+ 
+diff --git a/intern/ghost/intern/GHOST_WindowWin32.cc b/intern/ghost/intern/GHOST_WindowWin32.cc
+index 6269c384..d3a00485 100644
+--- a/intern/ghost/intern/GHOST_WindowWin32.cc
++++ b/intern/ghost/intern/GHOST_WindowWin32.cc
+@@ -43,7 +43,7 @@
+ #  define GET_POINTERID_WPARAM(wParam) (LOWORD(wParam))
+ #endif /* GET_POINTERID_WPARAM */
+ 
+-const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
++const wchar_t *GHOST_WindowWin32::s_windowClassName = L"Animora.MainWindow";
+ const int GHOST_WindowWin32::s_maxTitleLength = 128;
+ 
+ /* force NVidia OPTIMUS to used dedicated graphics */
+diff --git a/source/blender/blenfont/BLF_api.hh b/source/blender/blenfont/BLF_api.hh
+index 967fd2c4..60c19f92 100644
+--- a/source/blender/blenfont/BLF_api.hh
++++ b/source/blender/blenfont/BLF_api.hh
+@@ -26,7 +26,7 @@ namespace blender {
+ #define BLF_DATAFILES_FONTS_DIR "fonts"
+ 
+ /** File name of the default variable-width font. */
+-#define BLF_DEFAULT_PROPORTIONAL_FONT "Inter.woff2"
++#define BLF_DEFAULT_PROPORTIONAL_FONT "Geist.woff2"
+ 
+ /** File name of the default fixed-pitch font. */
+ #define BLF_DEFAULT_MONOSPACED_FONT "DejaVuSansMono.woff2"
+diff --git a/source/blender/blenkernel/intern/appdir.cc b/source/blender/blenkernel/intern/appdir.cc
+index b6e04957..fffa873f 100644
+--- a/source/blender/blenkernel/intern/appdir.cc
++++ b/source/blender/blenkernel/intern/appdir.cc
+@@ -221,14 +221,14 @@ bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
+   BLI_path_join(path,
+                 path_maxncpy,
+                 caches_root_path->c_str(),
+-                "Blender Foundation",
+-                "Blender",
++                "Animora Technologies",
++                "Animora",
+                 "Cache",
+                 SEP_STR);
+ #elif defined(__APPLE__)
+-  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "Blender", SEP_STR);
++  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "Animora", SEP_STR);
+ #else /* __linux__ */
+-  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "blender", SEP_STR);
++  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "animora", SEP_STR);
+ #endif
+ 
+   return true;
+diff --git a/source/blender/blenkernel/intern/blendfile.cc b/source/blender/blenkernel/intern/blendfile.cc
+index e6f13834..c89fa8d6 100644
+--- a/source/blender/blenkernel/intern/blendfile.cc
++++ b/source/blender/blenkernel/intern/blendfile.cc
+@@ -87,7 +87,8 @@ using namespace bke;
+ 
+ bool BKE_blendfile_extension_check(const char *str)
+ {
+-  const char *ext_test[4] = {".blend", ".ble", ".blend.gz", nullptr};
++  /* Animora: .anim is the preferred extension, .blend kept for backward compatibility. */
++  const char *ext_test[5] = {".anim", ".blend", ".ble", ".blend.gz", nullptr};
+   return BLI_path_extension_check_array(str, ext_test);
+ }
+ 
+@@ -1530,6 +1531,11 @@ UserDef *BKE_blendfile_userdef_from_defaults()
+         "cycles",
+         "pose_library",
+         "bl_pkg",
++        /* Animora AI panel — core to the product. The SPACE_ANIMORA
++         * editor area is empty without this addon's Python panels
++         * registering against it. Must be in the factory list so fresh
++         * installs (no on-disk userpref yet) get it enabled at first launch. */
++        "animora_panel",
+     };
+     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
+       bAddon *addon = BKE_addon_new();
+diff --git a/source/blender/blenkernel/intern/preferences.cc b/source/blender/blenkernel/intern/preferences.cc
+index 636811b2..9db212ba 100644
+--- a/source/blender/blenkernel/intern/preferences.cc
++++ b/source/blender/blenkernel/intern/preferences.cc
+@@ -146,7 +146,7 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
+ 
+   /* Add new "Default" library under '[doc_path]/Blender/Assets'. */
+   BLI_path_join(
+-      library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
++      library->dirpath, sizeof(library->dirpath), documents_path, N_("Animora"), N_("Assets"));
+ }
+ 
+ /** \} */
+@@ -225,9 +225,9 @@ void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo
+ bUserExtensionRepo *BKE_preferences_extension_repo_add_default_remote(UserDef *userdef)
+ {
+   bUserExtensionRepo *repo = BKE_preferences_extension_repo_add(
+-      userdef, "extensions.blender.org", "blender_org", "");
++      userdef, "extensions.animora.tech", "animora_ext", "");
+   /* The trailing slash on this URL is important, without it a redirect is used. */
+-  STRNCPY(repo->remote_url, "https://extensions.blender.org/api/v1/extensions/");
++  STRNCPY(repo->remote_url, "https://extensions.animora.tech/api/v1/extensions/");
+   /* Disable `blender.org` by default, the initial "Online Preferences" section gives
+    * the option to enable this. */
+   repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL | USER_EXTENSION_REPO_FLAG_SYNC_ON_STARTUP;
+diff --git a/source/blender/blenkernel/intern/sound.cc b/source/blender/blenkernel/intern/sound.cc
+index 12980154..b1f710c7 100644
+--- a/source/blender/blenkernel/intern/sound.cc
++++ b/source/blender/blenkernel/intern/sound.cc
+@@ -431,10 +431,10 @@ static void sound_device_open_no_lock(const aud::DeviceSpecs &requested_specs)
+   CLOG_DEBUG(&LOG, "Opening audio device name:%s", g_state.device_name);
+ 
+   g_state.sound_device = bke::sound_device_init(
+-      g_state.device_name, requested_specs, g_state.buffer_size, "Blender");
++      g_state.device_name, requested_specs, g_state.buffer_size, "Animora");
+   if (!g_state.sound_device) {
+     g_state.sound_device = bke::sound_device_init(
+-        "None", requested_specs, g_state.buffer_size, "Blender");
++        "None", requested_specs, g_state.buffer_size, "Animora");
+   }
+ 
+   g_state.initialized_specs = g_state.sound_device->getSpecs();
+diff --git a/source/blender/blenlib/intern/system_win32.cc b/source/blender/blenlib/intern/system_win32.cc
+index b06d914e..d285f173 100644
+--- a/source/blender/blenlib/intern/system_win32.cc
++++ b/source/blender/blenlib/intern/system_win32.cc
+@@ -619,7 +619,7 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
+   config.hInstance = 0;
+   config.dwCommonButtons = 0;
+   config.pszMainIcon = TD_ERROR_ICON;
+-  config.pszWindowTitle = L"Blender";
++  config.pszWindowTitle = L"Animora";
+   config.pszMainInstruction = L"Blender has stopped working";
+   config.pszContent = full_message_16.c_str();
+   config.pButtons = buttons;
+diff --git a/source/blender/blenlib/intern/winstuff.cc b/source/blender/blenlib/intern/winstuff.cc
+index 892996d4..cad15596 100644
+--- a/source/blender/blenlib/intern/winstuff.cc
++++ b/source/blender/blenlib/intern/winstuff.cc
+@@ -199,12 +199,19 @@ bool BLI_windows_register_blend_extension(const bool all_users)
+     return false;
+   }
+ 
+-  /* Replace the actual app name with the wrapper. */
++  /* Replace the actual app name with the wrapper.
++   * Animora: accept either the legacy "blender.exe" name (dev builds) or the
++   * shipped "Animora.exe" name. The installer renames the binary at install
++   * time so the user-visible process is always Animora. */
++  blender_app = strstr(blender_path, "Animora.exe");
++  if (!blender_app) {
+     blender_app = strstr(blender_path, "blender.exe");
++  }
+   if (!blender_app) {
+     return false;
+   }
+-  strcpy(blender_app, "blender-launcher.exe");
++  /* If a launcher exists, prefer it; otherwise leave the main exe path. */
++  strcpy(blender_app, "Animora-launcher.exe");
+ 
+   if (!open_registry_hive(all_users, &root)) {
+     return false;
+@@ -252,6 +259,29 @@ bool BLI_windows_register_blend_extension(const bool all_users)
+     return false;
+   }
+ 
++  /* Animora: also register .anim extension to the same ProgID. */
++  lresult = RegCreateKeyEx(
++      root, ".anim", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &hkey, &dwd);
++  if (lresult == ERROR_SUCCESS) {
++    lresult = RegSetValueEx(hkey, nullptr, 0, REG_SZ, (BYTE *)prog_id, strlen(prog_id) + 1);
++    RegCloseKey(hkey);
++
++    lresult = RegCreateKeyEx(root,
++                             ".anim\\OpenWithProgids",
++                             0,
++                             nullptr,
++                             REG_OPTION_NON_VOLATILE,
++                             KEY_ALL_ACCESS,
++                             nullptr,
++                             &hkey,
++                             &dwd);
++    if (lresult == ERROR_SUCCESS) {
++      RegSetValueEx(hkey, prog_id, 0, REG_NONE, nullptr, 0);
++      RegCloseKey(hkey);
++    }
++  }
++  /* Non-fatal if .anim registration fails — .blend still works. */
++
+   if (!BLI_windows_update_pinned_launcher(blender_path)) {
+     fprintf(stderr, "Update of pinned launcher failed.");
+     return false;
+diff --git a/source/blender/blenloader/intern/versioning_defaults.cc b/source/blender/blenloader/intern/versioning_defaults.cc
+index 99aa6f4e..017fd858 100644
+--- a/source/blender/blenloader/intern/versioning_defaults.cc
++++ b/source/blender/blenloader/intern/versioning_defaults.cc
+@@ -683,6 +683,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
+       for (WorkSpace &workspace : bmain->workspaces) {
+         WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(win.workspace_hook,
+                                                                                 &workspace);
++        /* Animora: defensive — when a custom workspace lacks an active layout
++         * for this window's hook, skip rename rather than NULL-deref. */
++        if (layout == nullptr) {
++          continue;
++        }
+         /* Name all screens by their workspaces (avoids 'Default.###' names). */
+         /* Default only has one window. */
+         if (layout->screen) {
+diff --git a/source/blender/blenloader/intern/versioning_userdef.cc b/source/blender/blenloader/intern/versioning_userdef.cc
+index aab5b373..8df337ab 100644
+--- a/source/blender/blenloader/intern/versioning_userdef.cc
++++ b/source/blender/blenloader/intern/versioning_userdef.cc
+@@ -833,6 +833,30 @@ void blo_do_versions_userdef(UserDef *userdef)
+     userdef->pad_rot_angle = 15.0f;
+   }
+ 
++  /* Animora factory defaults — visual/preference seeds that are one-shot
++   * (user is free to change them later). Gated by a "first run" marker. */
++  if (!USER_VERSION_ATLEAST(501, 99)) {
++    userdef->smooth_viewtx          = 300;   /* 300ms viewport pan/zoom ease */
++    userdef->pie_animation_timeout  = 50;    /* smooth pie-menu unfold */
++    userdef->pie_initial_timeout    = 30;
++    userdef->viewport_aa            = SCE_DISPLAY_AA_FXAA;  /* cheap post-process AA — crisp edges */
++    if (userdef->ui_scale <= 0.0f) {
++      userdef->ui_scale = 1.0f;
++    }
++  }
++
++  /* Animora AI panel — core to the product. Must be ensured on EVERY load
++   * (not just first-run) because the SPACE_ANIMORA editor area is empty
++   * without this addon's Python panels registering against it. The user
++   * report "AI panel is completely blank" was caused by gating this call
++   * behind USER_VERSION_ATLEAST — fresh userprefs created by recent
++   * Animora builds carry a version >= the gate, so the gate was always
++   * false on fresh installs and the addon never got enabled.
++   * BKE_addon_ensure is idempotent — won't duplicate an existing entry. */
++  BKE_addon_ensure(&userdef->addons, "animora_panel");
++  /* Always ensure save-on-close prompt is on (prevents silent data loss). */
++  userdef->uiflag |= USER_SAVE_PROMPT;
++
+   /* If the userdef was created on a different platform, it may have an
+    * unsupported GPU backend selected.  If so, pick a supported default. */
+ #ifdef __APPLE__
+@@ -1312,7 +1336,7 @@ void blo_do_versions_userdef(UserDef *userdef)
+   if (!USER_VERSION_ATLEAST(293, 1)) {
+     /* This rename was made after 2.93.0, harmless to run when it's not needed. */
+     const char *replace_table[][2] = {
+-        {"blender", "Blender"},
++        {"blender", "Animora"},
+         {"blender_27x", "Blender_27x"},
+         {"industry_compatible", "Industry_Compatible"},
+     };
+diff --git a/source/blender/editors/CMakeLists.txt b/source/blender/editors/CMakeLists.txt
+index 83b8d7d5..89899fc3 100644
+--- a/source/blender/editors/CMakeLists.txt
++++ b/source/blender/editors/CMakeLists.txt
+@@ -31,6 +31,7 @@ if(WITH_BLENDER)
+   add_subdirectory(sculpt_paint)
+   add_subdirectory(sound)
+   add_subdirectory(space_action)
++  add_subdirectory(space_animora)
+   add_subdirectory(space_api)
+   add_subdirectory(space_buttons)
+   add_subdirectory(space_clip)
+diff --git a/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc b/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
+index 65970f47..686881db 100644
+--- a/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
++++ b/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
+@@ -282,7 +282,10 @@ static void button2d_draw_intern(const bContext *C,
+ 
+       float alpha = (highlight) ? 1.0f : 0.8f;
+       GPU_polygon_smooth(false);
+-      ui::icon_draw_alpha(pos[0], pos[1], button->icon, alpha);
++      /* Animora: render the icon SVG at 64px native (was 16px) so it stays crisp when
++       * the gizmo matrix scales it up.  icon_draw_preview takes an explicit size, which
++       * for SVG icons causes them to be rasterised at the requested resolution. */
++      ui::icon_draw_preview(pos[0], pos[1], button->icon, 0.25f, alpha, 64);
+       GPU_polygon_smooth(true);
+     }
+     GPU_blend(GPU_BLEND_NONE);
+diff --git a/source/blender/editors/include/ED_space_api.hh b/source/blender/editors/include/ED_space_api.hh
+index 67bbbcac..b6ae92ed 100644
+--- a/source/blender/editors/include/ED_space_api.hh
++++ b/source/blender/editors/include/ED_space_api.hh
+@@ -43,6 +43,7 @@ void ED_spacetype_userpref();
+ void ED_spacetype_clip();
+ void ED_spacetype_statusbar();
+ void ED_spacetype_topbar();
++void ED_spacetype_animora();
+ 
+ namespace ed::vse {
+ void ED_spacetype_sequencer();
+diff --git a/source/blender/editors/interface/interface_intern.hh b/source/blender/editors/interface/interface_intern.hh
+index 44931b89..d3e547c8 100644
+--- a/source/blender/editors/interface/interface_intern.hh
++++ b/source/blender/editors/interface/interface_intern.hh
+@@ -64,7 +64,7 @@ namespace ui {
+ #define RNA_NO_INDEX -1
+ #define RNA_ENUM_VALUE -2
+ 
+-#define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
++#define UI_MENU_PADDING (int)(0.4f * UI_UNIT_Y)
+ 
+ #define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
+ /** Some extra padding added to menus containing sub-menu icons. */
+diff --git a/source/blender/editors/interface/interface_layout.cc b/source/blender/editors/interface/interface_layout.cc
+index 5619d63c..c2508c5b 100644
+--- a/source/blender/editors/interface/interface_layout.cc
++++ b/source/blender/editors/interface/interface_layout.cc
+@@ -4796,7 +4796,7 @@ Layout &Layout::row(bool align)
+   Layout *litem = MEM_new<LayoutRow>(__func__, nullptr);
+   LayoutInternal::init_from_parent(litem, this, align);
+ 
+-  litem->space_ = (align) ? 0 : root_->style->buttonspacex;
++  litem->space_ = (align) ? 4 : root_->style->buttonspacex + 2;
+ 
+   block_layout_set_current(this->block(), litem);
+ 
+@@ -4943,7 +4943,7 @@ Layout &Layout::column(bool align)
+   Layout *litem = MEM_new<LayoutColumn>(__func__, nullptr);
+   LayoutInternal::init_from_parent(litem, this, align);
+ 
+-  litem->space_ = (align) ? 0 : root_->style->buttonspacey;
++  litem->space_ = (align) ? 5 : root_->style->buttonspacey + 2;
+ 
+   block_layout_set_current(this->block(), litem);
+ 
+diff --git a/source/blender/editors/interface/interface_style.cc b/source/blender/editors/interface/interface_style.cc
+index 914cb782..f8c5f4c6 100644
+--- a/source/blender/editors/interface/interface_style.cc
++++ b/source/blender/editors/interface/interface_style.cc
+@@ -103,13 +103,13 @@ static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short
+   style->tooltip.shadowalpha = 0.5f;
+   style->tooltip.shadowcolor = 0.0f;
+ 
+-  style->columnspace = 8;
+-  style->templatespace = 5;
+-  style->boxspace = 5;
+-  style->buttonspacex = 8;
+-  style->buttonspacey = 2;
+-  style->panelspace = 8;
+-  style->panelouter = 4;
++  style->columnspace = 14;
++  style->templatespace = 8;
++  style->boxspace = 8;
++  style->buttonspacex = 12;
++  style->buttonspacey = 10;
++  style->panelspace = 14;
++  style->panelouter = 6;
+ 
+   return style;
+ }
+diff --git a/source/blender/editors/interface/interface_widgets.cc b/source/blender/editors/interface/interface_widgets.cc
+index a4c67cbb..10f42d86 100644
+--- a/source/blender/editors/interface/interface_widgets.cc
++++ b/source/blender/editors/interface/interface_widgets.cc
+@@ -2905,9 +2905,9 @@ static void widget_state_menu_item(WidgetType *wt,
+     copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
+   }
+   else if (state->but_flag & UI_HOVER) {
+-    /* Regular hover. */
+-    color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.2f);
+-    color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.5f);
++    /* Animora: themed indigo hover instead of blending toward text colour. */
++    color_blend_v3_v3(wt->wcol.inner, wt->wcol.inner_sel, 0.35f);
++    color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.6f);
+     copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
+     wt->wcol.inner[3] = 255;
+     wt->wcol.text[3] = 255;
+diff --git a/source/blender/editors/io/io_usd.cc b/source/blender/editors/io/io_usd.cc
+index c464eeb5..12c324f3 100644
+--- a/source/blender/editors/io/io_usd.cc
++++ b/source/blender/editors/io/io_usd.cc
+@@ -396,7 +396,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
+     }
+     sub->prop(ptr, "export_animation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+ 
+-    sub = &col->column(true, IFACE_("Blender Data"));
++    sub = &col->column(true, IFACE_("Animora Data"));
+     sub->prop(ptr, "export_custom_properties", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+     ui::Layout *props_col = &sub->column(true);
+     props_col->prop(ptr, "custom_properties_namespace", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+diff --git a/source/blender/editors/render/render_view.cc b/source/blender/editors/render/render_view.cc
+index aeb5ea66..0abaadef 100644
+--- a/source/blender/editors/render/render_view.cc
++++ b/source/blender/editors/render/render_view.cc
+@@ -171,7 +171,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
+ 
+     /* changes context! */
+     if (WM_window_open(C,
+-                       IFACE_("Blender Render"),
++                       IFACE_("Animora Render"),
+                        &window_rect,
+                        SPACE_IMAGE,
+                        true,
+diff --git a/source/blender/editors/screen/screen_ops.cc b/source/blender/editors/screen/screen_ops.cc
+index b6a448f4..b58c0228 100644
+--- a/source/blender/editors/screen/screen_ops.cc
++++ b/source/blender/editors/screen/screen_ops.cc
+@@ -5839,7 +5839,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
+   }
+   layout.prop(
+       &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
+-  layout.prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
++  layout.prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Animora Version"), ICON_NONE);
+ }
+ 
+ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
+@@ -6779,7 +6779,7 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
+   ui::Button *but = ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+ 
+   /* changes context! */
+-  if (WM_window_open_temp(C, IFACE_("Blender Drivers Editor"), SPACE_GRAPH, false)) {
++  if (WM_window_open_temp(C, IFACE_("Animora Drivers Editor"), SPACE_GRAPH, false)) {
+     ED_drivers_editor_init(C, CTX_wm_area(C));
+ 
+     /* activate driver F-Curve for the property under the cursor */
+@@ -6836,7 +6836,7 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
+ static wmOperatorStatus info_log_show_exec(bContext *C, wmOperator *op)
+ {
+   /* changes context! */
+-  if (WM_window_open_temp(C, IFACE_("Blender Info Log"), SPACE_INFO, false)) {
++  if (WM_window_open_temp(C, IFACE_("Animora Info Log"), SPACE_INFO, false)) {
+     return OPERATOR_FINISHED;
+   }
+   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
+diff --git a/source/blender/editors/screen/screendump.cc b/source/blender/editors/screen/screendump.cc
+index 4a6031c5..965d0e4e 100644
+--- a/source/blender/editors/screen/screendump.cc
++++ b/source/blender/editors/screen/screendump.cc
+@@ -263,7 +263,7 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
+ {
+   ot->name = "Save Screenshot";
+   ot->idname = "SCREEN_OT_screenshot";
+-  ot->description = "Capture a picture of the whole Blender window";
++  ot->description = "Capture a picture of the whole Animora window";
+ 
+   screen_screenshot_impl(ot);
+ 
+diff --git a/source/blender/editors/space_api/CMakeLists.txt b/source/blender/editors/space_api/CMakeLists.txt
+index 8b45bbc7..c5de7cd1 100644
+--- a/source/blender/editors/space_api/CMakeLists.txt
++++ b/source/blender/editors/space_api/CMakeLists.txt
+@@ -22,6 +22,7 @@ set(LIB
+   PRIVATE bf::dna
+   bf_editor_geometry
+   bf_editor_space_action
++  bf_editor_space_animora
+   bf_editor_space_buttons
+   bf_editor_space_clip
+   bf_editor_space_console
+diff --git a/source/blender/editors/space_api/spacetypes.cc b/source/blender/editors/space_api/spacetypes.cc
+index 32593fb8..7cd14c33 100644
+--- a/source/blender/editors/space_api/spacetypes.cc
++++ b/source/blender/editors/space_api/spacetypes.cc
+@@ -86,6 +86,7 @@ void ED_spacetypes_init()
+   ED_spacetype_statusbar();
+   ED_spacetype_topbar();
+   spreadsheet::register_spacetype();
++  ED_spacetype_animora();
+ 
+   /* Register operator types for screen and all spaces. */
+   ED_operatortypes_userpref();
+diff --git a/source/blender/editors/space_userpref/userpref_ops.cc b/source/blender/editors/space_userpref/userpref_ops.cc
+index b842a4a4..bd875578 100644
+--- a/source/blender/editors/space_userpref/userpref_ops.cc
++++ b/source/blender/editors/space_userpref/userpref_ops.cc
+@@ -872,7 +872,7 @@ static bool associate_blend(bool do_register, bool all_users, char **r_error_msg
+   {
+     const char *msg = do_register ? "Unable to register file association" :
+                                     "Unable to unregister file association";
+-    MessageBox(0, msg, "Blender", MB_OK | MB_ICONERROR);
++    MessageBox(0, msg, "Animora", MB_OK | MB_ICONERROR);
+   }
+ #  endif /* !WIN32 */
+   return result;
+diff --git a/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc b/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
+index 5b6f88b1..c6d91c5a 100644
+--- a/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
++++ b/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
+@@ -197,8 +197,10 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
+         gz->color[3] = 0.5f;
+         gz->color_hi[3] = 0.75f;
+       }
+-      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint, gz->color);
+-      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint_hi, gz->color_hi);
++      /* Animora: TH_HEADER is near-black in our theme — gizmos would be invisible.
++       * Use TH_TEXT_HI (white) so they render clearly against the dark viewport. */
++      ui::theme::get_color_shade_3fv(TH_TEXT_HI, 0, gz->color);
++      ui::theme::get_color_shade_3fv(TH_TEXT_HI, 20, gz->color_hi);
+     }
+ 
+     /* may be overwritten later */
+diff --git a/source/blender/gpu/vulkan/vk_backend.cc b/source/blender/gpu/vulkan/vk_backend.cc
+index 0a69501f..6b56dfa4 100644
+--- a/source/blender/gpu/vulkan/vk_backend.cc
++++ b/source/blender/gpu/vulkan/vk_backend.cc
+@@ -243,9 +243,9 @@ bool VKBackend::is_supported()
+ 
+   /* Initialize an vulkan 1.2 instance. */
+   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
+-  vk_application_info.pApplicationName = "Blender";
++  vk_application_info.pApplicationName = "Animora";
+   vk_application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+-  vk_application_info.pEngineName = "Blender";
++  vk_application_info.pEngineName = "Animora";
+   vk_application_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+   vk_application_info.apiVersion = VK_API_VERSION_1_2;
+ 
+diff --git a/source/blender/imbuf/intern/cineon/cineon_dpx.cc b/source/blender/imbuf/intern/cineon/cineon_dpx.cc
+index 42969537..e8d4b9b2 100644
+--- a/source/blender/imbuf/intern/cineon/cineon_dpx.cc
++++ b/source/blender/imbuf/intern/cineon/cineon_dpx.cc
+@@ -116,7 +116,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
+                             -1,
+                             -1,
+                             -1,
+-                            "Blender");
++                            "Animora");
+ 
+   if (logImage == nullptr) {
+     printf("DPX/Cineon: error creating file.\n");
+diff --git a/source/blender/imbuf/intern/thumbs.cc b/source/blender/imbuf/intern/thumbs.cc
+index 4ed6dd17..0dbe24c0 100644
+--- a/source/blender/imbuf/intern/thumbs.cc
++++ b/source/blender/imbuf/intern/thumbs.cc
+@@ -439,7 +439,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
+     }
+     SNPRINTF_UTF8(desc, "Thumbnail for %s", uri);
+     IMB_metadata_ensure(&img->metadata);
+-    IMB_metadata_set_field(img->metadata, "Software", "Blender");
++    IMB_metadata_set_field(img->metadata, "Software", "Animora");
+     IMB_metadata_set_field(img->metadata, "Thumb::URI", uri);
+     IMB_metadata_set_field(img->metadata, "Description", desc);
+     IMB_metadata_set_field(img->metadata, "Thumb::MTime", mtime);
+diff --git a/source/blender/io/alembic/exporter/abc_archive.cc b/source/blender/io/alembic/exporter/abc_archive.cc
+index c089e670..3b7d2713 100644
+--- a/source/blender/io/alembic/exporter/abc_archive.cc
++++ b/source/blender/io/alembic/exporter/abc_archive.cc
+@@ -45,7 +45,7 @@ static MetaData create_abc_metadata(const Main *bmain, double scene_fps)
+     abc_user_description = "unknown";
+   }
+ 
+-  abc_metadata.set(Alembic::Abc::kApplicationNameKey, "Blender");
++  abc_metadata.set(Alembic::Abc::kApplicationNameKey, "Animora");
+   abc_metadata.set(Alembic::Abc::kUserDescriptionKey, abc_user_description);
+   abc_metadata.set("blender_version", std::string("v") + BKE_blender_version_string());
+   abc_metadata.set("FramesPerTimeUnit", std::to_string(scene_fps));
+diff --git a/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc b/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
+index 4145c78b..698b3254 100644
+--- a/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
++++ b/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
+@@ -193,8 +193,8 @@ void OBJWriter::write_header() const
+ {
+   using namespace std::string_literals;
+   FormatHandler fh;
+-  fh.write_string("# Blender "s + BKE_blender_version_string());
+-  fh.write_string("# www.blender.org");
++  fh.write_string("# Animora "s + BKE_blender_version_string());
++  fh.write_string("# animora.tech");
+   fh.write_to_file(outfile_);
+ }
+ 
+@@ -625,9 +625,9 @@ void MTLWriter::write_header(const char *blen_filepath)
+   const char *blen_basename = (blen_filepath && blen_filepath[0] != '\0') ?
+                                   BLI_path_basename(blen_filepath) :
+                                   "None";
+-  fmt_handler_.write_string("# Blender "s + BKE_blender_version_string() + " MTL File: '" +
++  fmt_handler_.write_string("# Animora "s + BKE_blender_version_string() + " MTL File: '" +
+                             blen_basename + "'");
+-  fmt_handler_.write_string("# www.blender.org");
++  fmt_handler_.write_string("# animora.tech");
+ }
+ 
+ StringRefNull MTLWriter::mtl_file_path() const
+diff --git a/source/blender/makesdna/DNA_space_enums.h b/source/blender/makesdna/DNA_space_enums.h
+index e694ee02..27d19bb0 100644
+--- a/source/blender/makesdna/DNA_space_enums.h
++++ b/source/blender/makesdna/DNA_space_enums.h
+@@ -1121,9 +1121,11 @@ enum eSpace_Type {
+   SPACE_CLIP = 20,
+   SPACE_TOPBAR = 21,
+   SPACE_STATUSBAR = 22,
+-  SPACE_SPREADSHEET = 23
++  SPACE_SPREADSHEET = 23,
++  /* Animora: native AI assistant editor (first-class space type). */
++  SPACE_ANIMORA = 24
+ 
+-#define SPACE_TYPE_NUM (SPACE_SPREADSHEET + 1)
++#define SPACE_TYPE_NUM (SPACE_ANIMORA + 1)
+ };
+ 
+ /* use for function args */
+diff --git a/source/blender/makesdna/DNA_space_types.h b/source/blender/makesdna/DNA_space_types.h
+index 511341e9..bb714e9c 100644
+--- a/source/blender/makesdna/DNA_space_types.h
++++ b/source/blender/makesdna/DNA_space_types.h
+@@ -123,6 +123,28 @@ struct SpaceInfo {
+ 
+ /** \} */
+ 
++/* -------------------------------------------------------------------- */
++/** \name Animora AI Space
++ * \{ */
++
++/** Animora — native AI assistant editor. */
++struct SpaceAnimora {
++  SpaceLink *next = nullptr, *prev = nullptr;
++  /** Storage of regions for inactive spaces. */
++  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
++  char spacetype = 0;
++  char link_flag = 0;
++  char _pad0[6] = {};
++  /* End 'SpaceLink' header. */
++
++  /** Animora-specific runtime state (kept minimal — real chat state lives in
++   *  Python WindowManager properties so it persists across editor instances). */
++  int flag = 0;
++  char _pad1[4] = {};
++};
++
++/** \} */
++
+ /* -------------------------------------------------------------------- */
+ /** \name Properties Editor
+  * \{ */
+diff --git a/source/blender/makesdna/DNA_userdef_types.h b/source/blender/makesdna/DNA_userdef_types.h
+index e46262f2..8fd738c6 100644
+--- a/source/blender/makesdna/DNA_userdef_types.h
++++ b/source/blender/makesdna/DNA_userdef_types.h
+@@ -1002,7 +1002,7 @@ struct UserDef {
+   ListBaseT<bUserExtensionRepo> extension_repos = {nullptr, nullptr};
+   ListBaseT<bUserAssetShelfSettings> asset_shelves_settings = {nullptr, nullptr};
+ 
+-  char keyconfigstr[64] = "Blender";
++  char keyconfigstr[64] = "Animora";
+ 
+   /** Index of the asset library being edited in the Preferences UI. */
+   short active_asset_library = 0;
+diff --git a/source/blender/makesdna/DNA_windowmanager_types.h b/source/blender/makesdna/DNA_windowmanager_types.h
+index 5ec792fb..5e45a591 100644
+--- a/source/blender/makesdna/DNA_windowmanager_types.h
++++ b/source/blender/makesdna/DNA_windowmanager_types.h
+@@ -147,7 +147,7 @@ struct wmWindowManager {
+ #define WM_KEYCONFIG_ARRAY_P(wm) \
+   &(wm)->runtime->defaultconf, &(wm)->runtime->addonconf, &(wm)->runtime->userconf
+ 
+-#define WM_KEYCONFIG_STR_DEFAULT "Blender"
++#define WM_KEYCONFIG_STR_DEFAULT "Animora"
+ 
+ /* IME is win32 and apple only! */
+ #if !(defined(WIN32) || defined(__APPLE__)) && !defined(DNA_DEPRECATED)
+diff --git a/source/blender/makesrna/intern/rna_space.cc b/source/blender/makesrna/intern/rna_space.cc
+index b42bcc54..0e145c58 100644
+--- a/source/blender/makesrna/intern/rna_space.cc
++++ b/source/blender/makesrna/intern/rna_space.cc
+@@ -172,6 +172,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
+      ICON_SPREADSHEET,
+      "Spreadsheet",
+      "Explore geometry data in a table"},
++    {SPACE_ANIMORA,
++     "ANIMORA",
++     ICON_BLENDER,
++     "Animora AI",
++     "Native AI assistant — chat, generate, and orchestrate scene operations"},
+     {SPACE_USERPREF,
+      "PREFERENCES",
+      ICON_PREFERENCES,
+@@ -753,6 +758,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
+       return RNA_SpaceClipEditor;
+     case SPACE_SPREADSHEET:
+       return RNA_SpaceSpreadsheet;
++    case SPACE_ANIMORA:
++      return RNA_SpaceAnimora;
+ 
+       /* Currently no type info. */
+     case SPACE_SCRIPT:
+@@ -8040,6 +8047,16 @@ static void rna_def_space_info(BlenderRNA *brna)
+   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
+ }
+ 
++/* Animora — native AI assistant editor RNA. */
++static void rna_def_space_animora(BlenderRNA *brna)
++{
++  StructRNA *srna;
++
++  srna = RNA_def_struct(brna, "SpaceAnimora", "Space");
++  RNA_def_struct_sdna(srna, "SpaceAnimora");
++  RNA_def_struct_ui_text(srna, "Space Animora", "Animora AI assistant editor");
++}
++
+ static void rna_def_space_userpref(BlenderRNA *brna)
+ {
+   static const EnumPropertyItem filter_type_items[] = {
+@@ -9318,6 +9335,7 @@ void RNA_def_space(BlenderRNA *brna)
+   rna_def_space_console(brna);
+   rna_def_console_line(brna);
+   rna_def_space_info(brna);
++  rna_def_space_animora(brna);
+   rna_def_space_userpref(brna);
+   rna_def_node_tree_path(brna);
+   rna_def_space_node(brna);
+diff --git a/source/blender/windowmanager/intern/wm_dragdrop_test.cc b/source/blender/windowmanager/intern/wm_dragdrop_test.cc
+index 7d92d3ab..0b1ea77b 100644
+--- a/source/blender/windowmanager/intern/wm_dragdrop_test.cc
++++ b/source/blender/windowmanager/intern/wm_dragdrop_test.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2023 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
+  *
+  * SPDX-License-Identifier: Apache-2.0 */
+ 
+diff --git a/source/blender/windowmanager/intern/wm_event_system.cc b/source/blender/windowmanager/intern/wm_event_system.cc
+index bb241dd1..5e0d3e9a 100644
+--- a/source/blender/windowmanager/intern/wm_event_system.cc
++++ b/source/blender/windowmanager/intern/wm_event_system.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -2842,7 +2842,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
+   switch (val) {
+     case EVT_FILESELECT_FULL_OPEN: {
+       ScrArea *area = ED_screen_temp_space_open(
+-          C, IFACE_("Blender File View"), SPACE_FILE, U.filebrowser_display_type, true);
++          C, IFACE_("Animora File View"), SPACE_FILE, U.filebrowser_display_type, true);
+       if (!area) {
+         BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open file browser!");
+         return WM_HANDLER_BREAK;
+diff --git a/source/blender/windowmanager/intern/wm_files.cc b/source/blender/windowmanager/intern/wm_files.cc
+index 29ce02ef..cc7a1ca4 100644
+--- a/source/blender/windowmanager/intern/wm_files.cc
++++ b/source/blender/windowmanager/intern/wm_files.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
++﻿/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -2278,10 +2278,10 @@ static void wm_autosave_location(char filepath[FILE_MAX])
+   if (blendfile_path && (blendfile_path[0] != '\0')) {
+     const char *basename = BLI_path_basename(blendfile_path);
+     int len = strlen(basename) - 6;
+-    SNPRINTF(filename, "%.*s_%d_autosave.blend", len, basename, pid);
++    SNPRINTF(filename, "%.*s_%d_autosave.anim", len, basename, pid);
+   }
+   else {
+-    SNPRINTF(filename, "%d_autosave.blend", pid);
++    SNPRINTF(filename, "%d_autosave.anim", pid);
+   }
+ 
+   const char *tempdir_base = BKE_tempdir_base();
+@@ -2547,7 +2547,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
+     return WM_operator_confirm_ex(C,
+                                   op,
+                                   IFACE_("Overwrite Startup File"),
+-                                  IFACE_("Blender will start next time as it is now."),
++                                  IFACE_("Animora will start next time as it is now."),
+                                   IFACE_("Overwrite"),
+                                   ui::AlertIcon::Question,
+                                   false);
+@@ -2763,7 +2763,7 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
+                         IFACE_(display_name));
+   }
+   else {
+-    title = IFACE_("Load Factory Blender Preferences");
++    title = IFACE_("Load Factory Animora Preferences");
+   }
+ 
+   return WM_operator_confirm_ex(
+@@ -3359,7 +3359,7 @@ void WM_OT_open_mainfile(wmOperatorType *ot)
+ {
+   ot->name = "Open";
+   ot->idname = "WM_OT_open_mainfile";
+-  ot->description = "Open a Blender file";
++  ot->description = "Open an Animora file";
+   ot->get_description = wm_open_mainfile_get_description;
+ 
+   ot->invoke = wm_open_mainfile_invoke;
+@@ -3612,7 +3612,7 @@ static void wm_filepath_default(const Main *bmain, char *filepath)
+   if (bmain->filepath[0] == '\0') {
+     char filename_untitled[FILE_MAXFILE];
+     /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
+-    SNPRINTF_UTF8(filename_untitled, "%s.blend", DATA_("Untitled"));
++    SNPRINTF_UTF8(filename_untitled, "%s.anim", DATA_("Untitled"));
+     BLI_path_filename_ensure(filepath, FILE_MAX, filename_untitled);
+   }
+ }
+@@ -3814,7 +3814,8 @@ static bool wm_save_mainfile_check(bContext * /*C*/, wmOperator *op)
+     /* NOTE(@ideasman42): some users would prefer #BLI_path_extension_replace(),
+      * we have had some nitpicking bug reports about this.
+      * Always adding the extension as users may use '.' as part of the file-name. */
+-    BLI_path_extension_ensure(filepath, FILE_MAX, ".blend");
++    /* Animora: default save extension is .anim (loader still accepts .blend). */
++    BLI_path_extension_ensure(filepath, FILE_MAX, ".anim");
+     RNA_string_set(op->ptr, "filepath", filepath);
+     return true;
+   }
+@@ -3933,9 +3934,9 @@ static std::string wm_save_mainfile_get_description(bContext * /*C*/,
+ 
+ void WM_OT_save_mainfile(wmOperatorType *ot)
+ {
+-  ot->name = "Save Blender File";
++  ot->name = "Save Animora File";
+   ot->idname = "WM_OT_save_mainfile";
+-  ot->description = "Save the current Blender file";
++  ot->description = "Save the current Animora file";
+ 
+   ot->invoke = wm_save_mainfile_invoke;
+   ot->exec = wm_save_as_mainfile_exec;
+@@ -3958,7 +3959,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
+                   "Remap Relative",
+                   "Remap relative paths when saving to a different directory");
+ 
+-  prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "Exit Blender after saving");
++  prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "Exit Animora after saving");
+   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+ 
+   prop = RNA_def_boolean(ot->srna,
+@@ -4512,7 +4513,7 @@ static ui::Block *block_create_save_file_overwrite_dialog(bContext *C, ARegion *
+   }
+   else {
+     /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
+-    SNPRINTF_UTF8(filename, "%s.blend", DATA_("Untitled"));
++    SNPRINTF_UTF8(filename, "%s.anim", DATA_("Untitled"));
+     /* Since this dialog should only be shown when re-saving an existing file, current filepath
+      * should never be empty. */
+     BLI_assert_unreachable();
+@@ -4731,7 +4732,7 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region,
+   }
+   else {
+     /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
+-    SNPRINTF_UTF8(filename, "%s.blend", DATA_("Untitled"));
++    SNPRINTF_UTF8(filename, "%s.anim", DATA_("Untitled"));
+   }
+   layout.label(filename, ICON_NONE);
+ 
+diff --git a/source/blender/windowmanager/intern/wm_files_link.cc b/source/blender/windowmanager/intern/wm_files_link.cc
+index f8b7033d..f9366c8d 100644
+--- a/source/blender/windowmanager/intern/wm_files_link.cc
++++ b/source/blender/windowmanager/intern/wm_files_link.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+diff --git a/source/blender/windowmanager/intern/wm_init_exit.cc b/source/blender/windowmanager/intern/wm_init_exit.cc
+index 44126b0e..55a55ec0 100644
+--- a/source/blender/windowmanager/intern/wm_init_exit.cc
++++ b/source/blender/windowmanager/intern/wm_init_exit.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -695,7 +695,7 @@ void WM_exit(bContext *C, const int exit_code)
+   WM_exit_ex(C, true, do_user_exit_actions);
+ 
+   if (!CLG_quiet_get()) {
+-    printf("\nBlender quit\n");
++    printf("\nAnimora quit\n");
+   }
+ 
+   exit(exit_code);
+diff --git a/source/blender/windowmanager/intern/wm_operator_props.cc b/source/blender/windowmanager/intern/wm_operator_props.cc
+index 957f691f..a18cd2e5 100644
+--- a/source/blender/windowmanager/intern/wm_operator_props.cc
++++ b/source/blender/windowmanager/intern/wm_operator_props.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+diff --git a/source/blender/windowmanager/intern/wm_operators.cc b/source/blender/windowmanager/intern/wm_operators.cc
+index 9cda80f4..cbc667ac 100644
+--- a/source/blender/windowmanager/intern/wm_operators.cc
++++ b/source/blender/windowmanager/intern/wm_operators.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -2429,9 +2429,9 @@ static wmOperatorStatus wm_exit_blender_invoke(bContext *C,
+ 
+ static void WM_OT_quit_blender(wmOperatorType *ot)
+ {
+-  ot->name = "Quit Blender";
++  ot->name = "Quit Animora";
+   ot->idname = "WM_OT_quit_blender";
+-  ot->description = "Quit Blender";
++  ot->description = "Quit Animora";
+ 
+   ot->invoke = wm_exit_blender_invoke;
+   ot->exec = wm_exit_blender_exec;
+diff --git a/source/blender/windowmanager/intern/wm_platform_support.cc b/source/blender/windowmanager/intern/wm_platform_support.cc
+index a5fd7aad..def2d77a 100644
+--- a/source/blender/windowmanager/intern/wm_platform_support.cc
++++ b/source/blender/windowmanager/intern/wm_platform_support.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2019 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2019 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -73,7 +73,7 @@ static void wm_platform_support_create_link(char *link)
+ {
+   DynStr *ds = BLI_dynstr_new();
+ 
+-  BLI_dynstr_append(ds, "https://docs.blender.org/manual/en/dev/troubleshooting/gpu/");
++  BLI_dynstr_append(ds, "https://docs.animora.tech/manual/en/dev/troubleshooting/gpu/");
+ #if defined(_WIN32)
+   BLI_dynstr_append(ds, "windows/");
+ #elif defined(__APPLE__)
+@@ -143,7 +143,7 @@ bool WM_platform_support_perform_checks()
+ 
+     case GPU_SUPPORT_LEVEL_LIMITED: {
+       size_t slen = 0;
+-      STR_CONCAT(title, slen, "Blender - ");
++      STR_CONCAT(title, slen, "Animora - ");
+       STR_CONCAT(
+           title, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Limited Platform Support"));
+       slen = 0;
+@@ -174,7 +174,7 @@ bool WM_platform_support_perform_checks()
+ 
+     case GPU_SUPPORT_LEVEL_UNSUPPORTED: {
+       size_t slen = 0;
+-      STR_CONCAT(title, slen, "Blender - ");
++      STR_CONCAT(title, slen, "Animora - ");
+       STR_CONCAT(
+           title, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Platform Unsupported"));
+       slen = 0;
+diff --git a/source/blender/windowmanager/intern/wm_playanim.cc b/source/blender/windowmanager/intern/wm_playanim.cc
+index 0e3f2d31..2649357f 100644
+--- a/source/blender/windowmanager/intern/wm_playanim.cc
++++ b/source/blender/windowmanager/intern/wm_playanim.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
++﻿/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -103,7 +103,7 @@ static CLG_LogRef LOG = {"image"};
+ 
+ /** Used in user viable messages. */
+ static const char *message_prefix = "Animation Player";
+-static const char *playanim_window_title = "Blender Animation Player";
++static const char *playanim_window_title = "Animora Animation Player";
+ 
+ struct PlayState;
+ static void playanim_window_zoom(PlayState &ps, const float zoom_offset);
+@@ -2386,8 +2386,8 @@ int WM_main_playanim(int argc, const char **argv)
+ 
+     bke::sound_system_initialize();
+ 
+-    if (!(g_audaspace.audio_device = bke::sound_device_init(nullptr, specs, 1024, "Blender"))) {
+-      g_audaspace.audio_device = bke::sound_device_init("None", specs, 0, "Blender");
++    if (!(g_audaspace.audio_device = bke::sound_device_init(nullptr, specs, 1024, "Animora"))) {
++      g_audaspace.audio_device = bke::sound_device_init("None", specs, 0, "Animora");
+     }
+   }
+ #endif
+diff --git a/source/blender/windowmanager/intern/wm_splash_screen.cc b/source/blender/windowmanager/intern/wm_splash_screen.cc
+index 1e197a73..c55a5e81 100644
+--- a/source/blender/windowmanager/intern/wm_splash_screen.cc
++++ b/source/blender/windowmanager/intern/wm_splash_screen.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2007 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -390,12 +390,12 @@ static ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*
+     RNA_string_set(
+         &op_ptr,
+         "url",
+-        "https://docs.blender.org/manual/en/latest/getting_started/installing/macos.html");
++        "https://docs.animora.tech/manual/en/latest/getting_started/installing/macos.html");
+ #  elif defined(_M_X64)
+     RNA_string_set(
+         &op_ptr,
+         "url",
+-        "https://docs.blender.org/manual/en/latest/getting_started/installing/windows.html");
++        "https://docs.animora.tech/manual/en/latest/getting_started/installing/windows.html");
+ #  endif
+ 
+     layout.separator();
+@@ -477,7 +477,7 @@ static ui::Block *wm_block_about_create(bContext *C, ARegion *region, void * /*a
+ 
+   ui::Layout &col = layout.column(true);
+ 
+-  uiItemL_ex(&col, IFACE_("Blender"), ICON_NONE, true, false);
++  uiItemL_ex(&col, IFACE_("Animora"), ICON_NONE, true, false);
+ 
+   MenuType *mt = WM_menutype_find("WM_MT_splash_about", true);
+   if (mt) {
+@@ -500,9 +500,9 @@ static wmOperatorStatus wm_splash_about_invoke(bContext *C,
+ 
+ void WM_OT_splash_about(wmOperatorType *ot)
+ {
+-  ot->name = "About Blender";
++  ot->name = "About Animora";
+   ot->idname = "WM_OT_splash_about";
+-  ot->description = "Open a window with information about Blender";
++  ot->description = "Open a window with information about Animora";
+ 
+   ot->invoke = wm_splash_about_invoke;
+   ot->poll = WM_operator_winactive;
+diff --git a/source/blender/windowmanager/intern/wm_window.cc b/source/blender/windowmanager/intern/wm_window.cc
+index e88f0288..e8ea3d21 100644
+--- a/source/blender/windowmanager/intern/wm_window.cc
++++ b/source/blender/windowmanager/intern/wm_window.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved. 2007 Blender Authors.
++﻿/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved. 2007 Blender Authors.
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -601,7 +601,7 @@ static std::string wm_window_title_text(
+     if (is_single && area && area->spacetype != SPACE_EMPTY) {
+       return IFACE_(ED_area_name(area).c_str());
+     }
+-    return "Blender";
++    return "Animora";
+   }
+ 
+   /* This path may contain invalid UTF8 byte sequences on UNIX systems,
+@@ -684,7 +684,7 @@ static std::string wm_window_title_text(
+     }
+   }
+ 
+-  win_title.append(fmt::format(" - Blender {}", BKE_blender_version_string()));
++  win_title.append(" - Animora");
+ 
+   return win_title;
+ }
+diff --git a/source/blender/windowmanager/intern/wm_window_csd_draw.cc b/source/blender/windowmanager/intern/wm_window_csd_draw.cc
+index 69b046e4..60c09347 100644
+--- a/source/blender/windowmanager/intern/wm_window_csd_draw.cc
++++ b/source/blender/windowmanager/intern/wm_window_csd_draw.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2025 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2025 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+diff --git a/source/creator/creator.cc b/source/creator/creator.cc
+index 0356b458..d12e45be 100644
+--- a/source/creator/creator.cc
++++ b/source/creator/creator.cc
+@@ -273,7 +273,7 @@ static void restore_ld_preload()
+ {
+   /* LD_PRELOAD may have been modified on startup for Blender. However
+    * we don't want it for other executables launched from Blender. */
+-  const char *restore_ld_preload = BLI_getenv("BLENDER_RESTORE_LD_PRELOAD");
++  const char *restore_ld_preload = BLI_getenv("ANIMORA_RESTORE_LD_PRELOAD");
+   if (restore_ld_preload) {
+     BLI_setenv("LD_PRELOAD", restore_ld_preload);
+   }
+@@ -285,7 +285,7 @@ static void restore_ld_preload()
+ /** \name Blender as a Stand-Alone Python Module (bpy)
+  *
+  * While not officially supported, this can be useful for Python developers.
+- * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
++ * See: https://developer.animora.tech/docs/handbook/building_blender/python_module/
+  * \{ */
+ 
+ #ifdef WITH_PYTHON_MODULE
+diff --git a/source/creator/creator_args.cc b/source/creator/creator_args.cc
+index 22434e33..2d2ca872 100644
+--- a/source/creator/creator_args.cc
++++ b/source/creator/creator_args.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2023 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -600,13 +600,13 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
+  *   see: `doc/manpage/blender.1.py`
+  * - Parsed and extracted for the manual,
+  *   which converts our ad-hoc formatting to reStructuredText.
+- *   see: https://docs.blender.org/manual/en/dev/advanced/command_line.html
++ *   see: https://docs.animora.tech/manual/en/dev/advanced/command_line.html
+  *
+  * \{ */
+ 
+ static void print_version_full()
+ {
+-  printf("Blender %s\n", BKE_blender_version_string());
++  printf("Animora %s\n", BKE_blender_version_string());
+ #  ifdef BUILD_DATE
+   printf("\tbuild date: %s\n", build_date);
+   printf("\tbuild time: %s\n", build_time);
+@@ -628,13 +628,13 @@ static void print_version_short()
+ #  ifdef BUILD_DATE
+   /* NOTE: We include built time since sometimes we need to tell broken from
+    * working built of the same hash. */
+-  printf("Blender %s (hash %s built %s %s)\n",
++  printf("Animora %s (hash %s built %s %s)\n",
+          BKE_blender_version_string(),
+          build_hash,
+          build_date,
+          build_time);
+ #  else
+-  printf("Blender %s\n", BKE_blender_version_string());
++  printf("Animora %s\n", BKE_blender_version_string());
+ #  endif
+ }
+ 
+@@ -663,7 +663,7 @@ static void print_help(bArgs *ba, bool all)
+ 
+ #  define PRINT(...) BLI_args_printf(ba, __VA_ARGS__)
+ 
+-  PRINT("Blender %s\n", BKE_blender_version_string());
++  PRINT("Animora %s\n", BKE_blender_version_string());
+   PRINT("Usage: blender [args ...] [file] [args ...]\n");
+   PRINT("\n");
+ 
+@@ -1361,7 +1361,7 @@ static const char arg_handle_debug_mode_set_doc[] =
+ static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void *data)
+ {
+   G.debug |= G_DEBUG;
+-  printf("Blender %s\n", BKE_blender_version_string());
++  printf("Animora %s\n", BKE_blender_version_string());
+   MEM_set_memory_debug();
+ #  ifndef NDEBUG
+   BLI_mempool_set_memory_debug();
+diff --git a/source/creator/creator_signals.cc b/source/creator/creator_signals.cc
+index 3cf0b778..4b261029 100644
+--- a/source/creator/creator_signals.cc
++++ b/source/creator/creator_signals.cc
+@@ -1,4 +1,4 @@
+-/* SPDX-FileCopyrightText: 2023 Blender Authors
++﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
+  *
+  * SPDX-License-Identifier: GPL-2.0-or-later */
+ 
+@@ -75,10 +75,10 @@ static void sig_handle_blender_esc(int sig)
+   if (sig == 2) {
+     static int count = 0;
+     if (count) {
+-      printf("\nBlender killed\n");
++      printf("\nAnimora killed\n");
+       exit(2);
+     }
+-    printf("\nSent an internal break event. Press ^C again to kill Blender\n");
++    printf("\nSent an internal break event. Press ^C again to kill Animora\n");
+     count++;
+   }
+ }

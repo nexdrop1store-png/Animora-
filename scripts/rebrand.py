@@ -61,6 +61,11 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
     ('"Quit Blender"', '"Quit Animora"'),
     ('"Blender Animation Player"', '"Animora Animation Player"'),
     ('"Blender - "', '"Animora - "'),
+    # Unsupported-GPU error dialog (GHOST_WindowWin32.cc) — the Windows
+    # MessageBox an old-GPU machine pops up. Title + ARM-branch prose.
+    ("Blender - Unsupported Graphics Card Configuration",
+     "Animora - Unsupported Graphics Card Configuration"),
+    ("emulated x64 copy of Blender", "emulated x64 copy of Animora"),
     ('"Blender File View"', '"Animora File View"'),
     ('"Open a Blender file"', '"Open an Animora file"'),
     ('"Save Blender File"', '"Save Animora File"'),
@@ -139,18 +144,51 @@ SOURCE_GLOBS: list[str] = [
     "intern/ghost/intern/*.cc",
 ]
 
+# Python UI files where user-visible Blender links live. SOURCE_GLOBS above is
+# C/C++ ONLY, so these were never patched — which is why the splash
+# "Donate to Blender"/"What's New" buttons and the blender.org Help links
+# survived every prior rebrand.
+UI_PY_FILES: list[str] = [
+    "scripts/startup/bl_operators/wm.py",      # WM_MT_splash (splash footer)
+    "scripts/startup/bl_ui/space_topbar.py",   # Help menu links
+]
+
+# Targeted UI fixes the generic string table cannot do: the splash uses
+# `url_open_preset` with `.type = 'FUND'/'RELEASE_NOTES'/'BLENDER'`, which
+# resolve to blender.org regardless of the button label — so we rewrite the
+# whole operator call to a direct animora.tech url_open. Plus blanket
+# blender.org → animora.tech repoints for any remaining Help links.
+UI_PY_REPLACEMENTS: list[tuple[str, str]] = [
+    ('"wm.url_open_preset", text="Donate to Blender", icon=\'FUND\').type = \'FUND\'',
+     '"wm.url_open", text="Support Animora", icon=\'FUND\').url = "https://animora.tech"'),
+    ('"wm.url_open_preset", text="What\'s New", icon=\'URL\').type = \'RELEASE_NOTES\'',
+     '"wm.url_open", text="What\'s New", icon=\'URL\').url = "https://animora.tech/whats-new"'),
+    ('"wm.url_open_preset", text="Blender Website", icon=\'URL\').type = \'BLENDER\'',
+     '"wm.url_open", text="Animora Website", icon=\'URL\').url = "https://animora.tech"'),
+    ("https://www.blender.org/support/", "https://animora.tech/support"),
+    ("https://www.blender.org/support", "https://animora.tech/support"),
+    ("https://www.blender.org/community/", "https://animora.tech/community"),
+    ("https://www.blender.org/get-involved/", "https://animora.tech"),
+    ("https://devtalk.blender.org", "https://animora.tech"),
+    ("https://www.blender.org", "https://animora.tech"),
+]
+
 # Asset copy map: src (relative to assets/branding) → dst (relative to fork root)
 ASSET_COPIES: list[tuple[str, str]] = [
     ("splash.png", "release/datafiles/splash.png"),
     ("splash_2x.png", "release/datafiles/splash_2x.png"),
-    ("animora_icon_16.png", "release/datafiles/icons/animora_16.png"),
-    ("animora_icon_32.png", "release/datafiles/icons/animora_32.png"),
-    ("animora_icon_64.png", "release/datafiles/icons/animora_64.png"),
-    ("animora_icon_128.png", "release/datafiles/icons/animora_128.png"),
-    ("animora_icon_256.png", "release/datafiles/icons/animora_256.png"),
-    ("animora.ico", "release/windows/icons/blender.ico"),
-    ("animora.icns", "release/datafiles/animora.icns"),
-    ("animora_theme.xml", "release/datafiles/animora_theme.xml"),
+    # Source names match the actual files in assets/branding/ (animora_<n>.png,
+    # NOT animora_icon_<n>.png — that earlier mismatch silently skipped every
+    # icon, leaving Blender's icons in place).
+    ("animora_16.png", "release/datafiles/icons/animora_16.png"),
+    ("animora_32.png", "release/datafiles/icons/animora_32.png"),
+    ("animora_64.png", "release/datafiles/icons/animora_64.png"),
+    ("animora_128.png", "release/datafiles/icons/animora_128.png"),
+    ("animora_256.png", "release/datafiles/icons/animora_256.png"),
+    ("animora.ico", "release/windows/icons/blender.ico"),  # embedded into the .exe at build
+    # animora.icns (macOS dock icon) + animora_theme.xml intentionally omitted:
+    # the .icns isn't in the repo yet (macOS packaging is later) and the Animora
+    # dark theme ships via native versioning_userdef.cc, not an XML file.
 ]
 
 STARTUP_COPY = (
@@ -208,6 +246,31 @@ def patch_sources(fork_root: Path, dry_run: bool) -> int:
                 if not dry_run:
                     src_file.write_text(patched, encoding="utf-8")
                 patched_files += 1
+    return patched_files
+
+
+def patch_ui_python(fork_root: Path, dry_run: bool) -> int:
+    """Patch the Python UI files (splash + Help menu) the C-only SOURCE_GLOBS
+    never touched: applies the generic Blender→Animora table plus the
+    splash-specific preset rewrites. This is what removes 'Donate to Blender'
+    / repoints 'What's New' + the blender.org Help links."""
+    patched_files = 0
+    for rel in UI_PY_FILES:
+        src_file = fork_root / rel
+        if not src_file.is_file():
+            log.warning("UI file not found (skipping): %s", rel)
+            continue
+        original = src_file.read_text(encoding="utf-8", errors="replace")
+        patched = original
+        for old, new in STRING_REPLACEMENTS:
+            patched = patched.replace(old, new)
+        for old, new in UI_PY_REPLACEMENTS:
+            patched = patched.replace(old, new)
+        if patched != original:
+            log.info("Patch UI python: %s", rel)
+            if not dry_run:
+                src_file.write_text(patched, encoding="utf-8")
+            patched_files += 1
     return patched_files
 
 
@@ -284,11 +347,12 @@ def main() -> None:
     copied = copy_assets(args.fork_root, args.assets_root, args.dry_run)
     panel_files = inject_ai_panel(args.fork_root, args.dry_run)
     patched = patch_sources(args.fork_root, args.dry_run)
+    ui_patched = patch_ui_python(args.fork_root, args.dry_run)
     patch_cmake_app_name(args.fork_root, args.dry_run)
 
     log.info(
-        "Done. Assets copied: %d  AI panel files: %d  Source files patched: %d",
-        copied, panel_files, patched,
+        "Done. Assets copied: %d  AI panel files: %d  Source patched: %d  UI py patched: %d",
+        copied, panel_files, patched, ui_patched,
     )
 
 
