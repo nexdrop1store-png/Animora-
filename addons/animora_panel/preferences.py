@@ -112,13 +112,13 @@ class AnimoraPreferences(AddonPreferences):
     # ── 4. Connection ──────────────────────────────────────────────────
     backend_url: StringProperty(
         name="AI Backend URL",
-        default="wss://api.animora.tech/ws",
+        default="wss://eatanimora-animora-backend.hf.space/ws",
         description="WebSocket URL for the Animora AI backend",
     )  # type: ignore[assignment]
 
     backend_http_url: StringProperty(
         name="AI Backend HTTP URL",
-        default="https://api.animora.tech",
+        default="https://eatanimora-animora-backend.hf.space",
         description="HTTPS origin for REST endpoints (e.g. /validate-key)",
     )  # type: ignore[assignment]
 
