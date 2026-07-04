@@ -13,21 +13,21 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 import webbrowser
 
 import bpy
 from bpy.types import Operator
 
-from . import auth, auth_core, deep_link, ws_client
+from . import auth, auth_core, deep_link, state, ws_client
 from .preferences import get_prefs
 
 log = logging.getLogger("animora.operators")
 
 # Pending-auth state, kept together until the callback returns (Step 1 of
 # the device hand-off). Written by OT_AnimoraSignIn, read by the poll timer.
-_pkce_verifier: str = ""
-_pending_state: str = ""
-_pending_auth: bool = False
+_pending_auth: dict[str, dict[str, float | str]] = {}
+_PENDING_AUTH_TIMEOUT_SEC = 180.0
 
 
 class OT_AnimoraSignIn(Operator):
@@ -36,7 +36,6 @@ class OT_AnimoraSignIn(Operator):
     bl_description = "Sign in to your Animora account"
 
     def execute(self, context: bpy.types.Context):
-        global _pkce_verifier, _pending_state, _pending_auth
         prefs = get_prefs()
 
         # Dev-mode shortcut: skip PKCE/browser/Supabase entirely and connect
@@ -44,24 +43,38 @@ class OT_AnimoraSignIn(Operator):
         # the full Supabase device hand-off below.
         if prefs.dev_mode:
             auth.dev_signin()
+            state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
             _connect_ws()
             self.report({"INFO"}, "Connected to local dev backend")
             return {"FINISHED"}
 
         # Step 1 — generate + keep together until the callback returns.
         code_verifier, code_challenge = auth.generate_pkce()
-        state = auth.generate_state()
-        _pkce_verifier = code_verifier
-        _pending_state = state
-        _pending_auth = True
+        signin_state = auth.generate_state()
+        _pending_auth[signin_state] = {
+            "verifier": code_verifier,
+            "started_at": time.monotonic(),
+        }
 
+        # A stale callback from an older attempt should never auto-complete a
+        # fresh sign-in request.
+        deep_link.read_and_consume_callback()
+        try:
+            deep_link.register_scheme()
+        except Exception as exc:
+            log.warning("animora:// scheme refresh skipped: %s", exc)
+
+        state.set_auth_status(
+            state.AuthS.PENDING_BROWSER,
+            "Waiting for browser confirmation",
+        )
         device_id = auth.compute_device_fingerprint()
         # Step 2 — open the system browser to the website's sign-in page.
         url = auth_core.build_signin_url(
             prefs.effective_website_base(),
             code_challenge=code_challenge,
             device_id=device_id,
-            state=state,
+            state=signin_state,
             device_label=auth_core.device_label(),
         )
         log.info("Opening Animora sign-in in the browser")
@@ -102,6 +115,7 @@ class OT_AnimoraSignOut(Operator):
     def execute(self, context: bpy.types.Context):
         ws_client.client.disconnect()
         auth.sign_out()
+        state.set_auth_status(state.AuthS.SIGNED_OUT, "")
         self.report({"INFO"}, "Signed out of Animora")
         return {"FINISHED"}
 
@@ -120,7 +134,7 @@ def _send_current_input() -> bool:
     text = (getattr(wm, "animora_input_text", "") or "").strip()
     if not text:
         return False
-    if not ws_client.client.connected:
+    if not state.auth_can_send() or not ws_client.client.connected:
         log.warning("Send ignored — not connected (sign in first)")
         return False
 
@@ -186,7 +200,7 @@ class OT_AnimoraSendMessage(Operator):
     bl_description = "Send your message to Animora (or just press Enter)"
 
     def execute(self, context: bpy.types.Context):
-        if not ws_client.client.connected:
+        if not state.auth_can_send() or not ws_client.client.connected:
             self.report({"WARNING"}, "Not connected — sign in first")
             return {"CANCELLED"}
         # The field's commit callback may have already sent (single click /
@@ -225,6 +239,7 @@ def _connect_ws() -> None:
     prefs = get_prefs()
     import uuid
     session_id = auth.session.user_id or str(uuid.uuid4())
+    state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
     ws_client.client.on_stream_token = _on_stream_token
     ws_client.client.on_tool_call = _on_tool_call
     ws_client.client.connect(
@@ -242,26 +257,36 @@ def _run_on_main_thread(fn) -> None:
     bpy.app.timers.register(_once, first_interval=0.0)
 
 
-def _complete_auth(code: str, state: str) -> bool:
+def _complete_auth(code: str, callback_state: str) -> bool:
     """Step 3–4: verify state, then exchange the one-time code for a Supabase
     session on a background thread; connect the WS on success. Returns False
     on a state mismatch (possible CSRF) or when no sign-in is pending."""
     global _pending_auth
-    if not _pending_auth or not _pkce_verifier:
+    pending = _pending_auth.pop(callback_state, {})
+    verifier = str(pending.get("verifier", ""))
+    if not verifier:
         log.warning("Auth callback with no pending request — ignoring")
         return False
-    if not auth_core.verify_state(_pending_state, state):
-        log.error("Auth callback state mismatch — ignoring (possible CSRF)")
-        _pending_auth = False
-        return False
-    verifier = _pkce_verifier
-    _pending_auth = False
+    log.info("Auth callback received for pending state")
+    state.set_auth_status(
+        state.AuthS.EXCHANGING_CODE,
+        "Signing you in",
+    )
 
     def _exchange():
         if auth.exchange_code(code, verifier):
+            log.info("Auth code exchange succeeded")
             _run_on_main_thread(_connect_ws)
         else:
             log.error("Auth code exchange failed")
+            auth.sign_out()
+            message = auth.last_auth_error() or "Sign-in failed. Please try again."
+            _run_on_main_thread(
+                lambda: state.set_auth_status(
+                    state.AuthS.FAILED,
+                    message,
+                )
+            )
 
     threading.Thread(target=_exchange, daemon=True).start()
     return True
@@ -272,16 +297,103 @@ def _poll_auth_callback() -> float:
     forwarder and complete sign-in. Cheap no-op when nothing is pending."""
     try:
         if _pending_auth:
+            # Expire attempts individually — a stale first attempt must not
+            # cancel a fresh second click of "Sign in".
+            now = time.monotonic()
+            expired = [
+                key for key, item in _pending_auth.items()
+                if now - float(item.get("started_at", 0.0)) > _PENDING_AUTH_TIMEOUT_SEC
+            ]
+            for key in expired:
+                _pending_auth.pop(key, None)
+            if expired and not _pending_auth:
+                state.set_auth_status(
+                    state.AuthS.FAILED,
+                    "Browser confirmation timed out. Click Sign in again.",
+                )
+                log.warning("Pending auth timed out waiting for callback")
+                return 1.0
             url = deep_link.read_and_consume_callback()
             if url:
+                log.info("Consumed auth callback drop file")
                 parsed = auth_core.parse_callback_url(url)
                 if parsed:
                     _complete_auth(*parsed)
                 else:
                     log.warning("Ignored malformed animora:// callback")
+                    state.set_auth_status(
+                        state.AuthS.FAILED,
+                        "The browser returned an invalid sign-in callback.",
+                    )
     except Exception as exc:  # a timer must never raise
         log.debug("Auth poll tick error: %s", exc)
     return 1.0  # seconds to next tick
+
+
+# These callbacks run in bundle (recording) mode too: bundle.py signs in via
+# auth.dev_signin() + _connect_ws(), and both the send gate (auth_can_send)
+# and _draw_bundle_status key off AuthS.CONNECTED.
+
+def _on_ws_connecting() -> None:
+    if auth.has_restorable_session() or auth.session.signed_in:
+        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
+
+
+def _on_ws_connected() -> None:
+    state.set_auth_status(state.AuthS.CONNECTED, "")
+
+
+# Timestamp of the last automatic refresh-and-retry after a WS 401/403.
+# Guards against a refresh/connect/reject loop when the backend keeps
+# rejecting a token the auth stack keeps refreshing successfully.
+_last_auth_retry_at: float = 0.0
+
+
+def _on_ws_auth_rejected(message: str) -> None:
+    global _last_auth_retry_at
+    log.warning("WS auth rejected: %s", message)
+    _pending_auth.clear()
+
+    # The access token may simply have expired (e.g. laptop asleep past the
+    # refresh window). Try one silent refresh before discarding the refresh
+    # token and forcing a full browser sign-in.
+    now = time.monotonic()
+    if auth.session.refresh_token and now - _last_auth_retry_at > 60.0:
+        _last_auth_retry_at = now
+        state.set_auth_status(state.AuthS.CONNECTING, "Refreshing your session")
+        if auth.restore_session_async(
+            on_ready=lambda: _run_on_main_thread(_connect_ws),
+            on_invalid=lambda: _run_on_main_thread(_restore_session_invalid),
+        ):
+            return
+
+    auth.sign_out()
+    state.set_auth_status(state.AuthS.FAILED, message or "Session expired — please sign in again.")
+
+
+def _on_ws_transport_disconnected(message: str) -> None:
+    if auth.session.signed_in or auth.has_restorable_session():
+        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
+    if message:
+        log.warning("WS transport disconnected: %s", message)
+
+
+def _restore_session_invalid() -> None:
+    if auth.last_refresh_rejected():
+        state.set_auth_status(state.AuthS.FAILED, "Session expired — please sign in again.")
+    else:
+        state.set_auth_status(
+            state.AuthS.FAILED,
+            "Couldn't reach Animora — check your connection, then sign in to retry.",
+        )
+
+
+def _configure_ws_callbacks() -> None:
+    ws_client.client.on_connecting = _on_ws_connecting
+    ws_client.client.on_connected = _on_ws_connected
+    ws_client.client.on_auth_rejected = _on_ws_auth_rejected
+    ws_client.client.on_transport_disconnected = _on_ws_transport_disconnected
+    ws_client.client.token_provider = lambda: auth.session.access_token
 
 
 def _app_version() -> str:
@@ -2594,6 +2706,15 @@ def register() -> None:
         log.warning("animora:// scheme registration skipped: %s", exc)
     if not bpy.app.timers.is_registered(_poll_auth_callback):
         bpy.app.timers.register(_poll_auth_callback, first_interval=1.0)
+    _configure_ws_callbacks()
+    if auth.has_restorable_session():
+        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
+        auth.restore_session_async(
+            on_ready=lambda: _run_on_main_thread(_connect_ws),
+            on_invalid=lambda: _run_on_main_thread(_restore_session_invalid),
+        )
+    else:
+        state.set_auth_status(state.AuthS.SIGNED_OUT, "")
 
 
 def unregister() -> None:

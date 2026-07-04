@@ -80,3 +80,23 @@ def test_forwarder_ignores_non_animora_urls(tmp_path, monkeypatch):
     rc = subprocess.run([sys.executable, str(handler), "https://evil.example/x"], timeout=20)
     assert rc.returncode == 1
     assert not (tmp_path / ".animora" / "auth_callback.txt").exists()
+
+
+def test_interp_prefix_prefers_animora_launcher(monkeypatch, tmp_path):
+    handler = tmp_path / "animora_url_handler.py"
+    handler.write_text("# noop\n", encoding="utf-8")
+    launcher = tmp_path / "Animora-launcher.exe"
+    launcher.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(dl, "_handler_path", lambda: handler)
+    monkeypatch.setattr(dl, "_find_animora_launcher", lambda: str(launcher))
+    monkeypatch.setattr(dl, "_find_animora_binary", lambda: None)
+    monkeypatch.setattr(dl, "_find_python", lambda: None)
+
+    assert dl._interp_prefix() == [  # noqa: SLF001 - deliberate unit test of internal helper
+        str(launcher),
+        "--background",
+        "--python",
+        str(handler),
+        "--",
+    ]

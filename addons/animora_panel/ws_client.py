@@ -36,6 +36,10 @@ _PING_INTERVAL = 20.0
 _SEND_QUEUE_MAX = 256
 
 
+class AuthRejectedError(Exception):
+    pass
+
+
 class AnimoraWSClient:
     def __init__(self) -> None:
         self._ws = None
@@ -49,6 +53,7 @@ class AnimoraWSClient:
         self._connected = False
         self._session_id: str = ""
         self._reconnect_delay = _RECONNECT_DELAY_BASE
+        self._manual_disconnect = False
 
         # Backpressure state — read by vision.py before pushing frames.
         # Set by the server via `pause_stream` / `resume_stream` control
@@ -61,22 +66,42 @@ class AnimoraWSClient:
         self.on_connected: Optional[Callable[[], None]] = None
         self.on_disconnected: Optional[Callable[[], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
+        self.on_connecting: Optional[Callable[[], None]] = None
+        self.on_auth_rejected: Optional[Callable[[str], None]] = None
+        self.on_transport_disconnected: Optional[Callable[[str], None]] = None
+
+        # Called before every (re)connect attempt to fetch the CURRENT
+        # access token. Without this, the background token refresh updates
+        # auth.session but reconnects keep using the token captured at
+        # connect() time — which expires after ~1h and turns every
+        # transport blip into a spurious 401 sign-out.
+        self.token_provider: Optional[Callable[[], str]] = None
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def connect(self, url: str, session_id: str, access_token: str) -> None:
+        # A new auth/session handoff must replace any previous reconnect loop.
+        # Otherwise an older thread can keep retrying with a stale token and
+        # force the panel back into "Reconnecting..." after sign-in succeeds.
+        if self._thread and self._thread.is_alive():
+            self.disconnect()
+            self._thread.join(timeout=2.0)
+
         self._url = url
         self._session_id = session_id
         self._access_token = access_token
+        self._manual_disconnect = False
         self._stop_event.clear()
+        self._schedule_callback(self.on_connecting)
         self._thread = threading.Thread(
             target=self._run_loop, daemon=True, name="animora-ws"
         )
         self._thread.start()
 
     def disconnect(self) -> None:
+        self._manual_disconnect = True
         self._stop_event.set()
         if self._ws:
             try:
@@ -245,10 +270,20 @@ class AnimoraWSClient:
             try:
                 self._connect_and_serve()
                 self._reconnect_delay = _RECONNECT_DELAY_BASE
+                if self._manual_disconnect or self._stop_event.is_set():
+                    break
+                raise RuntimeError("Connection closed")
+            except AuthRejectedError as exc:
+                self._connected = False
+                self._schedule_callback(self.on_auth_rejected, str(exc))
+                break
             except Exception as exc:
+                if self._manual_disconnect or self._stop_event.is_set():
+                    break
                 log.warning("WS connection lost: %s — reconnecting in %.1fs", exc, self._reconnect_delay)
                 self._connected = False
                 self._schedule_callback(self.on_disconnected)
+                self._schedule_callback(self.on_transport_disconnected, str(exc))
                 if not self._stop_event.wait(self._reconnect_delay):
                     self._reconnect_delay = min(self._reconnect_delay * 2, _RECONNECT_DELAY_MAX)
 
@@ -260,11 +295,23 @@ class AnimoraWSClient:
             self._stop_event.wait(10)
             return
 
-        url = f"{self._url}/{self._session_id}?token={self._access_token}"
+        token = self._access_token
+        if self.token_provider is not None:
+            try:
+                token = self.token_provider() or token
+            except Exception as exc:
+                log.debug("token_provider failed, using cached token: %s", exc)
+        url = f"{self._url}/{self._session_id}?token={token}"
         log.info("Connecting to %s", self._url)
 
         ws = websocket.WebSocket()
-        ws.connect(url, timeout=10)
+        try:
+            ws.connect(url, timeout=10)
+        except websocket.WebSocketBadStatusException as exc:
+            status = int(getattr(exc, "status_code", 0) or 0)
+            if status in (401, 403):
+                raise AuthRejectedError("Session expired — please sign in again") from exc
+            raise
         self._ws = ws
         self._connected = True
         self._stream_paused = False
@@ -310,6 +357,7 @@ class AnimoraWSClient:
             except websocket.WebSocketTimeoutException:
                 pass
 
+        self._connected = False
         ws.close()
 
     def _dispatch(self, opcode: int, data: bytes | str) -> None:

@@ -158,17 +158,7 @@ class ANIMORA_HT_header(bpy.types.Header):
 # Main panel
 # ---------------------------------------------------------------------------
 
-class ANIMORA_PT_main(Panel):
-    bl_label = ""
-    bl_idname = "ANIMORA_PT_main"
-    bl_space_type = "ANIMORA"
-    bl_region_type = "WINDOW"
-    bl_options = {"HIDE_HEADER"}
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
+class _AnimoraMainPanelMixin:
     def draw(self, context):
         layout = self.layout
         wm = context.window_manager
@@ -215,22 +205,34 @@ class ANIMORA_PT_main(Panel):
             # session auto-connects; show progress instead of a button.
             self._draw_bundle_status(outer)
 
-        elif not auth.session.signed_in:
+        elif state.state.auth_status == state.AuthS.SIGNED_OUT:
             acct = outer.row(align=True)
             acct.scale_y = 1.0
+            acct.operator("animora.sign_in", text="Sign in to Animora", icon="URL")
             if prefs.dev_mode:
-                acct.operator("animora.sign_in", text="Connect (Dev)", icon="PLUGIN")
                 sub = outer.row()
                 sub.scale_y = 0.85
                 sub.label(text="Dev mode — local backend", icon="CONSOLE")
-            else:
-                acct.operator("animora.sign_in", text="Sign in to Animora", icon="URL")
             outer.separator(factor=0.5)
 
-        elif not ws_client.client.connected:
+        elif state.state.auth_status in {
+            state.AuthS.PENDING_BROWSER,
+            state.AuthS.EXCHANGING_CODE,
+            state.AuthS.CONNECTING,
+        }:
             hint = outer.row()
             hint.scale_y = 0.85
-            hint.label(text="Reconnecting…", icon="SORTTIME")
+            hint.label(
+                text=state.state.auth_message or "Connecting to Animora…",
+                icon="SORTTIME",
+            )
+        elif state.state.auth_status == state.AuthS.FAILED:
+            box = outer.box()
+            box.alert = True
+            col = box.column(align=True)
+            col.label(text=state.state.auth_message or "Sign-in failed.", icon="ERROR")
+            col.operator("animora.sign_in", text="Sign in to Animora", icon="URL")
+            outer.separator(factor=0.5)
 
         # Status pill — shown whenever the AI is active or just completed
         self._draw_status_pill(outer)
@@ -261,7 +263,7 @@ class ANIMORA_PT_main(Panel):
         phase, detail = bundle.get_status()
         connected = ws_client.client.connected
 
-        if connected and auth.session.signed_in:
+        if connected and state.state.auth_status == state.AuthS.CONNECTED:
             row = layout.row(align=True)
             row.scale_y = 0.9
             row.label(text="Recording mode — connected", icon="REC")
@@ -576,10 +578,12 @@ class ANIMORA_PT_main(Panel):
     def _draw_input(self, layout, wm):
         input_card = layout.box()
         input_card.scale_y = 1.0
+        is_ready = state.auth_can_send()
 
         # Prompt field
         prompt_row = input_card.row(align=True)
         prompt_row.scale_y = 1.6
+        prompt_row.enabled = is_ready
         prompt_row.prop(wm, "animora_input_text", text="", placeholder="Ask Animora…")
 
         # Action row: 15% [+] attach + 85% send (or stop while active).
@@ -591,6 +595,7 @@ class ANIMORA_PT_main(Panel):
         action_row = input_card.split(factor=0.15, align=True)
         action_row.scale_y = 1.5
 
+        action_row.enabled = is_ready or state.is_active()
         action_row.operator("animora.attach_file", text="", icon="ADD")
 
         if state.is_active():
@@ -599,7 +604,37 @@ class ANIMORA_PT_main(Panel):
             send.alert = True
             send.operator("animora.interrupt", text="STOP", icon="PAUSE")
         else:
-            action_row.operator("animora.send_message", text="SEND COMMAND", icon="PLAY")
+            send = action_row.row(align=True)
+            send.enabled = is_ready
+            send.operator("animora.send_message", text="SEND COMMAND", icon="PLAY")
+
+
+class ANIMORA_PT_main(_AnimoraMainPanelMixin, Panel):
+    bl_label = ""
+    bl_idname = "ANIMORA_PT_main"
+    bl_space_type = "ANIMORA"
+    bl_region_type = "WINDOW"
+    bl_options = {"HIDE_HEADER"}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+
+class VIEW3D_PT_animora_sidebar(_AnimoraMainPanelMixin, Panel):
+    bl_label = "Animora"
+    bl_idname = "VIEW3D_PT_animora_sidebar"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Animora"
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            context.space_data is not None
+            and context.space_data.type == "VIEW_3D"
+            and getattr(bpy.types, "SpaceAnimora", None) is None
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -625,6 +660,7 @@ class PT_AnimoraPropertiesHints(Panel):
 _classes = [
     ANIMORA_HT_header,
     ANIMORA_PT_main,
+    VIEW3D_PT_animora_sidebar,
     PT_AnimoraPropertiesHints,
 ]
 

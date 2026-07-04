@@ -52,6 +52,15 @@ class S:
     ERROR = "ERROR"
 
 
+class AuthS:
+    SIGNED_OUT = "signed_out"
+    PENDING_BROWSER = "auth_pending_browser"
+    EXCHANGING_CODE = "auth_exchanging_code"
+    CONNECTING = "signed_in_connecting"
+    CONNECTED = "signed_in_connected"
+    FAILED = "signed_in_failed"
+
+
 # Set of states where the GPU border glow + animated dots should run.
 ACTIVE_STATES = frozenset({
     S.SUBMITTING, S.THINKING, S.STREAMING, S.EXECUTING, S.QUALITY_CHECK,
@@ -89,6 +98,10 @@ class _State:
     """The most recent tool_use_id we dispatched. Used to correlate
     tool_result arrivals back to a state transition."""
 
+    auth_status: str = AuthS.SIGNED_OUT
+    auth_message: str = ""
+    auth_updated_at: float = 0.0
+
 
 state = _State()
 
@@ -112,8 +125,27 @@ def set_quality_notice(payload: dict | None) -> None:
     _redraw_animora_areas()
 
 
+def set_auth_status(status: str, message: str = "") -> None:
+    if status == state.auth_status and message == state.auth_message:
+        return
+    log.debug("auth_state %s -> %s (%s)", state.auth_status, status, message)
+    state.auth_status = status
+    state.auth_message = message
+    state.auth_updated_at = time.monotonic()
+    _redraw_animora_areas()
+
+
+def auth_can_send() -> bool:
+    return state.auth_status == AuthS.CONNECTED
+
+
 def reset() -> None:
-    """Hard reset to IDLE (used by New Conversation)."""
+    """Hard reset to IDLE (used by New Conversation).
+
+    Deliberately leaves auth_status untouched: starting a new conversation
+    doesn't change whether the user is signed in / the WS is connected, and
+    clearing it here would disable the send button until the next auth
+    transition (sign-out has its own explicit set_auth_status call)."""
     state.current = S.IDLE
     state.message = ""
     state.tool_name = ""

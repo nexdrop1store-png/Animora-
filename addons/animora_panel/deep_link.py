@@ -106,11 +106,59 @@ def _find_python() -> str | None:
     return None
 
 
+def _find_animora_binary() -> str | None:
+    """Best-effort path to the running Animora/Blender executable."""
+    candidates: list[str] = []
+
+    try:
+        import bpy  # type: ignore
+        binary = getattr(getattr(bpy, "app", None), "binary_path", "") or ""
+        if binary:
+            candidates.append(binary)
+    except Exception:
+        pass
+
+    candidates.extend([
+        getattr(sys, "executable", "") or "",
+        sys.argv[0] if sys.argv else "",
+    ])
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(candidate)
+        if not path.exists():
+            continue
+        name = path.name.lower()
+        if "animora" in name or "blender" in name:
+            return str(path)
+    return None
+
+
+def _find_animora_launcher() -> str | None:
+    binary = _find_animora_binary()
+    if not binary:
+        return None
+    path = Path(binary)
+    launcher_names = ["Animora-launcher.exe", "blender-launcher.exe"]
+    for name in launcher_names:
+        candidate = path.with_name(name)
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 def _interp_prefix() -> list[str]:
     """argv prefix to launch the forwarder, BEFORE the URL placeholder.
     Prefers Blender's bundled Python; falls back to the Blender binary run
     headless (`--background --python handler.py --`)."""
     handler = str(_handler_path())
+    launcher = _find_animora_launcher()
+    if launcher:
+        return [launcher, "--background", "--python", handler, "--"]
+    binary = _find_animora_binary()
+    if binary:
+        return [binary, "--background", "--python", handler, "--"]
     py = _find_python()
     if py:
         return [py, handler]
@@ -155,6 +203,18 @@ _WIN_KEY = r"Software\Classes\animora"
 
 def _register_windows() -> bool:
     import winreg
+
+    existing_cmd = ""
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _WIN_KEY + r"\shell\open\command") as k:
+            existing_cmd = str(winreg.QueryValueEx(k, "")[0] or "")
+    except FileNotFoundError:
+        existing_cmd = ""
+
+    if "Animora-launcher.exe" in existing_cmd:
+        log.info("Keeping existing animora:// handler (launcher already registered)")
+        return True
+
     cmd = " ".join(f'"{a}"' for a in _interp_prefix()) + ' "%1"'
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _WIN_KEY) as k:
         winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "URL:Animora Protocol")

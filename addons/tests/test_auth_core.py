@@ -67,7 +67,9 @@ def test_signin_url_matches_documented_contract():
     assert next_val.startswith("/auth/device?")
     inner = parse_qs(urlparse(next_val).query)
     assert inner["code_challenge"] == ["CHAL"]
+    assert inner["code_challenge_method"] == ["S256"]
     assert inner["device_id"] == ["DEV id/+"]          # decoded round-trip
+    assert inner["device_fingerprint"] == ["DEV id/+"]
     assert inner["state"] == ["ST"]
     assert inner["device"] == ["Win · HOST"]
     assert inner["redirect_uri"] == ["animora://auth/callback"]
@@ -89,6 +91,8 @@ def test_feedback_url():
 def test_parse_valid_callback():
     assert ac.parse_callback_url(
         "animora://auth/callback?code=ONE_TIME&state=ST") == ("ONE_TIME", "ST")
+    assert ac.parse_callback_url(
+        "animora://auth?code=ONE_TIME&state=ST") == ("ONE_TIME", "ST")
 
 
 def test_parse_rejects_wrong_scheme_and_path():
@@ -123,6 +127,40 @@ def test_refresh_request_shape():
     assert json.loads(body) == {"refresh_token": "RT"}
 
 
+def test_auth_server_exchange_request_shape():
+    url, headers, body = ac.build_auth_server_exchange_request(
+        "https://auth.animora.tech",
+        "CODE",
+        "VER",
+        "FP",
+        platform_name="Windows",
+    )
+    assert url == "https://auth.animora.tech/token"
+    assert headers == {"Content-Type": "application/json"}
+    import json
+    assert json.loads(body) == {
+        "code": "CODE",
+        "code_verifier": "VER",
+        "device_fingerprint": "FP",
+        "platform": "Windows",
+    }
+
+
+def test_auth_server_refresh_request_shape():
+    url, headers, body = ac.build_auth_server_refresh_request(
+        "https://auth.animora.tech",
+        "RT",
+        "FP",
+    )
+    assert url == "https://auth.animora.tech/token/refresh"
+    assert headers == {"Content-Type": "application/json"}
+    import json
+    assert json.loads(body) == {
+        "refresh_token": "RT",
+        "device_fingerprint": "FP",
+    }
+
+
 def test_parse_session_response_nested_user_and_plan():
     norm = ac.parse_session_response({
         "access_token": "AT", "refresh_token": "RT",
@@ -145,6 +183,22 @@ def test_parse_session_response_computes_expiry_from_expires_in():
         "user": {"id": "u", "email": "e"},
     })
     assert before + 3500 <= norm["expires_at"] <= before + 3700
+
+
+def test_parse_session_response_accepts_flat_auth_server_shape():
+    norm = ac.parse_session_response({
+        "access_token": "AT",
+        "refresh_token": "RT",
+        "expires_in": 3600,
+        "user_id": "user-1",
+        "email": "user@example.com",
+        "plan": "studio",
+        "trial_end": 1780000000,
+    })
+    assert norm["user_id"] == "user-1"
+    assert norm["email"] == "user@example.com"
+    assert norm["plan"] == "studio"
+    assert norm["trial_end"] == 1780000000
 
 
 # ── secrets hygiene: no service-role key embedded ───────────────────────

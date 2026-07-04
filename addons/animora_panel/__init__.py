@@ -37,6 +37,13 @@ _MODULES = [
 ]
 
 _loaded: list = []
+_layout_timer_registered = False
+
+
+def _has_native_animora_space() -> bool:
+    import bpy
+
+    return getattr(bpy.types, "SpaceAnimora", None) is not None
 
 
 def _import_modules() -> list:
@@ -74,8 +81,6 @@ def _import_modules() -> list:
 
 
 def register() -> None:
-    import bpy
-
     log.info("Animora AI Panel v%s loading", ".".join(str(v) for v in bl_info["version"]))
 
     global _loaded
@@ -85,10 +90,113 @@ def register() -> None:
         if hasattr(mod, "register"):
             mod.register()
 
+    if _has_native_animora_space():
+        _register_layout_ensure()
+    else:
+        log.warning(
+            "SpaceAnimora type not registered in this build; "
+            "skipping forced layout injection and using sidebar fallback",
+        )
+
     log.info("Animora AI Panel registered")
 
 
 def unregister() -> None:
+    _unregister_layout_ensure()
     for mod in reversed(_loaded):
         if hasattr(mod, "unregister"):
             mod.unregister()
+
+
+def _ensure_left_ai_area() -> None:
+    """Guarantee Animora's core AI surface is visible in legacy layouts.
+
+    Fresh installs get the left-side ANIMORA editor from startup.blend. This
+    fallback is for existing userprefs or .blend files that still open into a
+    plain Blender-style viewport. It is intentionally conservative: if any
+    ANIMORA area already exists, it leaves the user's layout alone.
+    """
+    import bpy
+
+    if not _has_native_animora_space():
+        return
+
+    screen = getattr(bpy.context, "screen", None)
+    if screen is None:
+        return
+    if any(area.type == "ANIMORA" for area in screen.areas):
+        return
+
+    viewports = [
+        area for area in screen.areas
+        if area.type == "VIEW_3D" and area.width > 120 and area.height > 120
+    ]
+    if not viewports:
+        return
+
+    viewport = max(viewports, key=lambda area: area.width * area.height)
+    region = next((r for r in viewport.regions if r.type == "WINDOW"), None)
+    if region is None:
+        return
+
+    before = {area.as_pointer() for area in screen.areas}
+    try:
+        with bpy.context.temp_override(area=viewport, region=region):
+            bpy.ops.screen.area_split(direction="VERTICAL", factor=0.22)
+    except Exception as exc:
+        log.debug("Could not create default Animora area: %s", exc)
+        return
+
+    created = [area for area in screen.areas if area.as_pointer() not in before]
+    if not created:
+        return
+
+    try:
+        created[0].type = "ANIMORA"
+        log.info("Opened Animora AI panel on the left side of the viewport")
+    except Exception as exc:
+        log.debug("Could not assign Animora area type: %s", exc)
+
+
+def _layout_timer() -> None:
+    _ensure_left_ai_area()
+    return None
+
+
+def _schedule_layout_ensure(*_args) -> None:
+    import bpy
+
+    if not bpy.app.timers.is_registered(_layout_timer):
+        bpy.app.timers.register(_layout_timer, first_interval=0.8)
+
+
+def _register_layout_ensure() -> None:
+    import bpy
+    from bpy.app.handlers import persistent
+
+    global _layout_timer_registered, _load_post_handler
+
+    if "_load_post_handler" not in globals():
+        @persistent
+        def _load_post_handler(_dummy):
+            _schedule_layout_ensure()
+
+        globals()["_load_post_handler"] = _load_post_handler
+
+    if not _layout_timer_registered:
+        bpy.app.handlers.load_post.append(globals()["_load_post_handler"])
+        _layout_timer_registered = True
+
+    _schedule_layout_ensure()
+
+
+def _unregister_layout_ensure() -> None:
+    import bpy
+
+    global _layout_timer_registered
+    handler = globals().get("_load_post_handler")
+    if _layout_timer_registered and handler in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(handler)
+    _layout_timer_registered = False
+    if bpy.app.timers.is_registered(_layout_timer):
+        bpy.app.timers.unregister(_layout_timer)

@@ -91,7 +91,9 @@ def build_signin_url(
     is encoded again as the query value."""
     nxt = (
         f"/auth/device?code_challenge={quote(code_challenge, safe='')}"
+        f"&code_challenge_method=S256"
         f"&device_id={quote(device_id, safe='')}"
+        f"&device_fingerprint={quote(device_id, safe='')}"
         f"&state={quote(state, safe='')}"
         f"&device={quote(device_label, safe='')}"
         f"&redirect_uri={quote(REDIRECT_URI, safe='')}"
@@ -119,8 +121,10 @@ def parse_callback_url(url: str) -> tuple[str, str] | None:
         return None
     if p.scheme != APP_URL_SCHEME:
         return None
-    # animora://auth/callback → netloc='auth', path='/callback'
-    if p.netloc != "auth" or p.path.rstrip("/") != "/callback":
+    # Accept both the current `animora://auth/callback` shape and the older
+    # `animora://auth?code=...&state=...` shape still used by some builds.
+    path = p.path.rstrip("/")
+    if p.netloc != "auth" or path not in ("", "/callback"):
         return None
     q = parse_qs(p.query)
     code = (q.get("code") or [""])[0]
@@ -150,6 +154,22 @@ def build_exchange_request(
     return TOKEN_EXCHANGE_ENDPOINT, headers, body
 
 
+def build_auth_server_exchange_request(
+    auth_base: str, code: str, code_verifier: str, device_fingerprint: str,
+    *, platform_name: str,
+) -> tuple[str, dict[str, str], bytes]:
+    import json
+
+    headers = {"Content-Type": "application/json"}
+    body = json.dumps({
+        "code": code,
+        "code_verifier": code_verifier,
+        "device_fingerprint": device_fingerprint,
+        "platform": platform_name,
+    }).encode("utf-8")
+    return auth_base.rstrip("/") + "/token", headers, body
+
+
 def build_refresh_request(refresh_token: str) -> tuple[str, dict[str, str], bytes]:
     """(url, headers, body) for a Supabase refresh-token grant."""
     import json
@@ -161,6 +181,19 @@ def build_refresh_request(refresh_token: str) -> tuple[str, dict[str, str], byte
     return REFRESH_ENDPOINT, headers, body
 
 
+def build_auth_server_refresh_request(
+    auth_base: str, refresh_token: str, device_fingerprint: str,
+) -> tuple[str, dict[str, str], bytes]:
+    import json
+
+    headers = {"Content-Type": "application/json"}
+    body = json.dumps({
+        "refresh_token": refresh_token,
+        "device_fingerprint": device_fingerprint,
+    }).encode("utf-8")
+    return auth_base.rstrip("/") + "/token/refresh", headers, body
+
+
 def parse_session_response(data: dict) -> dict:
     """Normalize a Supabase session payload (from either the exchange or a
     refresh) into the fields the addon's session model needs. Handles the
@@ -169,11 +202,15 @@ def parse_session_response(data: dict) -> dict:
     expires_at = data.get("expires_at")
     if not expires_at:
         expires_at = time.time() + float(data.get("expires_in", 3600) or 3600)
+    user_id = data.get("user_id", "") or user.get("id", "")
+    email = data.get("email", "") or user.get("email", "")
+    plan = data.get("plan", "") or DEFAULT_PLAN
     return {
         "access_token": data.get("access_token", ""),
         "refresh_token": data.get("refresh_token", ""),
         "expires_at": float(expires_at),
-        "user_id": user.get("id", ""),
-        "email": user.get("email", ""),
-        "plan": DEFAULT_PLAN,  # free V1; server-authoritative tiers later
+        "user_id": user_id,
+        "email": email,
+        "plan": plan,
+        "trial_end": data.get("trial_end"),
     }
