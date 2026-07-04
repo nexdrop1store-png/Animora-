@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -79,6 +80,10 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> int:
     return result.returncode
 
 
+def _format_cmd(cmd: list[str]) -> str:
+    return " ".join(shlex.quote(str(part)) for part in cmd)
+
+
 def step_rebrand() -> None:
     log.info("--- Step 1: Rebrand ---")
     run([sys.executable, str(REPO_ROOT / "scripts" / "rebrand.py")])
@@ -113,16 +118,42 @@ def step_package(target_platform: str, build_dir: Path, config: str) -> None:
 
 
 def _package_windows(build_dir: Path, config: str) -> None:
-    nsis_script = REPO_ROOT / "installer" / "windows" / "animora.nsi"
-    if not nsis_script.exists():
-        log.warning("NSIS script not found — skipping installer packaging")
+    run([sys.executable, str(REPO_ROOT / "scripts" / "stage_for_installer.py")])
+    _verify_windows_stage()
+
+    inno_script = REPO_ROOT / "installer" / "windows" / "inno" / "Animora.iss"
+    if not inno_script.exists():
+        log.warning("Inno script not found - skipping installer packaging")
         return
-    run(["makensis", str(nsis_script)], cwd=build_dir)
-    # Sign if cert available
+
+    iscc = shutil.which("ISCC.exe")
+    if not iscc:
+        roots = [
+            Path(os.environ.get("ProgramFiles(x86)", "")),
+            Path(os.environ.get("ProgramFiles", "")),
+        ]
+        for root in roots:
+            if not str(root):
+                continue
+            candidates = sorted(root.glob("Inno Setup*\\ISCC.exe"))
+            if candidates:
+                iscc = str(candidates[-1])
+                break
+
+    if not iscc:
+        log.warning("ISCC.exe not found - skipping installer packaging")
+        return
+
+    run([iscc, str(inno_script)], cwd=REPO_ROOT)
+
+    installer = DIST_DIR / "Animora-Setup.exe"
+    if not installer.exists():
+        log.warning("Animora-Setup.exe not produced by Inno packaging")
+        return
+
     cert_path = os.environ.get("WINDOWS_CERT_PATH")
     cert_pass = os.environ.get("WINDOWS_CERT_PASSWORD")
-    installer = list(build_dir.glob("Animora-*-windows-x64.exe"))
-    if cert_path and cert_pass and installer:
+    if cert_path and cert_pass:
         run([
             "signtool", "sign",
             "/f", cert_path,
@@ -130,17 +161,39 @@ def _package_windows(build_dir: Path, config: str) -> None:
             "/tr", "http://timestamp.digicert.com",
             "/td", "sha256",
             "/fd", "sha256",
-            str(installer[0]),
+            str(installer),
         ])
-        shutil.copy(installer[0], DIST_DIR / installer[0].name)
-    elif installer:
-        shutil.copy(installer[0], DIST_DIR / installer[0].name)
+
+
+def _verify_windows_stage() -> None:
+    stage_dir = BUILD_DIR / "windows" / "animora-stage"
+    stage_checks = [
+        stage_dir / "Animora.exe",
+        stage_dir / "Animora-launcher.exe",
+    ]
+
+    missing = [path for path in stage_checks if not path.exists()]
+    if missing:
+        for path in missing:
+            log.error("Missing staged runtime artifact: %s", path)
+        sys.exit(1)
+
+    commands = [
+        [str(stage_dir / "Animora.exe"), "--background", "--version"],
+        [str(stage_dir / "Animora-launcher.exe"), "--background", "--version"],
+    ]
+    for cmd in commands:
+        log.info("--- Verify staged runtime: %s ---", _format_cmd(cmd))
+        result = subprocess.run(cmd, cwd=stage_dir, check=False)
+        if result.returncode != 0:
+            log.error("Staged runtime verification failed with exit code %d", result.returncode)
+            sys.exit(result.returncode)
 
 
 def _package_macos(build_dir: Path) -> None:
     pkg_script = REPO_ROOT / "installer" / "macos" / "build_pkg.sh"
     if not pkg_script.exists():
-        log.warning("macOS pkg script not found — skipping")
+        log.warning("macOS pkg script not found - skipping")
         return
     run(["bash", str(pkg_script), str(build_dir), str(DIST_DIR)])
 
@@ -148,7 +201,7 @@ def _package_macos(build_dir: Path) -> None:
 def _package_linux(build_dir: Path) -> None:
     appimage_script = REPO_ROOT / "installer" / "linux" / "build_appimage.sh"
     if not appimage_script.exists():
-        log.warning("AppImage script not found — skipping")
+        log.warning("AppImage script not found - skipping")
         return
     run(["bash", str(appimage_script), str(build_dir), str(DIST_DIR)])
 
@@ -160,7 +213,7 @@ def smoke_test(build_dir: Path, target_platform: str) -> None:
     else:
         binaries = list(build_dir.rglob("animora"))
     if not binaries:
-        log.warning("Animora binary not found — skipping smoke test")
+        log.warning("Animora binary not found - skipping smoke test")
         return
     binary = binaries[0]
     result = run([str(binary), "--background", "--python-exit-code", "1", "-noaudio"], check=False)

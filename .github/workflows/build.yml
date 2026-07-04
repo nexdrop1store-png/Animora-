@@ -125,6 +125,7 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           python scripts/stage_for_installer.py
+          python -c "import subprocess, sys; cmds=[[r'build\\windows\\animora-stage\\Animora.exe','--background','--version'], [r'build\\windows\\animora-stage\\Animora-launcher.exe','--background','--version']]; [sys.exit(result.returncode) for result in [subprocess.run(cmd, check=False) for cmd in cmds] if result.returncode != 0]"
           python scripts/check_no_secrets.py build/windows/animora-stage
 
       - name: Package Windows (Inno)

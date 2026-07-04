@@ -48,12 +48,15 @@ import shutil
 import sys
 from pathlib import Path
 
+from animora_config import BLENDER_VERSION
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger("stage")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "build" / "windows" / "bin"
 DST_DIR = REPO_ROOT / "build" / "windows" / "animora-stage"
+STARTUP_BLEND_SRC = REPO_ROOT / "blender-fork" / "release" / "datafiles" / "startup.blend"
 
 # Files/dirs to rename. None = exclude.
 # Mapping is keyed on basename relative to SRC_DIR (top-level only).
@@ -117,6 +120,21 @@ EXCLUDE_GLOBS: tuple[str, ...] = (
     ".env.production",
     ".env.staging",
     "*.log",           # build / dev logs
+)
+
+STAGING_REMOVE_GLOBS: tuple[str, ...] = (
+    "Animora_debug_*.cmd",
+    "Animora_factory_startup*.cmd",
+    "Animora_startup_*.cmd",
+    "Animora_system_info.cmd",
+    "Animora_oculus.cmd",
+    "readme.html",
+)
+
+STAGING_REMOVE_DIRS: tuple[str, ...] = (
+    "scripts/templates_py",
+    "scripts/templates_osl",
+    "scripts/templates_toml",
 )
 
 # Windows system DLLs that leak into build/windows/bin/ from
@@ -286,7 +304,24 @@ def stage() -> int:
             return 1
         log.info("OK: %s SxS private assembly present.", name)
 
+    _copy_branded_startup_blend()
+    patch_helper_scripts(DST_DIR)
+    prune_runtime_payload(DST_DIR)
+    patch_shipped_branding(DST_DIR)
+
     return 0
+
+
+def _copy_branded_startup_blend() -> None:
+    """Ensure the shipped runtime carries Animora's branded startup file."""
+    if not STARTUP_BLEND_SRC.is_file():
+        log.warning("Branded startup.blend not found at %s", STARTUP_BLEND_SRC)
+        return
+
+    dst = DST_DIR / BLENDER_VERSION / "datafiles" / "startup.blend"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(STARTUP_BLEND_SRC, dst)
+    log.info("Copy branded startup.blend: %s -> %s", STARTUP_BLEND_SRC, dst)
 
 
 # --- Runtime-assembly rename + PE binary patch ---------------------------
@@ -421,8 +456,138 @@ def rename_runtime_assemblies(stage_root: Path) -> bool:
             return False
         pe_path.write_bytes(data)
 
+    if not patch_launcher_target(stage_root):
+        return False
+
+    # 4. Patch Python's sitecustomize.py. Blender's bundled Python uses this
+    #    to add the private shared-library folder to DLL/search paths. Since
+    #    staging renames blender.shared/ to animora.shared/, leaving this text
+    #    untouched produces a startup warning and can break USD/MaterialX
+    #    library discovery.
+    sitecustomize_matches = list(
+        stage_root.glob("*/python/lib/site-packages/sitecustomize.py")
+    )
+    if sitecustomize_matches:
+        sitecustomize = sitecustomize_matches[0]
+        text = sitecustomize.read_text(encoding="utf-8")
+        rewritten = text.replace('"blender.shared"', '"animora.shared"')
+        if rewritten != text:
+            sitecustomize.write_text(rewritten, encoding="utf-8")
+            log.info("Patch Python sitecustomize: blender.shared → animora.shared")
+
     log.info("--- Runtime-assembly rename complete ---")
     return True
+
+
+def patch_launcher_target(stage_root: Path) -> bool:
+    """Patch the windowed launcher to spawn Animora.exe after staging rename."""
+
+    launcher = stage_root / "Animora-launcher.exe"
+    if not launcher.exists():
+        log.warning("Animora-launcher.exe not in staging (skip launcher target patch)")
+        return True
+
+    old = "blender.exe".encode("utf-16le")
+    new = "Animora.exe".encode("utf-16le")
+    if len(old) != len(new):
+        log.error("Launcher target rename is not length-preserving.")
+        return False
+
+    data = launcher.read_bytes()
+    count = data.count(old)
+    if count == 0:
+        if new in data:
+            log.info("Patch launcher target: already points at Animora.exe")
+            return True
+        log.error("Animora-launcher.exe did not contain the expected blender.exe target.")
+        return False
+    if count > 1:
+        log.error(
+            "Animora-launcher.exe contains %d UTF-16 blender.exe references; expected 1.",
+            count,
+        )
+        return False
+
+    launcher.write_bytes(data.replace(old, new))
+    log.info("Patch launcher target: blender.exe -> Animora.exe")
+    return True
+
+
+def patch_helper_scripts(stage_root: Path) -> None:
+    """Patch renamed Windows helper scripts to call the renamed main binary."""
+
+    for script in stage_root.glob("Animora*.cmd"):
+        text = script.read_text(encoding="utf-8")
+        rewritten = text.replace(r"%~dp0\blender", r"%~dp0\Animora")
+        rewritten = rewritten.replace("Starting blender", "Starting Animora")
+        rewritten = rewritten.replace("Starting Blender", "Starting Animora")
+        if rewritten != text:
+            script.write_text(rewritten, encoding="utf-8")
+            log.info("Patch helper script: %s", script.name)
+
+
+def prune_runtime_payload(stage_root: Path) -> None:
+    """Remove non-production helpers and upstream docs from the shipped tree."""
+
+    version_root = _find_version_root(stage_root)
+    for pattern in STAGING_REMOVE_GLOBS:
+        for target in stage_root.glob(pattern):
+            if target.exists():
+                target.unlink()
+                log.info("Prune runtime file: %s", target.name)
+
+    if not version_root:
+        return
+
+    scripts_root = version_root / "scripts"
+    for rel in STAGING_REMOVE_DIRS:
+        target = version_root / rel
+        if target.exists():
+            shutil.rmtree(target)
+            log.info("Prune runtime dir: %s", target.relative_to(stage_root))
+
+
+def patch_shipped_branding(stage_root: Path) -> None:
+    """Patch remaining user-visible Blender copy in the staged runtime."""
+
+    version_root = _find_version_root(stage_root)
+    if not version_root:
+        return
+
+    replacements = (
+        ("Blender is free software", "Animora is creative software"),
+        (
+            "Licensed under the GNU General Public License",
+            "Built on open-source technology and licensed components",
+        ),
+        ("Blender Store", "Animora Store"),
+        ("Blender Website", "Animora Website"),
+        ("blender-", "animora-"),
+        ("This version of Blender", "This version of Animora"),
+        ("version of Blender", "version of Animora"),
+        ("contributors to Blender", "contributors to Animora"),
+    )
+    targets = [
+        version_root / "scripts" / "startup" / "bl_operators" / "wm.py",
+        version_root / "scripts" / "startup" / "bl_ui" / "space_topbar.py",
+    ]
+    for path in targets:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        rewritten = text
+        for old, new in replacements:
+            rewritten = rewritten.replace(old, new)
+        if rewritten != text:
+            path.write_text(rewritten, encoding="utf-8")
+            log.info("Patch shipped branding: %s", path.relative_to(stage_root))
+
+
+def _find_version_root(stage_root: Path) -> Path | None:
+    candidates = [p for p in stage_root.iterdir() if p.is_dir() and p.name[:1].isdigit()]
+    if not candidates:
+        return None
+    return sorted(candidates)[0]
 
 
 

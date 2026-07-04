@@ -38,7 +38,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/support
 AppUpdatesURL={#MyAppURL}/download
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
@@ -121,11 +121,45 @@ Root: HKA; Subkey: "Software\Classes\.anim\OpenWithProgids"; ValueType: none; Va
 Root: HKA; Subkey: "Software\Classes\animorafile"; ValueType: string; ValueName: ""; ValueData: "Animora File"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\animorafile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKA; Subkey: "Software\Classes\animorafile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+; animora:// deep link -> run the installed app headless to drop the callback
+; into ~/.animora/auth_callback.txt, then let the foreground app consume it.
+Root: HKA; Subkey: "Software\Classes\animora"; ValueType: string; ValueName: ""; ValueData: "URL:Animora Protocol"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\animora"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\animora\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
+Root: HKA; Subkey: "Software\Classes\animora\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppLauncher}"" --background --python ""{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\animora_url_handler.py"" -- ""%1"""
 ; Optional: also register Animora as a handler for .blend
 Root: HKA; Subkey: "Software\Classes\.blend\OpenWithProgids"; ValueType: none; ValueName: "animorafile"; Flags: uninsdeletevalue; Tasks: associate_blend
 ; ApplicationsRegistration so Animora appears in "Open With…" menu
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+[InstallDelete]
+; Upgrades from older builds may have stale GPU/runtime DLL pollution left in
+; the install dir. If opengl32.dll (or the Mesa companions) remains beside
+; Animora.exe, Windows loads it before the vendor driver and launch fails with
+; "OpenGL 4.3 or higher required" even on supported hardware.
+Type: files; Name: "{app}\opengl32.dll"
+Type: files; Name: "{app}\libEGL.dll"
+Type: files; Name: "{app}\libGLESv1_CM.dll"
+Type: files; Name: "{app}\libGLESv2.dll"
+Type: files; Name: "{app}\libgallium_wgl.dll"
+Type: files; Name: "{app}\vulkan_lvp.dll"
+Type: files; Name: "{app}\vulkan_dzn.dll"
+Type: files; Name: "{app}\d3d10warp.dll"
+Type: files; Name: "{app}\dxil.dll"
+Type: files; Name: "{app}\spirv_to_dxil.dll"
+Type: files; Name: "{app}\clon12compiler.dll"
+Type: files; Name: "{app}\openclon12.dll"
+Type: files; Name: "{app}\msav1enchmft.dll"
+Type: files; Name: "{app}\msh264enchmft.dll"
+Type: files; Name: "{app}\msh265enchmft.dll"
+Type: files; Name: "{app}\va.dll"
+Type: files; Name: "{app}\va_win32.dll"
+Type: files; Name: "{app}\vaon12_drv_video.dll"
+Type: files; Name: "{app}\VkLayer_MESA_anti_lag.dll"
+Type: files; Name: "{app}\VkLayer_MESA_anti_lag.json"
+Type: files; Name: "{app}\lvp_icd.x86_64.json"
+Type: files; Name: "{app}\dzn_icd.x86_64.json"
 
 [Run]
 ; Install VC++ Redistributable BEFORE launching Animora to eliminate the
