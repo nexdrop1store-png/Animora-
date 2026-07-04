@@ -87,3 +87,11 @@ dev_server.log
 
 # Stage 3C captured demonstrations (local artifact)
 demonstrations/
+
+# Sprint 4C recorded sessions (local capture artifact — large JSON turns)
+recordings/
+
+# Pytest scratch dirs (tmp_path artifacts that leak into the repo root)
+.tmp-pytest/
+pytest-of-*/
+.pytest_cache/
