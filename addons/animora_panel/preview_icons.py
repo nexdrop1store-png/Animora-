@@ -15,7 +15,7 @@ import bpy.utils.previews
 _collections: dict = {}
 
 ICON_DIR = os.path.join(os.path.dirname(__file__), "icons")
-ICON_NAMES = ("icon_chair", "icon_sun", "icon_loop")
+ICON_NAMES = ("animora", "icon_chair", "icon_sun", "icon_loop")
 
 
 def register() -> None:

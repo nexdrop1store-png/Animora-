@@ -112,6 +112,13 @@ def _wrap_lines(text: str, width: int) -> list[str]:
     return lines
 
 
+def _brand_icon_kwargs() -> dict:
+    """icon kwargs for the Animora logo, falling back to no icon if the
+    preview collection failed to load (get_icon returns 0)."""
+    icon_id = preview_icons.get_icon("animora")
+    return {"icon_value": icon_id} if icon_id else {}
+
+
 # ---------------------------------------------------------------------------
 # Header — branded strip with right-aligned controls
 # ---------------------------------------------------------------------------
@@ -137,7 +144,7 @@ class ANIMORA_HT_header(bpy.types.Header):
         layout = self.layout
 
         left = layout.row(align=True)
-        left.label(text="ANIMORA", icon="BLENDER")
+        left.label(text="ANIMORA", **_brand_icon_kwargs())
 
         layout.separator_spacer()
 
@@ -319,7 +326,7 @@ class ANIMORA_PT_main(Panel):
         avatar_row.alignment = "CENTER"
         avatar_row.scale_y = 2.2
         avatar_row.scale_x = 2.2
-        avatar_row.label(text="", icon="BLENDER")
+        avatar_row.label(text="", **_brand_icon_kwargs())
 
         layout.separator(factor=0.6)
 
@@ -442,7 +449,7 @@ class ANIMORA_PT_main(Panel):
         box.scale_y = 0.95
         head = box.row(align=True)
         head.alignment = "LEFT"
-        head.label(text="Animora", icon="BLENDER")
+        head.label(text="Animora", **_brand_icon_kwargs())
         if is_streaming:
             # Subtle "currently typing" indicator on the head row
             pulse = state.state.dot_tick
