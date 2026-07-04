@@ -327,22 +327,6 @@ index 83b8d7d5..89899fc3 100644
    add_subdirectory(space_api)
    add_subdirectory(space_buttons)
    add_subdirectory(space_clip)
-diff --git a/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc b/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
-index 65970f47..686881db 100644
---- a/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
-+++ b/source/blender/editors/gizmo_library/gizmo_types/button2d_gizmo.cc
-@@ -282,7 +282,10 @@ static void button2d_draw_intern(const bContext *C,
- 
-       float alpha = (highlight) ? 1.0f : 0.8f;
-       GPU_polygon_smooth(false);
--      ui::icon_draw_alpha(pos[0], pos[1], button->icon, alpha);
-+      /* Animora: render the icon SVG at 64px native (was 16px) so it stays crisp when
-+       * the gizmo matrix scales it up.  icon_draw_preview takes an explicit size, which
-+       * for SVG icons causes them to be rasterised at the requested resolution. */
-+      ui::icon_draw_preview(pos[0], pos[1], button->icon, 0.25f, alpha, 64);
-       GPU_polygon_smooth(true);
-     }
-     GPU_blend(GPU_BLEND_NONE);
 diff --git a/source/blender/editors/include/ED_space_api.hh b/source/blender/editors/include/ED_space_api.hh
 index 67bbbcac..b6ae92ed 100644
 --- a/source/blender/editors/include/ED_space_api.hh
