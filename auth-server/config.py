@@ -25,6 +25,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str = _DEV_JWT_SENTINEL
     jwt_algorithm: str = "HS256"
+    jwt_issuer: str = "animora-auth"
+    jwt_audience: str = "animora-backend"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 

@@ -27,6 +27,9 @@ def issue_access_token(
     """Return (access_token, expires_at_timestamp)."""
     exp = time.time() + settings.access_token_expire_minutes * 60
     payload = {
+        "sub": user_id,
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
         "user_id": user_id,
         "email": email,
         "plan": plan,
