@@ -249,7 +249,12 @@ def exchange_code(code: str, code_verifier: str) -> bool:
     _last_auth_error = ""
     device_id = compute_device_fingerprint()
     prefs = get_prefs()
+    # Supabase (the edge function the website mints codes for) is the live
+    # production provider — try it FIRST. auth.animora.tech is the future
+    # FastAPI auth-server and currently has no deployment behind it; keeping
+    # it as the fallback avoids a guaranteed dead call on every sign-in.
     attempts = [
+        ("supabase", *auth_core.build_exchange_request(code, code_verifier, device_id)),
         (
             "auth_server",
             *auth_core.build_auth_server_exchange_request(
@@ -260,7 +265,6 @@ def exchange_code(code: str, code_verifier: str) -> bool:
                 platform_name=platform.system() or "Desktop",
             ),
         ),
-        ("supabase", *auth_core.build_exchange_request(code, code_verifier, device_id)),
     ]
     last_error = ""
     for name, url, headers, body in attempts:
@@ -337,7 +341,10 @@ def refresh_access_token() -> bool:
 
     prefs = get_prefs()
     device_id = compute_device_fingerprint()
+    # Same provider order as exchange_code: Supabase is live, auth_server
+    # is the not-yet-deployed fallback.
     attempts = [
+        ("supabase", *auth_core.build_refresh_request(session.refresh_token)),
         (
             "auth_server",
             *auth_core.build_auth_server_refresh_request(
@@ -346,7 +353,6 @@ def refresh_access_token() -> bool:
                 device_id,
             ),
         ),
-        ("supabase", *auth_core.build_refresh_request(session.refresh_token)),
     ]
     all_rejected = True
     for name, url, headers, body in attempts:
