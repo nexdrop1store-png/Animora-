@@ -49,6 +49,17 @@ from typing import Any
 
 log = logging.getLogger("animora.coordinator")
 
+# An "idle-aware" wait: a tool_use_id's clock resets every time the addon
+# reports progress (note_progress), so a legitimately slow multi-step script
+# isn't penalized for exceeding `timeout_sec` in wall-clock terms. Without
+# this, a script juggling several small steps that together take >45s would
+# trip the "addon didn't respond" notice even though it never stopped
+# working — see streaming.py's quality_notice for the user-facing symptom
+# this was causing. _HARD_CEILING_SEC is an absolute backstop independent of
+# progress pings, so a script that pings forever still can't hang a turn.
+_HARD_CEILING_SEC = 180.0
+_POLL_SLICE_SEC = 5.0
+
 
 class ToolResultCoordinator:
     """Per-session coordinator for tool_use → tool_result correlation."""
@@ -64,6 +75,11 @@ class ToolResultCoordinator:
         # called. This shouldn't happen normally — register is called
         # before tool_use is dispatched — but handles races gracefully.
         self._early_outcomes: dict[str, dict[str, Any]] = {}
+        # monotonic() timestamp of the last sign of life for each pending
+        # id — either registration or a note_progress() ping. Read by
+        # await_results() to decide whether an id is genuinely stuck versus
+        # still working.
+        self._last_activity: dict[str, float] = {}
 
     # ── Producer-side (called from streaming.py loop) ──────────────────
 
@@ -87,6 +103,7 @@ class ToolResultCoordinator:
             if tid in self._early_outcomes:
                 fut.set_result(self._early_outcomes.pop(tid))
             self._futures[tid] = fut
+            self._last_activity[tid] = time.monotonic()
 
     async def await_results(
         self,
@@ -127,6 +144,7 @@ class ToolResultCoordinator:
                 })
                 self._futures[tid] = fut
             futures.append(fut)
+            self._last_activity.setdefault(tid, time.monotonic())
 
         # Race three coroutines: the gather of futures, the cancel_event,
         # and the timeout. Whichever fires first wins.
@@ -140,12 +158,35 @@ class ToolResultCoordinator:
             wait_set.add(cancel_task)
 
         started = time.monotonic()
+        # Idle-aware wait: poll in short slices instead of one flat
+        # `asyncio.wait(timeout=timeout_sec)`. After each slice with no
+        # completion, only treat this as a timeout once EVERY still-pending
+        # id has gone `timeout_sec` since its last activity — a note_progress()
+        # ping on any one id keeps the whole await alive, up to the absolute
+        # _HARD_CEILING_SEC backstop.
+        hard_deadline = started + max(timeout_sec, _HARD_CEILING_SEC)
+        done: set[asyncio.Future[Any]] = set()
         try:
-            done, pending = await asyncio.wait(
-                wait_set,
-                timeout=timeout_sec,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
+            while True:
+                remaining_hard = hard_deadline - time.monotonic()
+                if remaining_hard <= 0:
+                    break
+                done, _pending = await asyncio.wait(
+                    wait_set,
+                    timeout=min(_POLL_SLICE_SEC, remaining_hard),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if done:
+                    break  # gather_task or cancel_task completed
+                now = time.monotonic()
+                pending_ids = [
+                    tid for tid, fut in zip(tool_use_ids, futures) if not fut.done()
+                ]
+                if pending_ids and all(
+                    now - self._last_activity.get(tid, started) > timeout_sec
+                    for tid in pending_ids
+                ):
+                    break  # every pending id has been idle past timeout_sec
         finally:
             # Whatever didn't win the race, cancel cleanly so it doesn't
             # leak. The gather_task cancellation propagates to the
@@ -233,6 +274,22 @@ class ToolResultCoordinator:
         fut.set_result(outcome)
         return True
 
+    def note_progress(self, tool_use_id: str) -> None:
+        """Bump the idle clock for a still-pending tool call. Called when
+        the addon reports it's still working through a multi-step script
+        (a `tool_progress` WS frame) — extends the effective wait past
+        `timeout_sec` as long as forward progress continues, up to
+        `_HARD_CEILING_SEC`. An id that never sends progress behaves
+        exactly as before: a flat `timeout_sec` from registration."""
+        fut = self._futures.get(tool_use_id)
+        if fut is not None and not fut.done():
+            self._last_activity[tool_use_id] = time.monotonic()
+        else:
+            log.debug(
+                "coordinator.progress.unregistered session=%s tool_use_id=%s — ignoring",
+                self._session_id, tool_use_id,
+            )
+
     def clear(self) -> None:
         """Cancel any outstanding futures and reset state. Called on WS
         disconnect or before a new turn begins."""
@@ -241,6 +298,7 @@ class ToolResultCoordinator:
                 fut.cancel()
         self._futures.clear()
         self._early_outcomes.clear()
+        self._last_activity.clear()
 
     # ── Internals ──────────────────────────────────────────────────────
 

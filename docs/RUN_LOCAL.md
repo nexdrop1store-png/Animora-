@@ -18,7 +18,7 @@ pip install -r requirements.txt
 pip install websocket-client
 ```
 
-You do **not** need Redis. You do **not** need to run `auth-server`. The
+You do **not** need Redis. You do **not** need any auth infrastructure. The
 `dev_server.py` launcher stubs both with in-process equivalents.
 
 ## Every-time launch
@@ -103,5 +103,5 @@ is hit hard, the error surfaces to the panel after 3 attempts.
 ## What dev_server.py is NOT
 
 It's a **dev shortcut**. Production deploys to AWS Fargate via the real
-`main.py` with real Redis (ElastiCache) and real JWTs (from auth-server).
+`main.py` with real Redis (ElastiCache) and real Supabase-issued JWTs.
 The monkey-patches in `dev_server.py` are ONLY for local development.

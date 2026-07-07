@@ -11,6 +11,8 @@ Level 3: Scene graph JSON sync (debounced 500ms) — Phase 2 includes
 
 from __future__ import annotations
 
+import concurrent.futures
+import contextlib
 import io
 import logging
 import struct
@@ -23,6 +25,17 @@ if TYPE_CHECKING:
     from .ws_client import AnimoraWSClient
 
 log = logging.getLogger("animora.vision")
+
+# HD/heartbeat captures do a mandatory main-thread GPU read (see
+# _read_viewport_rgba) followed by a JPEG encode + base64 + WS send that
+# have no bpy/gpu dependency. That tail was previously synchronous too,
+# so a 1920x1080 quality-95 encode blocked the main thread on every
+# selection change / heartbeat tick. Offloading it here is safe because
+# ws_client.send_json enqueues onto a threading.Lock-guarded queue.Queue
+# (see ws_client.py) — it doesn't touch bpy state.
+_encode_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="animora-vision-encode"
+)
 
 _STREAM_MIN_INTERVAL = 1.0 / 15  # 15 fps max
 _STREAM_PERCEPTUAL_THRESHOLD = 12.0  # mean abs pixel-diff threshold (0–255 scale)
@@ -80,59 +93,78 @@ def is_exec_paused() -> bool:
 # Level 1 — Continuous viewport stream
 # ---------------------------------------------------------------------------
 
-def capture_viewport_jpeg(width: int = 640, height: int = 360, quality: int = 60) -> bytes | None:
-    """Render the active viewport to JPEG bytes using GPUOffScreen."""
-    try:
-        import gpu
-        from gpu_extras.presets import draw_texture_2d
+def _read_viewport_rgba(width: int, height: int) -> list | None:
+    """GPUOffScreen bind/draw/read. bpy/gpu calls are main-thread-only in
+    Blender, so this half of a capture can never be moved to a worker
+    thread — unlike _encode_jpeg below, which has no bpy/gpu dependency.
+    Returns the raw pixel buffer (flat list) or None if there's no 3D
+    viewport to capture."""
+    import gpu
 
-        offscreen = gpu.types.GPUOffScreen(width, height)
-        context = bpy.context
+    offscreen = gpu.types.GPUOffScreen(width, height)
+    context = bpy.context
 
-        space = next(
-            (
-                s
-                for area in context.screen.areas
-                if area.type == "VIEW_3D"
-                for s in area.spaces
-                if s.type == "VIEW_3D"
+    space = next(
+        (
+            s
+            for area in context.screen.areas
+            if area.type == "VIEW_3D"
+            for s in area.spaces
+            if s.type == "VIEW_3D"
+        ),
+        None,
+    )
+    if space is None:
+        return None
+
+    with offscreen.bind():
+        offscreen.draw_view3d(
+            scene=context.scene,
+            view_layer=context.view_layer,
+            view3d=space,
+            region=next(
+                r for a in context.screen.areas if a.type == "VIEW_3D" for r in a.regions if r.type == "WINDOW"
             ),
-            None,
+            view_matrix=space.region_3d.view_matrix,
+            projection_matrix=space.region_3d.window_matrix,
         )
-        if space is None:
+        pixel_data = offscreen.texture_color.read()
+
+    return pixel_data.to_list()
+
+
+def _encode_jpeg(pixel_data: list, width: int, height: int, quality: int) -> bytes | None:
+    """Pure-CPU encode of an already-read pixel buffer to JPEG bytes. No
+    bpy/gpu calls, so — unlike _read_viewport_rgba — this is safe to run
+    on a worker thread (Pillow's encoder releases the GIL while it
+    compresses). Returns None if PIL isn't available or encoding fails."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        img = Image.frombytes("RGBA", (width, height), pixel_data, "raw", "RGBA", 0, -1)
+        img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality)
+        return buf.getvalue()
+    except Exception as exc:
+        log.debug("JPEG encode failed: %s", exc)
+        return None
+
+
+def capture_viewport_jpeg(width: int = 640, height: int = 360, quality: int = 60) -> bytes | None:
+    """Render the active viewport to JPEG bytes using GPUOffScreen.
+
+    Synchronous end-to-end (read + encode both run on the calling thread)
+    — used by the 15fps stream path and the post-script embed, both of
+    which need the bytes immediately. See capture_hd_png for the
+    offloaded-encode variant used by the fire-and-forget HD triggers."""
+    try:
+        pixel_data = _read_viewport_rgba(width, height)
+        if pixel_data is None:
             return None
-
-        with offscreen.bind():
-            offscreen.draw_view3d(
-                scene=context.scene,
-                view_layer=context.view_layer,
-                view3d=space,
-                region=next(
-                    r for a in context.screen.areas if a.type == "VIEW_3D" for r in a.regions if r.type == "WINDOW"
-                ),
-                view_matrix=space.region_3d.view_matrix,
-                projection_matrix=space.region_3d.window_matrix,
-            )
-            pixel_data = offscreen.texture_color.read()
-
-        # Convert to PIL/image bytes
-        try:
-            from PIL import Image
-
-            img = Image.frombytes("RGBA", (width, height), pixel_data.to_list(), "raw", "RGBA", 0, -1)
-            img = img.convert("RGB")
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=quality)
-            return buf.getvalue()
-        except ImportError:
-            # Fallback: use Blender's built-in image save
-            tmp_img = bpy.data.images.new("_animora_tmp", width, height, float_buffer=False)
-            tmp_img.pixels = [v / 255.0 for px in pixel_data.to_list() for v in px]
-            buf = io.BytesIO()
-            tmp_img.save_render(buf.name if hasattr(buf, "name") else "/tmp/_animora_frame.jpg")
-            bpy.data.images.remove(tmp_img)
-            return None
-
+        return _encode_jpeg(pixel_data, width, height, quality)
     except Exception as exc:
         log.debug("Viewport capture failed: %s", exc)
         return None
@@ -189,7 +221,7 @@ def _should_send_frame(jpeg_bytes: bytes) -> bool:
     return True
 
 
-def stream_viewport_frame(client: "AnimoraWSClient") -> None:
+def stream_viewport_frame(client: AnimoraWSClient) -> None:
     """Push a viewport frame to the backend unless paused or unchanged."""
     if not client.connected:
         return
@@ -226,7 +258,7 @@ def stream_viewport_frame(client: "AnimoraWSClient") -> None:
 # Level 2 — Event-triggered HD capture
 # ---------------------------------------------------------------------------
 
-def capture_hd_png(client: "AnimoraWSClient", trigger: str = "selection_change") -> None:
+def capture_hd_png(client: AnimoraWSClient, trigger: str = "selection_change") -> None:
     """Capture and send a high-resolution viewport image to the backend.
 
     Triggers (Phase 2 set):
@@ -239,19 +271,93 @@ def capture_hd_png(client: "AnimoraWSClient", trigger: str = "selection_change")
     """
     if not client.connected:
         return
-    jpeg = capture_viewport_jpeg(width=1920, height=1080, quality=95)
-    if jpeg is None:
+    try:
+        pixel_data = _read_viewport_rgba(1920, 1080)
+    except Exception as exc:
+        log.debug("HD capture GPU read failed: %s", exc)
         return
+    if pixel_data is None:
+        return
+
+    def _encode_and_send() -> None:
+        jpeg = _encode_jpeg(pixel_data, 1920, 1080, 95)
+        if jpeg is None:
+            return
+        import base64
+        client.send_json({
+            "type": "hd_capture",
+            "trigger": trigger,
+            "timestamp": time.time(),
+            "width": 1920,
+            "height": 1080,
+            "data": base64.b64encode(jpeg).decode(),
+        })
+        log.debug("Sent HD capture (trigger=%s, %d bytes)", trigger, len(jpeg))
+
+    _encode_executor.submit(_encode_and_send)
+
+
+def send_image_attachment(client, path: str, *, max_side: int = 1536) -> bool:
+    """Send a user-uploaded image so the model can SEE it, reusing the
+    vision (hd_capture) channel the backend already attaches to the next
+    user message. Converts any Blender-loadable format to PNG via bpy
+    (Blender's Python has no Pillow) and downscales the long edge to
+    `max_side` to keep the payload sane. Returns True on success.
+
+    NOTE: the backend's vision ring buffer surfaces the LATEST capture, so
+    one image per message reaches the model — the composer sends the image
+    immediately before the text, and _send_current_input frames it as an
+    uploaded reference, not a viewport snapshot."""
     import base64
+    import os
+    import tempfile
+
+    import bpy
+
+    if not client.connected:
+        return False
+
+    img = None
+    tmp_path = ""
+    try:
+        img = bpy.data.images.load(path, check_existing=False)
+        w, h = img.size
+        if w <= 0 or h <= 0:
+            return False
+        longest = max(w, h)
+        if longest > max_side:
+            scale = max_side / longest
+            img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+
+        fd, tmp_path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        img.file_format = "PNG"
+        img.filepath_raw = tmp_path
+        img.save()
+        with open(tmp_path, "rb") as fh:
+            png_bytes = fh.read()
+    except Exception as exc:
+        log.warning("Image attachment conversion failed for %s: %s", path, exc)
+        return False
+    finally:
+        if img is not None:
+            with contextlib.suppress(Exception):
+                bpy.data.images.remove(img)
+        if tmp_path:
+            with contextlib.suppress(Exception):
+                os.unlink(tmp_path)
+
     client.send_json({
         "type": "hd_capture",
-        "trigger": trigger,
+        "trigger": "user_upload",
         "timestamp": time.time(),
-        "width": 1920,
-        "height": 1080,
-        "data": base64.b64encode(jpeg).decode(),
+        "width": max_side,
+        "height": max_side,
+        "data": base64.b64encode(png_bytes).decode(),
     })
-    log.debug("Sent HD capture (trigger=%s, %d bytes)", trigger, len(jpeg))
+    log.info("Sent uploaded image %s (%d bytes) via vision channel",
+             os.path.basename(path), len(png_bytes))
+    return True
 
 
 def capture_post_script_hd() -> None:
@@ -437,7 +543,7 @@ def _summarize_world(world) -> dict:
     return block
 
 
-def send_scene_graph(client: "AnimoraWSClient") -> None:
+def send_scene_graph(client: AnimoraWSClient) -> None:
     if not client.connected:
         return
     graph = serialize_scene_graph()
@@ -468,7 +574,7 @@ def _on_render_complete(scene):
     capture_hd_png(ws_client.client, trigger="render_complete")
 
 
-def _schedule_scene_graph_send(client: "AnimoraWSClient") -> None:
+def _schedule_scene_graph_send(client: AnimoraWSClient) -> None:
     global _scene_graph_timer_handle
 
     def _send_deferred():
@@ -512,6 +618,8 @@ def _mode_check_tick():
 
 def register() -> None:
     global _handlers_registered, _last_mode_seen
+    if bpy.app.background:
+        return
     if not _handlers_registered:
         bpy.app.handlers.depsgraph_update_post.append(_on_depsgraph_update)
         bpy.app.handlers.render_complete.append(_on_render_complete)

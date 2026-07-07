@@ -1,0 +1,19 @@
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.0
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+[1/8] Generating buildinfo.h_fake, buildinfo.h
+[2/8] Building C object source\creator\CMakeFiles\buildinfoobj.dir\buildinfo.c.obj
+[3/8] Building C object source\creator\CMakeFiles\blender.dir\buildinfo.c.obj
+[4/8] Linking CXX shared library lib\BlendThumb.dll
+[5/8] Building CXX object source\blender\editors\space_animora\CMakeFiles\bf_editor_space_animora.dir\space_animora.cc.obj
+[6/8] Linking CXX static library lib\bf_editor_space_animora.lib
+[7/8] Linking CXX executable bin\blender.exe
+Run: "ninja install" to copy runtime files and scripts to: C:/Users/Administrator/Desktop/Animora/build/windows/bin//5.1
+[7/8] Install the project...
+-- Install configuration: "Release"
+-- Installing: C:/Users/Administrator/Desktop/Animora/build/windows/bin/./blender.pdb
+-- Installing: C:/Users/Administrator/Desktop/Animora/build/windows/bin/./BlendThumb.dll

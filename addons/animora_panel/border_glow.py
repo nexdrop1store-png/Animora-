@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import Any, Optional
+from typing import Any
 
 from . import state as state_module
 
@@ -41,10 +41,13 @@ _GLOW_COLOR_EXECUTING = (0.42, 0.78, 1.00)  # cyan — tool execution
 _GLOW_COLOR_QUALITY = (1.00, 0.78, 0.30)    # warm — quality checking
 
 _PULSE_PERIOD_SEC = 1.8  # one full pulse takes ~1.8s
-_OUTER_LINE_WIDTH = 6.0
-_INNER_LINE_WIDTH = 2.0
-_OUTER_MAX_ALPHA = 0.18
-_INNER_MAX_ALPHA = 0.55
+# Strengthened 2026-07-05: the original 0.18/0.55 rim read as invisible on
+# the darker glass backdrop — the "working glow" is a headline feature and
+# must be unmistakable.
+_OUTER_LINE_WIDTH = 9.0
+_INNER_LINE_WIDTH = 3.0
+_OUTER_MAX_ALPHA = 0.40
+_INNER_MAX_ALPHA = 0.85
 
 # Always-on accent palette — indigo for divider lines, used at LOW alpha
 # so they read as subtle chrome, not as bright UI lines that fight the
@@ -52,8 +55,8 @@ _INNER_MAX_ALPHA = 0.55
 _ACCENT_COLOR = (0.55, 0.42, 1.00)
 _ACCENT_DIVIDER_ALPHA = 0.22
 
-_border_handle: Optional[Any] = None
-_chrome_handle: Optional[Any] = None
+_border_handle: Any | None = None
+_chrome_handle: Any | None = None
 
 
 def _color_for_state() -> tuple[float, float, float]:
@@ -95,8 +98,21 @@ def _region_size():
         return None
 
 
+_draw_error_logged = False
+
+
 def _draw_border_glow() -> None:
     """Animated rim around the panel edge while AI is active. Off when idle."""
+    global _draw_error_logged
+    try:
+        _draw_border_glow_impl()
+    except Exception as exc:
+        if not _draw_error_logged:
+            _draw_error_logged = True
+            log.warning("border glow draw failed: %s", exc)
+
+
+def _draw_border_glow_impl() -> None:
     if not state_module.is_active():
         return
     gp = _get_gpu()

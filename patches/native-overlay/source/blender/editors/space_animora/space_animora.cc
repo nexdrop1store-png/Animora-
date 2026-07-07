@@ -18,8 +18,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
+
+#include "GPU_state.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -30,8 +33,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
+
+#include "DNA_view2d_types.h"
 
 #include "BLO_read_write.hh"
 
@@ -100,6 +107,64 @@ static void animora_main_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 }
 
+static void animora_main_region_layout(const bContext *C, ARegion *region)
+{
+  /* Chat-style "follow output": when the view sits at the bottom of the
+   * panel content (where the newest AI message and the input live), keep it
+   * pinned there as streaming appends content. Scrolling up detaches the
+   * pin so the user can read history; scrolling back to the bottom
+   * re-engages it. Mirrors every modern chat client.
+   *
+   * Panel-region View2D convention: tot.ymax == 0 at the top, tot.ymin ==
+   * -content_height; cur is the visible window within tot. "At bottom"
+   * therefore means cur.ymin has reached tot.ymin. */
+  View2D *v2d = &region->v2d;
+  const bool is_init = (v2d->flag & V2D_IS_INIT) != 0;
+  const float gap = v2d->cur.ymin - v2d->tot.ymin;
+  const bool follow_bottom = !is_init || (gap <= 40.0f * UI_SCALE_FAC);
+
+  ED_region_panels_layout(C, region);
+
+  if (follow_bottom) {
+    const float shift = v2d->tot.ymin - v2d->cur.ymin;
+    if (shift < 0.0f) { /* Content extends below the current view. */
+      v2d->cur.ymin += shift;
+      v2d->cur.ymax += shift;
+      ui::view2d_curRect_validate(v2d);
+    }
+  }
+}
+
+static void animora_main_region_draw(const bContext *C, ARegion *region)
+{
+  /* Same sequence as ED_region_panels_draw for a region WITHOUT category
+   * tabs, with ONE addition: Python 'PRE_VIEW' draw handlers dispatched
+   * between the background clear and the widget pass. That lets the addon
+   * paint designed chrome (backdrop gradient, composer glass card) BEHIND
+   * the bpy panels — the stock function clears internally, which would
+   * wipe anything drawn before it. */
+  View2D *v2d = &region->v2d;
+
+  ED_region_clear(C, region, TH_BACK);
+
+  ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
+
+  GPU_line_width(1.0f);
+  ui::view2d_view_ortho(v2d);
+  ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  ui::panels_draw(C, region);
+  ui::view2d_view_restore(C);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, nullptr);
+
+  /* Hide scrollbars below a threshold (matches ED_region_panels_draw). */
+  const float aspect = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
+  if (BLI_rcti_size_x(&region->winrct) <= 40.0f * UI_SCALE_FAC / aspect) {
+    v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
+  }
+  ui::view2d_scrollers_draw(v2d, nullptr);
+}
+
 static void animora_main_region_listener(const wmRegionListenerParams *params)
 {
   ARegion *region = params->region;
@@ -155,13 +220,21 @@ void ED_spacetype_animora()
   st->keymap = animora_keymap;
   st->blend_write = animora_space_blend_write;
 
-  /* regions: main window — panel-driven (Python addon supplies the UI). */
+  /* regions: main window — panel-driven (Python addon supplies the UI).
+   *
+   * keymapflag deliberately EXCLUDES ED_KEYMAP_VIEW2D: the generic "View2D"
+   * keymap binds WHEELIN/OUTMOUSE and TRACKPADZOOM/PAN to view2d.zoom, which
+   * is locked in panel regions — it swallowed every wheel/trackpad event so
+   * the conversation never scrolled. Panel scrolling comes from the
+   * "View2D Buttons List" keymap that ED_region_panels_init attaches
+   * (wheel/trackpad-pan/PageUp/PageDown → view2d.scroll_*), exactly like the
+   * Preferences editor (space_userpref.cc). */
   art = MEM_new_zeroed<ARegionType>("spacetype animora main region");
   art->regionid = RGN_TYPE_WINDOW;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
+  art->keymapflag = ED_KEYMAP_UI;
   art->init = animora_main_region_init;
-  art->layout = ED_region_panels_layout;
-  art->draw = ED_region_panels_draw;
+  art->layout = animora_main_region_layout;
+  art->draw = animora_main_region_draw;
   art->listener = animora_main_region_listener;
   BLI_addhead(&st->regiontypes, art);
 

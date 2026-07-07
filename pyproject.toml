@@ -5,8 +5,8 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]
 
 [tool.ruff.isort]
-known-first-party = ["animora_panel", "ai_backend", "auth_server"]
+known-first-party = ["animora_panel", "ai_backend"]
 
 [tool.pytest.ini_options]
-testpaths = ["ai-backend/tests", "auth-server/tests", "addons/tests"]
+testpaths = ["ai-backend/tests", "addons/tests"]
 asyncio_mode = "auto"

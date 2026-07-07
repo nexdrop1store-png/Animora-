@@ -13,7 +13,6 @@ alpha channel inline at call sites — most primitives accept (R, G, B, A).
 
 from __future__ import annotations
 
-
 # ── Colour palette ────────────────────────────────────────────────────
 # Animora indigo brand — see assets/branding/. Tuned to read well on
 # Blender's default dark theme without competing with the 3D viewport.

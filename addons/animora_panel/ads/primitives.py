@@ -22,9 +22,10 @@ roll their own.
 
 from __future__ import annotations
 
+import logging
 import math
-from typing import Optional
 
+log = logging.getLogger("animora.ads")
 
 # ── GPU module accessor (lazy + cached) ────────────────────────────────
 
@@ -209,7 +210,147 @@ def vertical_gradient_strip(x: float, y: float, w: float, h: float,
     gpu.state.blend_set("NONE")
 
 
-def region_size() -> Optional[tuple[int, int]]:
+def rounded_rect_fill(x: float, y: float, w: float, h: float,
+                      radius: float,
+                      color: tuple[float, float, float, float]) -> None:
+    """Draw a FILLED rounded rectangle (triangle fan around the centroid).
+
+    This is the message-bubble / glass-card primitive. It draws behind
+    bpy widgets only when called from a 'PRE_VIEW' handler (the native
+    ANIMORA region dispatches PRE_VIEW between background clear and the
+    widget pass); from POST_PIXEL it covers content — use low alpha."""
+    g = _gpu()
+    if g is None or w <= 0 or h <= 0:
+        return
+    gpu, batch_for_shader = g
+
+    outline = _rounded_rect_outline(x, y, w, h, radius)
+    center = (x + w * 0.5, y + h * 0.5)
+    verts = [center] + outline  # outline is already a closed loop
+    indices = [(0, i, i + 1) for i in range(1, len(verts) - 1)]
+
+    shader = gpu.shader.from_builtin("UNIFORM_COLOR")
+    batch = batch_for_shader(shader, "TRIS", {"pos": verts}, indices=indices)
+
+    gpu.state.blend_set("ALPHA")
+    shader.bind()
+    shader.uniform_float("color", color)
+    batch.draw(shader)
+    gpu.state.blend_set("NONE")
+
+
+def image_texture(texture, x: float, y: float, w: float, h: float,
+                  alpha: float = 1.0) -> None:
+    """Draw a gpu.types.GPUTexture as a quad at (x, y, w, h), bottom-left
+    origin. Native-resolution — no upscaling blur (unlike template_icon).
+    `alpha` multiplies the texture for fade transitions."""
+    g = _gpu()
+    if g is None or w <= 0 or h <= 0 or texture is None:
+        return
+    gpu, batch_for_shader = g
+
+    verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    indices = [(0, 1, 2), (0, 2, 3)]
+
+    if alpha >= 0.999:
+        shader = gpu.shader.from_builtin("IMAGE")
+        batch = batch_for_shader(
+            shader, "TRIS", {"pos": verts, "texCoord": uvs}, indices=indices,
+        )
+        gpu.state.blend_set("ALPHA")
+        shader.bind()
+        shader.uniform_sampler("image", texture)
+        batch.draw(shader)
+        gpu.state.blend_set("NONE")
+    else:
+        # IMAGE_COLOR multiplies the sampled texel by a uniform colour —
+        # (1,1,1,alpha) gives a uniform fade.
+        shader = gpu.shader.from_builtin("IMAGE_COLOR")
+        batch = batch_for_shader(
+            shader, "TRIS", {"pos": verts, "texCoord": uvs}, indices=indices,
+        )
+        gpu.state.blend_set("ALPHA")
+        shader.bind()
+        shader.uniform_sampler("image", texture)
+        shader.uniform_float("color", (1.0, 1.0, 1.0, alpha))
+        batch.draw(shader)
+        gpu.state.blend_set("NONE")
+
+
+# Set by load_gpu_texture on failure so callers that need diagnosability
+# (e.g. onboarding's all-textures-failed breadcrumb) can retrieve the
+# actual exception text without changing this function's return shape.
+last_texture_error: str | None = None
+
+
+def load_gpu_texture(path: str):
+    """Load a PNG into a GPUTexture via a bpy.data.image. Returns
+    (texture, image) or (None, None). Keep a reference to `image` — the
+    GPUTexture borrows its data."""
+    global last_texture_error
+    try:
+        import bpy
+        import gpu
+    except ImportError:
+        return None, None
+    try:
+        img = bpy.data.images.load(path, check_existing=True)
+        tex = gpu.texture.from_image(img)
+        return tex, img
+    except Exception as exc:
+        last_texture_error = f"{path}: {exc}"
+        log.warning("load_gpu_texture failed for %s: %s", path, exc)
+        return None, None
+
+
+def soft_shadow_rounded(x: float, y: float, w: float, h: float,
+                        radius: float, spread: float = 6.0,
+                        alpha: float = 0.16, layers: int = 3) -> None:
+    """Fake drop shadow: stacked translucent black rounded fills expanding
+    outward. Cheap and resolution-independent."""
+    if layers < 1:
+        return
+    for i in range(layers, 0, -1):
+        grow = spread * i / layers
+        a = alpha * (layers - i + 1) / (layers * 2)
+        rounded_rect_fill(
+            x - grow, y - grow, w + grow * 2, h + grow * 2,
+            radius + grow, (0.0, 0.0, 0.0, a),
+        )
+
+
+def text(x: float, y: float, size: float,
+         color: tuple[float, float, float, float], value: str,
+         *, font_id: int = 0) -> float:
+    """Draw text via blf at (x, y) baseline. Returns the drawn width.
+
+    Custom typography for GPU-drawn chrome (uses Blender's UI font by
+    default — pass a blf.load()ed font_id for a shipped TTF)."""
+    try:
+        import blf
+    except ImportError:
+        return 0.0
+    blf.size(font_id, size)
+    blf.color(font_id, *color)
+    blf.position(font_id, x, y, 0.0)
+    blf.draw(font_id, value)
+    width, _h = blf.dimensions(font_id, value)
+    return width
+
+
+def text_width(size: float, value: str, *, font_id: int = 0) -> float:
+    """Measure text width without drawing (layout passes)."""
+    try:
+        import blf
+    except ImportError:
+        return 0.0
+    blf.size(font_id, size)
+    width, _h = blf.dimensions(font_id, value)
+    return width
+
+
+def region_size() -> tuple[int, int] | None:
     """Return the current region's (width, height) in pixels, or None if
     no region is active (e.g. called outside a draw handler)."""
     try:

@@ -19,7 +19,7 @@
 ; MyAppVersion: Animora's PRODUCT version — what users see in the installer,
 ; Programs list, and About. Keep in sync with ANIMORA_VERSION in
 ; scripts/animora_config.py. (V1 = 1.x; intentionally NOT the Blender 5.1.)
-#define MyAppVersion     "1.1.0"
+#define MyAppVersion     "1.0"
 #define MyAppPublisher   "Animora Technologies"
 #define MyAppURL         "https://animora.tech"
 #define MyAppExeName     "Animora.exe"
@@ -121,12 +121,12 @@ Root: HKA; Subkey: "Software\Classes\.anim\OpenWithProgids"; ValueType: none; Va
 Root: HKA; Subkey: "Software\Classes\animorafile"; ValueType: string; ValueName: ""; ValueData: "Animora File"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\animorafile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKA; Subkey: "Software\Classes\animorafile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-; animora:// deep link -> run the installed app headless to drop the callback
-; into ~/.animora/auth_callback.txt, then let the foreground app consume it.
-Root: HKA; Subkey: "Software\Classes\animora"; ValueType: string; ValueName: ""; ValueData: "URL:Animora Protocol"; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\animora"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKA; Subkey: "Software\Classes\animora\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
-Root: HKA; Subkey: "Software\Classes\animora\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppLauncher}"" --background --python ""{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\animora_url_handler.py"" -- ""%1"""
+; The legacy animora:// URL-scheme handler is GONE: sign-in now returns via a
+; loopback HTTP callback (RFC 8252 §7.3) served by the running app itself —
+; no protocol registration, no second headless process. Delete the stale key
+; that older installers wrote so nothing on the machine still answers
+; animora:// links.
+Root: HKA; Subkey: "Software\Classes\animora"; ValueType: none; Flags: deletekey
 ; Optional: also register Animora as a handler for .blend
 Root: HKA; Subkey: "Software\Classes\.blend\OpenWithProgids"; ValueType: none; ValueName: "animorafile"; Flags: uninsdeletevalue; Tasks: associate_blend
 ; ApplicationsRegistration so Animora appears in "Open With…" menu
@@ -134,6 +134,15 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: s
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [InstallDelete]
+; V1 auth files replaced by the auth/ package + loopback flow. The [Files]
+; section overwrites but never deletes, and a stale auth.py would shadow the
+; new auth/ package at import time.
+Type: files; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\auth.py"
+Type: files; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\auth_core.py"
+Type: files; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\auth_flow.py"
+Type: files; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\deep_link.py"
+Type: files; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\animora_url_handler.py"
+Type: filesandordirs; Name: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel\__pycache__"
 ; Upgrades from older builds may have stale GPU/runtime DLL pollution left in
 ; the install dir. If opengl32.dll (or the Mesa companions) remains beside
 ; Animora.exe, Windows loads it before the vendor driver and launch fails with

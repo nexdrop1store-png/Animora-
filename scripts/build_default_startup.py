@@ -232,6 +232,15 @@ def build():
         _log("Source startup not on disk; falling back to factory settings")
         bpy.ops.wm.read_factory_settings(use_factory_startup_app_template_only=False)
 
+    # The default Cube is load-bearing: the Sculpting workspace can only
+    # enter Sculpt Mode with a sculptable mesh present (the addon's
+    # sculpt_guard covers runtime deletion, but the factory scene must
+    # start correct). A cube-less source produced the V1 "sculpting is
+    # broken" report — fail the build rather than bake it.
+    if bpy.data.objects.get("Cube") is None:
+        _log("FAIL: default Cube missing from source startup scene")
+        return 1
+
     base = _find_base_workspace()
     if base is None:
         _log("FAIL: no workspaces found in factory settings")
@@ -256,6 +265,10 @@ def build():
             _log(traceback.format_exc())
 
     bpy.context.preferences.view.use_save_prompt = True
+
+    if bpy.data.objects.get("Cube") is None:
+        _log("FAIL: default Cube lost during layout processing — not saving")
+        return 1
 
     bpy.ops.wm.save_homefile()
     user_startup = Path(bpy.utils.user_resource("CONFIG")) / "startup.blend"

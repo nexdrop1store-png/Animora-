@@ -306,7 +306,13 @@ class AnimoraWSClient:
 
         ws = websocket.WebSocket()
         try:
-            ws.connect(url, timeout=10)
+            # suppress_origin: websocket-client fabricates a browser-style
+            # Origin header by default. The backend's pre-auth origin
+            # allowlist (main.py step 1, browser-CSRF protection) rejects
+            # unknown origins with 403 BEFORE looking at the token, which
+            # the handler below would misreport as an expired session.
+            # Native desktop clients are identified by sending NO Origin.
+            ws.connect(url, timeout=10, suppress_origin=True)
         except websocket.WebSocketBadStatusException as exc:
             status = int(getattr(exc, "status_code", 0) or 0)
             if status in (401, 403):

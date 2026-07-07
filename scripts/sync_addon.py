@@ -35,6 +35,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shutil
 import sys
@@ -59,10 +60,15 @@ def build_dests(version: str) -> list[Path]:
     ]
 
 
-def sync_dir(src: Path, dst: Path) -> tuple[int, int]:
-    """Copy src/* → dst/*, returns (files_copied, files_unchanged)."""
+def sync_dir(src: Path, dst: Path) -> tuple[int, int, int]:
+    """Mirror src/* → dst/*, returns (copied, unchanged, deleted).
+
+    This is a MIRROR, not a plain copy: destination files that no longer
+    exist in the source are removed. Without that, a deleted module (e.g.
+    the old auth.py, replaced by the auth/ package) lingers in the install
+    and shadows its replacement at import time."""
     if not dst.parent.exists():
-        return 0, 0  # parent doesn't exist → that install location isn't present
+        return 0, 0, 0  # parent doesn't exist → that install location isn't present
     dst.mkdir(parents=True, exist_ok=True)
 
     copied = 0
@@ -85,11 +91,28 @@ def sync_dir(src: Path, dst: Path) -> tuple[int, int]:
         shutil.copy2(src_path, dst_path)
         copied += 1
 
-    # Remove .pyc caches in the destination so Blender rebuilds them
+    # Delete destination files with no source counterpart (bundle_config.json
+    # is spared: the recording build drops it beside the addon post-install).
+    deleted = 0
+    keep = {"bundle_config.json"}
+    for dst_path in list(dst.rglob("*")):
+        if dst_path.is_dir() or "__pycache__" in dst_path.parts:
+            continue
+        rel = dst_path.relative_to(dst)
+        if dst_path.name in keep:
+            continue
+        if not (src / rel).exists():
+            dst_path.unlink(missing_ok=True)
+            deleted += 1
+
+    # Remove .pyc caches (and now-empty dirs) so Blender rebuilds cleanly
     for pyc in dst.rglob("__pycache__"):
         shutil.rmtree(pyc, ignore_errors=True)
+    for sub in sorted((p for p in dst.rglob("*") if p.is_dir()), reverse=True):
+        with contextlib.suppress(OSError):
+            sub.rmdir()  # only succeeds when empty
 
-    return copied, unchanged
+    return copied, unchanged, deleted
 
 
 def main() -> int:
@@ -114,10 +137,10 @@ def main() -> int:
         print(f"-> {dst}{marker}")
         if not dst.parent.parent.exists():
             continue
-        copied, unchanged = sync_dir(SRC, dst)
-        if copied or unchanged:
-            print(f"     copied={copied}  unchanged={unchanged}")
-            if copied:
+        copied, unchanged, deleted = sync_dir(SRC, dst)
+        if copied or unchanged or deleted:
+            print(f"     copied={copied}  unchanged={unchanged}  deleted={deleted}")
+            if copied or deleted:
                 any_synced = True
         print()
 

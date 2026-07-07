@@ -14,12 +14,13 @@ storage-agnostic. The key is stored in:
              installs (the fallback is documented as less secure in
              status_message()).
 
-Two stored items:
+One stored item:
 
   ANTHROPIC_API_KEY     The BYOK Anthropic key. Sent in the WS hello.
                         Never written to disk in plaintext.
-  ANIMORA_ACCESS_TOKEN  Reserved for future use — the JWT issued by
-                        auth-server when SaaS/pooled mode is active.
+
+(The Supabase session tokens live in auth/session.py under the "animora"
+keyring service — this module is only the Anthropic-key store.)
 
 Public surface (callers should only use these):
   set_api_key(key) / get_api_key() / clear_api_key()
@@ -38,7 +39,6 @@ log = logging.getLogger("animora.credentials")
 
 _SERVICE_NAME = "Animora"
 _KEY_USERNAME = "anthropic_api_key"
-_TOKEN_USERNAME = "access_token"
 
 
 def _try_keyring():
@@ -174,37 +174,3 @@ def status_message() -> str:
     return f"Stored in fallback file (keyring unavailable). Fingerprint: {fingerprint()}"
 
 
-# ── Access token (reserved for SaaS mode) ─────────────────────────────
-
-def set_access_token(token: str) -> None:
-    kr = _try_keyring()
-    if kr is not None:
-        try:
-            if token:
-                kr.set_password(_SERVICE_NAME, _TOKEN_USERNAME, token)
-            else:
-                try:
-                    kr.delete_password(_SERVICE_NAME, _TOKEN_USERNAME)
-                except Exception:
-                    pass
-            return
-        except Exception:
-            pass
-    data = _fallback_read()
-    if token:
-        data[_TOKEN_USERNAME] = token
-    else:
-        data.pop(_TOKEN_USERNAME, None)
-    _fallback_write(data)
-
-
-def get_access_token() -> Optional[str]:
-    kr = _try_keyring()
-    if kr is not None:
-        try:
-            val = kr.get_password(_SERVICE_NAME, _TOKEN_USERNAME)
-            if val:
-                return val
-        except Exception:
-            pass
-    return _fallback_read().get(_TOKEN_USERNAME) or None

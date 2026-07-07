@@ -41,9 +41,8 @@ from __future__ import annotations
 import bpy
 from bpy.types import Panel
 
-from . import auth, bundle, preview_icons, state, ws_client
+from . import bundle, preview_icons, state, ws_client
 from .preferences import get_prefs
-
 
 # Pixel-to-char ratio at Blender's default UI scale. The default font
 # renders at ~7 pixels per character horizontally; multiplied by the
@@ -112,6 +111,29 @@ def _wrap_lines(text: str, width: int) -> list[str]:
     return lines
 
 
+def composer_preview_lines(text: str, region_width: int) -> list[str]:
+    """Wrapped lines of the FULL prompt for the composer preview.
+
+    The bpy string field is single-line — long prompts scroll horizontally
+    and become unreadable. When the prompt no longer fits the field, the
+    composer shows it fully wrapped above the field (and the GPU glass
+    card grows to match — ads/canvas.py calls this same function so the
+    two layers can never disagree). Empty list = prompt fits, no preview.
+    """
+    if not text:
+        return []
+    # Field width ≈ region minus chrome minus the [+] and [▲] buttons.
+    chars = int((region_width - _CHROME_PIXELS - 76) / _BASE_PIXELS_PER_CHAR)
+    chars = max(_MIN_WRAP_CHARS, min(_MAX_WRAP_CHARS, chars))
+    if len(text) <= chars and "\n" not in text:
+        return []
+    lines = _wrap_lines(text, chars)
+    if len(lines) > 10:
+        hidden = len(lines) - 9
+        lines = lines[:9] + [f"… (+{hidden} more lines)"]
+    return lines
+
+
 def _brand_icon_kwargs() -> dict:
     """icon kwargs for the Animora logo, falling back to no icon if the
     preview collection failed to load (get_icon returns 0)."""
@@ -139,6 +161,12 @@ class ANIMORA_HT_header(bpy.types.Header):
     """
 
     bl_space_type = "ANIMORA"
+
+    @classmethod
+    def poll(cls, context):
+        # Hidden while the onboarding gate owns the ANIMORA space.
+        from . import onboarding
+        return not onboarding.gate_active()
 
     def draw(self, context):
         layout = self.layout
@@ -197,42 +225,21 @@ class _AnimoraMainPanelMixin:
 
         outer.separator(factor=0.6)
 
-        # Account / connection strip — fills the panel width naturally so
-        # the button grows with the panel. (Earlier versions wrapped this
-        # in alignment="CENTER" which left an empty band on wide panels.)
+        # Connection strip. Sign-in lives EXCLUSIVELY in the onboarding gate
+        # (onboarding.py) — the panel never shows a sign-in affordance. All
+        # it surfaces is transient connection status while a session exists.
         if bundle.is_bundle_mode():
             # Recording build: no sign-in. The engine auto-starts and the
             # session auto-connects; show progress instead of a button.
             self._draw_bundle_status(outer)
 
-        elif state.state.auth_status == state.AuthS.SIGNED_OUT:
-            acct = outer.row(align=True)
-            acct.scale_y = 1.0
-            acct.operator("animora.sign_in", text="Sign in to Animora", icon="URL")
-            if prefs.dev_mode:
-                sub = outer.row()
-                sub.scale_y = 0.85
-                sub.label(text="Dev mode — local backend", icon="CONSOLE")
-            outer.separator(factor=0.5)
-
-        elif state.state.auth_status in {
-            state.AuthS.PENDING_BROWSER,
-            state.AuthS.EXCHANGING_CODE,
-            state.AuthS.CONNECTING,
-        }:
+        elif state.state.auth_status == state.AuthS.CONNECTING:
             hint = outer.row()
             hint.scale_y = 0.85
             hint.label(
                 text=state.state.auth_message or "Connecting to Animora…",
                 icon="SORTTIME",
             )
-        elif state.state.auth_status == state.AuthS.FAILED:
-            box = outer.box()
-            box.alert = True
-            col = box.column(align=True)
-            col.label(text=state.state.auth_message or "Sign-in failed.", icon="ERROR")
-            col.operator("animora.sign_in", text="Sign in to Animora", icon="URL")
-            outer.separator(factor=0.5)
 
         # Status pill — shown whenever the AI is active or just completed
         self._draw_status_pill(outer)
@@ -424,12 +431,19 @@ class _AnimoraMainPanelMixin:
                 and state.state.current in (state.S.STREAMING, state.S.THINKING)
             )
 
-            # User messages: right-aligned subtle box
-            # Assistant messages: left-aligned with brand icon
+            # Chat-bubble asymmetry: user messages hug the right at ~80%
+            # width, assistant messages hug the left at ~90% — the layout
+            # itself reads as a conversation, like modern AI clients.
             if is_user:
-                self._draw_user_message(convo, item.content)
+                split = convo.split(factor=0.20)
+                split.column()  # left gutter
+                self._draw_user_message(split.column(), item.content)
             else:
-                self._draw_assistant_message(convo, item.content, is_streaming=is_last_assistant)
+                split = convo.split(factor=0.90)
+                self._draw_assistant_message(
+                    split.column(), item.content, is_streaming=is_last_assistant
+                )
+                split.column()  # right gutter
 
             convo.separator(factor=0.3)
 
@@ -441,7 +455,9 @@ class _AnimoraMainPanelMixin:
         head.label(text="You", icon="USER")
         body = box.column(align=True)
         body.scale_y = 0.85
-        for line in _wrap_lines(content, self._wrap_width):
+        # Bubble is ~80% of the region wide (see _draw_conversation).
+        wrap = max(_MIN_WRAP_CHARS, int(self._wrap_width * 0.78))
+        for line in _wrap_lines(content, wrap):
             row = body.row(align=True)
             row.alignment = "RIGHT"
             row.label(text=line or " ")
@@ -453,27 +469,31 @@ class _AnimoraMainPanelMixin:
         head.alignment = "LEFT"
         head.label(text="Animora", **_brand_icon_kwargs())
         if is_streaming:
-            # Subtle "currently typing" indicator on the head row
-            pulse = state.state.dot_tick
-            head.label(text="●" * pulse + "○" * (3 - pulse))
+            # "Currently typing" indicator: a single dot sweeping across
+            # three positions (KITT style) — calmer than the old grow/shrink
+            # dot bar, and immune to the tick-3 negative-repeat glitch.
+            frames = ("●  ·  ·", "·  ●  ·", "·  ·  ●", "·  ●  ·")
+            head.label(text=frames[state.state.dot_tick % 4])
 
         body = box.column(align=True)
         body.scale_y = 0.85
 
         # If the assistant message is empty and streaming hasn't started
-        # yet, show a placeholder so the box isn't a void.
+        # yet, show a quiet thinking line so the box isn't a void.
         if not content and is_streaming:
             row = body.row(align=True)
             row.alignment = "LEFT"
-            row.label(text="(composing)", icon="RIGHTARROW")
+            row.label(text="Thinking" + "." * (state.state.dot_tick % 4))
             return
 
-        for line in _wrap_lines(content, self._wrap_width):
+        # Bubble is ~90% of the region wide (see _draw_conversation).
+        wrap = max(_MIN_WRAP_CHARS, int(self._wrap_width * 0.88))
+        for line in _wrap_lines(content, wrap):
             row = body.row(align=True)
             row.alignment = "LEFT"
             row.label(text=line or " ")
 
-        # Streaming cursor at end of the latest line
+        # Streaming cursor appended below the latest line
         if is_streaming and content:
             cursor_row = body.row(align=True)
             cursor_row.alignment = "LEFT"
@@ -497,6 +517,8 @@ class _AnimoraMainPanelMixin:
         row.alignment = "LEFT"
 
         if cur in state.ACTIVE_STATES:
+            # Status only — the square stop button lives on the input row
+            # (modern chat layout), not duplicated here.
             row.label(text=text, icon=icon)
             # Sub-line: detail like the intent_summary or tool name
             if state.state.message:
@@ -504,10 +526,6 @@ class _AnimoraMainPanelMixin:
                 sub.scale_y = 0.7
                 sub.alignment = "LEFT"
                 sub.label(text=state.state.message[:80])
-            # Stop button — lets user interrupt
-            stop_row = row.row(align=True)
-            stop_row.alignment = "RIGHT"
-            stop_row.operator("animora.interrupt", text="Stop", icon="PAUSE")
 
         elif cur == state.S.COMPLETE:
             row.label(text=text, icon=icon)
@@ -576,37 +594,97 @@ class _AnimoraMainPanelMixin:
     # --- input area -------------------------------------------------------
 
     def _draw_input(self, layout, wm):
+        from . import operators as ops_module
+
         input_card = layout.box()
         input_card.scale_y = 1.0
         is_ready = state.auth_can_send()
 
-        # Prompt field
+        # Pending attachment chips — one row per file, removable.
+        attachments = ops_module.pending_attachments()
+        for idx, att in enumerate(attachments):
+            chip = input_card.row(align=True)
+            chip.scale_y = 0.85
+            chip_icon = "IMAGE_DATA" if att.get("kind") == "image" else "TEXT"
+            chip.label(text=att["name"], icon=chip_icon)
+            size_kb = max(1, att["size"] // 1024)
+            chip.label(text=f"{size_kb} KB")
+            remove = chip.operator("animora.remove_attachment", text="", icon="X", emboss=False)
+            remove.index = idx
+
+        wrap_chars = self._wrap_width or 56
+
+        if ops_module.composer_active():
+            # LIVE multiline editing (OT_AnimoraComposer modal). The buffer is
+            # mirrored into animora_input_text on every keystroke, so we can
+            # draw the whole prompt wrapped here — with a blinking caret — and
+            # it grows as you type. Enter sends; Shift+Enter = newline.
+            lines, crow, ccol, caret_on = ops_module.composer_display(wrap_chars)
+            editor = input_card.column(align=True)
+            editor.scale_y = 0.9
+            for i, line in enumerate(lines):
+                shown = line
+                if i == crow and caret_on:
+                    ccol = max(0, min(ccol, len(line)))
+                    shown = line[:ccol] + "▏" + line[ccol:]
+                row = editor.row(align=True)
+                row.alignment = "LEFT"
+                row.label(text=shown or (" " if i != crow else "▏"))
+            hint = input_card.row()
+            hint.scale_y = 0.7
+            hint.label(text="Enter to send · Shift+Enter for a new line · Esc to close",
+                       icon="INFO")
+
+            actions = input_card.row(align=True)
+            actions.scale_y = 1.4
+            a = actions.row(align=True)
+            a.enabled = is_ready or state.is_active()
+            a.operator("animora.attach_file", text="", icon="ADD")
+            send = actions.row(align=True)
+            send.enabled = is_ready
+            send.operator("animora.send_message", text="Send", icon="TRIA_UP")
+            return
+
+        # Idle: click-to-compose. There is NO expand button — clicking the
+        # input area drops straight into the auto-growing multiline composer
+        # (OT_AnimoraComposer). Any existing draft is shown fully wrapped so
+        # the whole prompt is always visible, editing or not.
+        current_text = getattr(wm, "animora_input_text", "") or ""
+        draft = current_text.strip()
+
+        if draft and not state.is_active():
+            # Show the full draft wrapped (never truncated); clicking it
+            # resumes editing in the composer.
+            draft_lines = _wrap_lines(draft, wrap_chars)
+            dcol = input_card.column(align=True)
+            dcol.scale_y = 0.9
+            for line in draft_lines[:12]:
+                dcol.operator("animora.composer", text=line or " ", emboss=False)
+            input_card.separator(factor=0.2)
+
         prompt_row = input_card.row(align=True)
-        prompt_row.scale_y = 1.6
-        prompt_row.enabled = is_ready
-        prompt_row.prop(wm, "animora_input_text", text="", placeholder="Ask Animora…")
+        prompt_row.scale_y = 1.7
 
-        # Action row: 15% [+] attach + 85% send (or stop while active).
-        # Using split(factor=0.15) makes the ratio proportional to the
-        # parent row's actual width — so when the user drags the panel
-        # wider, both buttons grow together instead of leaving an empty
-        # band on the left. The previous fixed `send.scale_x = 5.5` ratio
-        # didn't track region width and produced asymmetric empty space.
-        action_row = input_card.split(factor=0.15, align=True)
-        action_row.scale_y = 1.5
+        attach = prompt_row.row(align=True)
+        attach.enabled = is_ready or state.is_active()
+        attach.operator("animora.attach_file", text="", icon="ADD")
 
-        action_row.enabled = is_ready or state.is_active()
-        action_row.operator("animora.attach_file", text="", icon="ADD")
+        # The composer launcher fills the row and looks like a text field.
+        field = prompt_row.row(align=True)
+        field.enabled = is_ready
+        launcher = draft if (draft and not state.is_active()) else ""
+        field.operator("animora.composer",
+                       text=launcher or "Ask Animora…",
+                       icon="GREASEPENCIL")
 
         if state.is_active():
-            # While active, the primary action is "stop"
-            send = action_row.row(align=True)
-            send.alert = True
-            send.operator("animora.interrupt", text="STOP", icon="PAUSE")
+            stop = prompt_row.row(align=True)
+            stop.alert = True
+            stop.operator("animora.interrupt", text="■")
         else:
-            send = action_row.row(align=True)
+            send = prompt_row.row(align=True)
             send.enabled = is_ready
-            send.operator("animora.send_message", text="SEND COMMAND", icon="PLAY")
+            send.operator("animora.send_message", text="", icon="TRIA_UP")
 
 
 class ANIMORA_PT_main(_AnimoraMainPanelMixin, Panel):
@@ -618,7 +696,9 @@ class ANIMORA_PT_main(_AnimoraMainPanelMixin, Panel):
 
     @classmethod
     def poll(cls, context):
-        return True
+        # While the onboarding gate is up, its panel owns the ANIMORA space.
+        from . import onboarding
+        return not onboarding.gate_active()
 
 
 class VIEW3D_PT_animora_sidebar(_AnimoraMainPanelMixin, Panel):
@@ -630,10 +710,12 @@ class VIEW3D_PT_animora_sidebar(_AnimoraMainPanelMixin, Panel):
 
     @classmethod
     def poll(cls, context):
+        from . import onboarding
         return (
             context.space_data is not None
             and context.space_data.type == "VIEW_3D"
             and getattr(bpy.types, "SpaceAnimora", None) is None
+            and not onboarding.gate_active()
         )
 
 

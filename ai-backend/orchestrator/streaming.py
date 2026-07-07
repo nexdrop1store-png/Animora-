@@ -1231,14 +1231,21 @@ async def stream_response(
         )
 
         # Sprint 4E — detect "the addon never responded to ANY of our
-        # tool_calls in this iteration". This is almost always the
-        # addon-outdated path (the user updated the backend but didn't
-        # `python scripts/sync_addon.py` + reload the addon, so the
-        # installed addon doesn't know about the new atomic tools and
-        # logs "Unknown tool call" without sending a tool_result).
-        # Surface a clear panel notice the moment it happens so the
-        # user isn't staring at "Animora is thinking" for 45+ seconds
-        # while the timeout burns down per-iteration.
+        # tool_calls in this iteration". This fires on a genuine idle
+        # timeout in ToolResultCoordinator (idle-aware since the
+        # tool_progress ping was added — see tool_result_coordinator.py).
+        # Root-cause investigation (2026-07) found this is USUALLY NOT a
+        # protocol/version mismatch — that path is checked separately and
+        # accurately at hello time (main.py's _MIN_ADDON_PROTOCOL check,
+        # which fires its own distinct, correct notice when versions truly
+        # differ). By the time we get here the addon already passed that
+        # check. The far more common cause is a single script statement
+        # that is itself blocking the addon's main thread for the whole
+        # window (a heavy subdivision/boolean/particle op, or a runaway
+        # loop) — nothing on the addon side can ping mid-statement, so the
+        # idle clock genuinely expires. Word this as "still working /
+        # slow step", not "you're on old code", so the fix suggestions
+        # actually match the likely cause.
         non_rejected_ids = [i for i in all_ids if i not in rejected_tool_use_ids]
         if non_rejected_ids:
             timed_out_ids = [
@@ -1249,8 +1256,8 @@ async def stream_response(
             if timed_out_ids and send_quality_notice is not None:
                 log.warning(
                     "addon.unresponsive session=%s iter=%d timed_out=%d/%d — "
-                    "the installed addon likely doesn't recognise these tool names. "
-                    "Run `python scripts/sync_addon.py` and reload the addon.",
+                    "no tool_progress/tool_result within the idle window; likely a "
+                    "single slow script statement blocking the addon's main thread.",
                     session_id, iteration, len(timed_out_ids), len(non_rejected_ids),
                 )
                 try:
@@ -1258,14 +1265,15 @@ async def stream_response(
                         "type": "quality_notice",
                         "severity": "warning",
                         "summary": (
-                            "Animora's addon didn't respond. Your installed Animora "
-                            "is likely on older addon code that doesn't recognise "
-                            "the new atomic tools."
+                            "Animora's addon hasn't responded in a while — a script "
+                            "step it's running is likely taking longer than expected "
+                            "(a heavy operation on a dense mesh, for example)."
                         ),
                         "fix_suggestions": [
-                            "From a terminal in the Animora repo, run: python scripts/sync_addon.py",
-                            "Then in Animora: Edit > Preferences > Add-ons — toggle Animora off and on.",
-                            "Or just restart Animora.",
+                            "Give it a bit longer — it may still be working.",
+                            "If it never recovers, restart Animora and try a smaller/simpler request.",
+                            "If this keeps happening on every request, run: python scripts/sync_addon.py "
+                            "and reload the addon in Preferences — your install may be out of date.",
                         ],
                         "details": {
                             "source": "tool_result_timeout",

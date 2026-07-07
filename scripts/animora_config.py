@@ -10,8 +10,9 @@ search-and-replace across the repo. Import from here in build / rebrand
 When you upgrade to a new Blender version:
   1. Bump BLENDER_VERSION below.
   2. Re-fetch blender-fork at the new tag (`git checkout v5.2.0` etc.).
-  3. Re-apply patches/animora-native.patch (`git apply --3way` will
-     auto-merge unless upstream moved the patch sites).
+  3. Re-apply patches/animora-native-full.patch (`git apply --ignore-whitespace`)
+     then overlay patches/native-overlay/* — auto-merge unless upstream
+     moved the patch sites.
   4. Run `python scripts/build.py` — the AI panel is copied in fresh
      from addons/animora_panel/ so no merge of the panel is needed.
   5. Smoke-test on a clean Windows VM.
@@ -28,7 +29,7 @@ from pathlib import Path
 # About box, and splash. It is DELIBERATELY separate from the Blender base
 # version below: users should never see "5.1". Bump this for Animora
 # releases (V1 = 1.x); it has nothing to do with the Blender install dir.
-ANIMORA_VERSION = "1.1.0"
+ANIMORA_VERSION = "1.0"
 
 # The Blender release Animora is currently built against.
 # Used ONLY for the internal install version dir Blender requires

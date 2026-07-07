@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     # / interrupt frames from bypassing the user-message rate limit.
     ws_messages_per_minute: int = 1000
 
-    # JWT validation (H5). The auth-server (when deployed) MUST mint
+    # JWT validation (H5). Any non-Supabase token minter MUST mint
     # tokens with these claims; the backend rejects tokens missing them.
     jwt_issuer: str = "animora-auth"
     jwt_audience: str = "animora-backend"

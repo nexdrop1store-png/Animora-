@@ -38,6 +38,7 @@ from typing import Any
 from ..prompts.composition_rules import COMPOSITION_RULES, COMPOSITION_RULES_VERSION
 from ..prompts.master_prompt import MASTER_PROMPT, MASTER_PROMPT_VERSION
 from ..scene_intelligence import build_scene_context_block
+from .image_media import sniff_image_media_type
 from .personas import Persona
 from .tools import BLENDER_TOOLS
 
@@ -126,23 +127,36 @@ def build(
     # New user turn — attach HD capture if fresh enough
     user_content: list[dict[str, Any]] | str
     if hd_capture is not None and hd_capture[2] <= HD_CAPTURE_MAX_AGE_SEC:
-        png_bytes, trigger, age = hd_capture
-        log.debug("Attaching HD capture (trigger=%s, age=%.1fs) to user message", trigger, age)
+        img_bytes, trigger, age = hd_capture
+        # NEVER trust the channel's format label — the vision pipe erases it
+        # and the addon's capture_hd_png actually ships JPEG. Sniff the bytes.
+        media_type = sniff_image_media_type(img_bytes)
+        log.debug("Attaching HD capture (trigger=%s, age=%.1fs, %s) to user message",
+                  trigger, age, media_type)
+        # A user-uploaded reference is a TARGET to reproduce, not a snapshot
+        # of the current viewport — frame it so the model treats it as spec.
+        if trigger == "user_upload":
+            frame = (
+                "[USER-PROVIDED REFERENCE IMAGE — reproduce this faithfully in the "
+                "3D scene: match its subject, proportions, colours, materials, any "
+                "text/labels, and overall composition as closely as Blender allows. "
+                "This image is the target to recreate, NOT a screenshot of the "
+                "current viewport.]"
+            )
+        else:
+            frame = f"[viewport snapshot, trigger='{trigger}', {age:.1f}s old]"
         user_content = [
             {
                 "type": "image",
                 "source": {
                     "type": "base64",
-                    "media_type": "image/png",
-                    "data": base64.b64encode(png_bytes).decode("ascii"),
+                    "media_type": media_type,
+                    "data": base64.b64encode(img_bytes).decode("ascii"),
                 },
             },
             {
                 "type": "text",
-                "text": (
-                    f"[viewport snapshot, trigger='{trigger}', {age:.1f}s old]\n\n"
-                    f"{user_message}"
-                ),
+                "text": f"{frame}\n\n{user_message}",
             },
         ]
     else:
@@ -262,7 +276,13 @@ def build_tool_result_message(
         # SEES its own work for the first time across iterations.
         hd_b64 = outcome.get("hd_capture_b64")
         if hd_b64:
-            media_type = outcome.get("hd_media_type") or "image/jpeg"
+            # Sniff the actual bytes rather than trusting outcome[hd_media_type]
+            # — a stale addon can label JPEG as png and Anthropic rejects the
+            # mismatch with a 400 that aborts the whole turn.
+            try:
+                media_type = sniff_image_media_type(base64.b64decode(hd_b64[:32]))
+            except Exception:
+                media_type = outcome.get("hd_media_type") or "image/jpeg"
             result_blocks.append({
                 "type": "image",
                 "source": {

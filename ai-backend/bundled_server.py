@@ -21,7 +21,7 @@ What it does that dev_server.py does NOT:
     console window) is still diagnosable.
 
 It is otherwise identical to dev_server.py: an in-memory Redis stub and a
-permissive auth decoder, so no Redis server and no JWT/auth-server are
+permissive auth decoder, so no Redis server and no JWT infrastructure are
 needed. Like dev_server.py, this bypasses auth and MUST NOT run in a real
 production deployment — shipping it frozen inside the recording build is
 the intended, scoped use.

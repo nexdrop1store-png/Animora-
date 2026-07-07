@@ -17,10 +17,10 @@ regression in this design and push the offending change back out of
 |--------------------------------------|-------------------------|--------------------|
 | `addons/animora_panel/` (AI panel)   | Stable `bpy` APIs only  | None (auto)        |
 | `ai-backend/` (FastAPI service)      | Not coupled at all      | None               |
-| `auth-server/`                       | Not coupled at all      | None               |
+| `addons/animora_panel/auth/`         | Not coupled at all      | None               |
 | `website/`                           | Not coupled at all      | None               |
 | `assets/branding/` (icons, splash)   | Not coupled             | None               |
-| `patches/animora-native.patch`       | Coupled to source lines | ~5 min (3-way merge) |
+| `patches/animora-native-full.patch` + `patches/native-overlay/` | Coupled to source lines | ~15 min (3-way merge + overlay copy) |
 | `scripts/rebrand.py` string map      | Coupled if upstream changes labels | ~10 min audit |
 | `scripts/animora_config.py` constants | Coupled (by design)    | One-line bump      |
 | `installer/windows/inno/Animora.iss` | Coupled (one #define)   | One-line bump      |
@@ -68,25 +68,34 @@ make.bat update    # Windows; or `make update` on macOS/Linux
 cd ..
 ```
 
-### 3. Re-apply the rebrand patch
+### 3. Re-apply the native delta
 
 ```bash
 cd blender-fork
-git apply --3way ../patches/animora-native.patch
+git apply --ignore-whitespace ../patches/animora-native-full.patch
+cd ..
+cp -r patches/native-overlay/* blender-fork/
 ```
 
-If `--3way` reports conflicts, the upstream code at the patch sites
-moved. Fix the conflicts in the working tree, then regenerate the
+If the patch reports conflicts/rejects, the upstream code at the patch
+sites moved. Fix the conflicts in the working tree, then regenerate the
 patch so the next upgrader gets the corrected version:
 
 ```bash
-git diff > ../patches/animora-native.patch
+cd blender-fork
+git diff --binary <new-baseline-tag> > ../patches/animora-native-full.patch
 ```
 
-The current patch touches only four files (`wm_window.cc`,
-`wm_init_exit.cc`, `interface_style.cc`, `interface_layout.cc`). Keep
-this patch small — every line here is something a future upgrader has
-to potentially re-merge.
+`--binary` is required — several patched files are binary
+(`splash.png`, `startup.blend`, the `.ico`s); a plain `git diff` shows
+"Binary files differ" and silently drops them. `patches/native-overlay/`
+holds files that aren't a diff against anything upstream (they're new):
+`source/blender/editors/space_animora/` (the native AI editor),
+`release/datafiles/splash_2x.png`, `release/datafiles/fonts/Geist.woff2`.
+Do not add `scripts/addons_core/animora_panel/` there — `rebrand.py`
+regenerates it every build from `addons/animora_panel/`; capturing it
+here would just create a second, driftable copy. See `patches/README.md`
+for the full safe re-clone procedure.
 
 ### 4. Audit `scripts/rebrand.py` for stale string mappings
 

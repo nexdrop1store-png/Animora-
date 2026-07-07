@@ -23,7 +23,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from animora_config import AI_PANEL_SRC, ai_panel_fork_dest
+from animora_config import AI_PANEL_SRC, ANIMORA_VERSION, ai_panel_fork_dest
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger("rebrand")
@@ -132,12 +132,69 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
     # Eyedropper variants
     ('"Sample a color from the Blender Window"',
      '"Sample a color from the Animora Window"'),
+    # 2026-07 coverage expansion — found by grepping the actual fork tree for
+    # exact Python-side wording that didn't match any rule above (this table
+    # is plain-substring, so near-miss wording silently passes through).
+    ('"Blender Version"', '"Animora Version"'),
+    ('"A restart of Blender is required"', '"A restart of Animora is required"'),
+    ('"Open blend files with this Blender version"',
+     '"Open blend files with this Animora version"'),
+    ('"Blender IDs"', '"Animora IDs"'),
+    ('"Load Factory Blender Settings"', '"Load Factory Animora Settings"'),
+    ("\"Blender's official web-site\"", "\"Animora's official web-site\""),
+    ('iface_("Import Blender {:d}.{:d} Preferences", "Operator")',
+     'iface_("Import Animora {:d}.{:d} Preferences", "Operator")'),
+    ('"The API reference manual for this version of Blender"',
+     '"The API reference manual for this version of Animora"'),
+    ('"Force reload the image if it is already opened elsewhere in Blender"',
+     '"Force reload the image if it is already opened elsewhere in Animora"'),
+    ('"Pixels per Blender Unit"', '"Pixels per Animora Unit"'),
+    ('"Scale based on pixels per Blender Unit"',
+     '"Scale based on pixels per Animora Unit"'),
+    ('"Number of pixels per inch or Blender Unit"',
+     '"Number of pixels per inch or Animora Unit"'),
+    ('"the path in User Preferences > File is valid, and Blender has rights to launch it"',
+     '"the path in User Preferences > File is valid, and Animora has rights to launch it"'),
+    ('"Show Blender files in the File Browser"',
+     '"Show Animora files in the File Browser"'),
+    ('"Blender sub-process exited with error code {:d}"',
+     '"Animora sub-process exited with error code {:d}"'),
+    ('"Blender\'s extension repository not found!"',
+     '"Animora\'s extension repository not found!"'),
+    ('"Blender\'s extension repository must be enabled to install extensions!"',
+     '"Animora\'s extension repository must be enabled to install extensions!"'),
+    ('"Blender\'s extension repository must be refreshed!"',
+     '"Animora\'s extension repository must be refreshed!"'),
+    # NOTE: the generic "blender.org" -> "animora.tech" rule above ALSO fires on
+    # bl_extension_ui.py's "...now available from extensions.blender.org", turning
+    # it into "extensions.animora.tech" — correctly worded, but Animora almost
+    # certainly has no extensions marketplace at that domain. Same class of issue
+    # as the crash-dialog bug-report URL: a real infra/product decision (keep
+    # pointing at Blender's actual Extensions Platform vs. standing up an Animora
+    # one), not a string-substitution bug. Flagging, not deciding, here.
+    # NOT renamed (checked, deliberately left alone):
+    #   bl_operators/userpref.py:517 "This script was written for Blender
+    #     version {:d}.{:d}.{:d}..." — genuine addon-compatibility metadata
+    #     (bl_info["blender"]) about a THIRD-PARTY ADDON's declared target
+    #     Blender version, not our branding. Renaming would be factually wrong.
+    #   bl_operators/wm.py:3380 "Blender Dark" — matches the real theme
+    #     preset filename Blender_Dark.xml (scripts/presets/interface_theme/).
+    #     Renaming only this fallback label would desync from the preset's
+    #     own file-derived display name the moment it's actually selected.
+    #     Fixing this properly means renaming the .xml presets themselves
+    #     (Blender_Dark.xml/Blender_Light.xml) — separate task, not done here.
 ]
 
 # Source file globs whose string content we patch
 SOURCE_GLOBS: list[str] = [
     "source/blender/blenkernel/*.c",
     "source/blender/blenkernel/*.cc",
+    # Scoped to this one file, NOT "blenlib/intern/*.cc" (147 files) — that
+    # broader glob also matches noise.cc's algorithm-citation URL comment
+    # (blender.org rewritten to animora.tech in a doc-reference link, which
+    # would then point nowhere). system_win32.cc is the only file in this
+    # directory with a real user-facing string (the crash dialog headline).
+    "source/blender/blenlib/intern/system_win32.cc",
     "source/blender/editors/space_info/*.c",
     "source/blender/editors/space_info/*.cc",
     "source/blender/editors/space_view3d/*.cc",
@@ -164,6 +221,14 @@ SOURCE_GLOBS: list[str] = [
 UI_PY_FILES: list[str] = [
     "scripts/startup/bl_operators/wm.py",      # WM_MT_splash (splash footer)
     "scripts/startup/bl_ui/space_topbar.py",   # Help menu links
+    "scripts/startup/bl_ui/space_userpref.py",       # status bar / GPU / file-assoc labels
+    "scripts/startup/bl_ui/space_filebrowser.py",    # asset filter labels
+    "scripts/startup/bl_operators/image_as_planes.py",  # Import Images as Planes tooltips
+    "scripts/startup/bl_operators/image.py",         # external editor launch error
+    "scripts/startup/bl_operators/file.py",          # File Browser filter tooltip
+    "scripts/startup/bl_operators/userpref.py",      # addon compatibility / asset sub-process
+    "scripts/startup/bl_operators/assets.py",        # asset library refresh sub-process
+    "scripts/addons_core/bl_pkg/bl_extension_ui.py", # Get Extensions repo-error messages
 ]
 
 # Targeted UI fixes the generic string table cannot do: the splash uses
@@ -184,6 +249,40 @@ UI_PY_REPLACEMENTS: list[tuple[str, str]] = [
     ("https://www.blender.org/get-involved/", "https://animora.tech"),
     ("https://devtalk.blender.org", "https://animora.tech"),
     ("https://www.blender.org", "https://animora.tech"),
+    # Topbar app-menu button (left of "File"): drop the Blender logo icon —
+    # Animora must not expose Blender branding anywhere in the UI.
+    ('layout.menu("TOPBAR_MT_blender", text="", icon=\'BLENDER\')',
+     'layout.menu("TOPBAR_MT_blender", text="Animora")'),
+]
+
+# ---------------------------------------------------------------------------
+# Product version: the About dialog + splash corner must show ANIMORA's
+# version (animora_config.ANIMORA_VERSION), not Blender's compiled 5.x.x.
+# Each entry: (file, [match alternatives], replacement). The FIRST alternative
+# matches pristine upstream source; the SECOND is a sentinel matching our own
+# previous output, so a later ANIMORA_VERSION bump re-applies over a fork tree
+# that was already rebranded. A file matching NEITHER means upstream reshaped
+# the code after a Blender upgrade — patch_product_version() warns loudly.
+# ---------------------------------------------------------------------------
+PRODUCT_VERSION_PATCHES: list[tuple[str, list[str], str]] = [
+    (
+        # About dialog (WM_MT_splash_about): "Version: 5.1.1" → "Version 1.0"
+        "scripts/startup/bl_operators/wm.py",
+        [
+            r'text=iface_\("Version: \{:s\}"\)\.format\(bpy\.app\.version_string\)',
+            r'text="Version [0-9][^"]*"',
+        ],
+        f'text="Version {ANIMORA_VERSION}"',
+    ),
+    (
+        # Splash corner label: BKE_blender_version_string() → "1.0"
+        "source/blender/windowmanager/intern/wm_splash_screen.cc",
+        [
+            r"BKE_blender_version_string\(\)",
+            r'"[0-9][^"]*" /\*ANIMORA_VERSION\*/',
+        ],
+        f'"{ANIMORA_VERSION}" /*ANIMORA_VERSION*/',
+    ),
 ]
 
 # Asset copy map: src (relative to assets/branding) → dst (relative to fork root)
@@ -198,10 +297,18 @@ ASSET_COPIES: list[tuple[str, str]] = [
     ("animora_64.png", "release/datafiles/icons/animora_64.png"),
     ("animora_128.png", "release/datafiles/icons/animora_128.png"),
     ("animora_256.png", "release/datafiles/icons/animora_256.png"),
-    ("animora.ico", "release/windows/icons/blender.ico"),  # embedded into the .exe at build
-    # animora.icns (macOS dock icon) + animora_theme.xml intentionally omitted:
-    # the .icns isn't in the repo yet (macOS packaging is later) and the Animora
-    # dark theme ships via native versioning_userdef.cc, not an XML file.
+    # The .exe's embedded icon is NOT copied here. winblender.rc's APPICON
+    # resource references winblender.ico by exact filename (confirmed via
+    # grep — nothing in the build reads a file named "blender.ico"), and
+    # that file + winblenderfile.ico + winblender.rc are already branded
+    # directly in the fork tree (captured by the native patch in
+    # patches/animora-native-full.patch, not by this copy step). A prior
+    # version of this table copied animora.ico to a "blender.ico" path
+    # that nothing consumed — dead weight, removed rather than renamed.
+    # animora.icns (macOS dock icon) intentionally omitted: not in the repo yet
+    # (macOS packaging is later). The Animora dark theme ("Refined Indigo") ships
+    # inside the AI panel addon — addons/animora_panel/theme.py applies it once
+    # per THEME_VERSION at startup — so no theme asset is copied here.
 ]
 
 STARTUP_COPY = (
@@ -257,7 +364,7 @@ def patch_sources(fork_root: Path, dry_run: bool) -> int:
             if patched != original:
                 log.info("Patch strings: %s", src_file.relative_to(fork_root))
                 if not dry_run:
-                    src_file.write_text(patched, encoding="utf-8")
+                    src_file.write_text(patched, encoding="utf-8", newline="\n")
                 patched_files += 1
     return patched_files
 
@@ -282,7 +389,7 @@ def patch_ui_python(fork_root: Path, dry_run: bool) -> int:
         if patched != original:
             log.info("Patch UI python: %s", rel)
             if not dry_run:
-                src_file.write_text(patched, encoding="utf-8")
+                src_file.write_text(patched, encoding="utf-8", newline="\n")
             patched_files += 1
     return patched_files
 
@@ -316,6 +423,42 @@ def inject_ai_panel(fork_root: Path, dry_run: bool) -> int:
     return sum(1 for _ in dst.rglob("*") if _.is_file())
 
 
+def patch_product_version(fork_root: Path, dry_run: bool) -> int:
+    """Show ANIMORA_VERSION in the About dialog + splash corner instead of
+    Blender's compiled version. Regex with a sentinel alternative so a later
+    version bump re-applies over an already-rebranded fork tree (see
+    PRODUCT_VERSION_PATCHES). Returns the number of files patched."""
+    patched_files = 0
+    for rel, patterns, replacement in PRODUCT_VERSION_PATCHES:
+        src_file = fork_root / rel
+        if not src_file.is_file():
+            log.warning("Version-patch target not found (skipping): %s", rel)
+            continue
+        original = src_file.read_text(encoding="utf-8", errors="replace")
+        patched = original
+        matched = False
+        for pattern in patterns:
+            if re.search(pattern, patched):
+                matched = True
+                patched = re.sub(pattern, replacement.replace("\\", "\\\\"), patched)
+                break
+        if not matched:
+            log.warning(
+                "Version patch matched NOTHING in %s — upstream layout changed "
+                "after a Blender upgrade? The About/splash will show Blender's "
+                "version until PRODUCT_VERSION_PATCHES is updated.", rel,
+            )
+            continue
+        if patched != original:
+            log.info("Patch product version (%s): %s", ANIMORA_VERSION, rel)
+            if not dry_run:
+                src_file.write_text(patched, encoding="utf-8", newline="\n")
+            patched_files += 1
+        else:
+            log.debug("Product version already current in %s", rel)
+    return patched_files
+
+
 def patch_cmake_app_name(fork_root: Path, dry_run: bool) -> None:
     """Patch CMakeLists.txt to set executable name to 'animora'."""
     cmake = fork_root / "CMakeLists.txt"
@@ -336,7 +479,7 @@ def patch_cmake_app_name(fork_root: Path, dry_run: bool) -> None:
     if patched != text:
         log.info("Patch CMakeLists.txt: EXECUTABLE_NAME → animora")
         if not dry_run:
-            cmake.write_text(patched, encoding="utf-8")
+            cmake.write_text(patched, encoding="utf-8", newline="\n")
 
 
 def main() -> None:
@@ -361,11 +504,13 @@ def main() -> None:
     panel_files = inject_ai_panel(args.fork_root, args.dry_run)
     patched = patch_sources(args.fork_root, args.dry_run)
     ui_patched = patch_ui_python(args.fork_root, args.dry_run)
+    version_patched = patch_product_version(args.fork_root, args.dry_run)
     patch_cmake_app_name(args.fork_root, args.dry_run)
 
     log.info(
-        "Done. Assets copied: %d  AI panel files: %d  Source patched: %d  UI py patched: %d",
-        copied, panel_files, patched, ui_patched,
+        "Done. Assets copied: %d  AI panel files: %d  Source patched: %d  "
+        "UI py patched: %d  Version patched: %d",
+        copied, panel_files, patched, ui_patched, version_patched,
     )
 
 

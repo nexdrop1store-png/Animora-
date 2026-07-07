@@ -32,6 +32,7 @@ from typing import Any, Awaitable, Callable
 from ..anthropic_client import AnthropicClient
 from ..prompts.final_review import FINAL_REVIEW_VERSION, build_prompt
 from ..scene_diff import diff_text
+from .image_media import sniff_image_media_type
 from ..vision_buffer import get_hd_capture_by_trigger, get_latest_hd_capture
 from .events import bus
 from .spec import Spec
@@ -206,7 +207,7 @@ async def run_final_review(
                             "type": "image",
                             "source": {
                                 "type": "base64",
-                                "media_type": "image/png",
+                                "media_type": sniff_image_media_type(png_bytes),
                                 "data": base64.b64encode(png_bytes).decode("ascii"),
                             },
                         },

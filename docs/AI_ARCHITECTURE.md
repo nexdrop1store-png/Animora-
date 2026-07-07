@@ -165,7 +165,7 @@ The blueprint mandates the opposite — when the user says "beach with trees", t
 
 - **Animora desktop** owns: UI, vision capture, script execution, OS-level secrets (tokens via `keyring`), undo stack.
 - **`ai-backend`** owns: LLM calls, persona prompts, quality verdicts, session/project memory, billing-tier enforcement.
-- **`auth-server`** owns: identity, device binding, token issuance. Already scaffolded; out of scope for this AI plan.
+- **Desktop auth** (`addons/animora_panel/auth/` + Supabase) owns: identity, device binding, token issuance. Out of scope for this AI plan.
 - **Redis** owns: ephemeral session state (conversation history, rate-limit counters, in-flight tool calls).
 - **Postgres** owns: durable project memory (per-user scene history, named projects, persona preferences).
 
@@ -974,7 +974,7 @@ Dependencies that must resolve before week 1:
 
 ## 14. Out of scope for this plan
 
-- Authentication / OAuth / device binding — covered by existing `auth-server/` plan, not blocked by AI work.
+- Authentication / OAuth / device binding — covered by the Supabase loopback-PKCE flow in `addons/animora_panel/auth/`, not blocked by AI work.
 - Billing — Stripe integration is independent.
 - Website — `website/` is its own track.
 - macOS / Linux installers — Windows-first; the AI architecture is platform-agnostic.

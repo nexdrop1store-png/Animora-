@@ -1,7 +1,7 @@
 """
 Local dev launcher for the Animora AI backend.
 
-Replaces the production prerequisites (Redis, auth-server-issued JWTs) with
+Replaces the production prerequisites (Redis, Supabase-issued JWTs) with
 in-process stubs so a developer can launch the backend with one command:
 
     python dev_server.py
@@ -18,7 +18,7 @@ What it does, in order:
 
 This file is DEV-ONLY. None of its monkey-patches affect the production
 deployment (Fargate runs `uvicorn main:app` directly with real Redis +
-real JWTs from auth-server). If you import from this module in production
+real Supabase JWTs). If you import from this module in production
 code, you've made a mistake.
 
 To make the addon use this server, toggle "Dev Mode" in

@@ -24,16 +24,24 @@ import logging
 
 log = logging.getLogger("animora")
 
-# Sub-modules registered in order
+# Sub-modules registered in order (informational — the authoritative list
+# with ordering rationale lives in _import_modules() below).
 _MODULES = [
     "preferences",
     "auth",
     "ws_client",
     "vision",
+    "preview_icons",
+    "state",
     "operators",
     "panel",
+    "onboarding",
+    "sculpt_guard",
+    "border_glow",
+    "ads",
     "ui.chat_display",
     "ui.properties",
+    "bundle",
 ]
 
 _loaded: list = []
@@ -58,10 +66,12 @@ def _import_modules() -> list:
         auth,
         border_glow,
         bundle,
+        onboarding,
         operators,
         panel,
         preferences,
         preview_icons,
+        sculpt_guard,
         state,
         vision,
         ws_client,
@@ -72,15 +82,19 @@ def _import_modules() -> list:
     #   - preview_icons before panel (panel uses icon_value lookups)
     #   - state before panel (panel reads state on draw)
     #   - panel before border_glow / ads (both need SpaceAnimora active)
+    #   - onboarding after panel (its gate hides the panel via poll) and
+    #     after auth (gate_needed reads the persisted session)
     #   - bundle LAST: its auto-launch/auto-connect uses preferences, auth,
     #     operators, ws_client — all must be registered first. No-op unless
     #     a bundle_config.json shipped alongside the addon (recording build).
     return [preferences, auth, ws_client, vision, preview_icons, state,
-            operators, panel, border_glow, ads, chat_display, props_panel,
-            bundle]
+            operators, panel, onboarding, sculpt_guard, border_glow, ads,
+            chat_display, props_panel, bundle]
 
 
 def register() -> None:
+    import bpy
+
     log.info("Animora AI Panel v%s loading", ".".join(str(v) for v in bl_info["version"]))
 
     global _loaded
@@ -90,13 +104,23 @@ def register() -> None:
         if hasattr(mod, "register"):
             mod.register()
 
-    if _has_native_animora_space():
-        _register_layout_ensure()
+    if bpy.app.background:
+        # Headless run (CI checks, renders): no UI to arrange. Sub-modules
+        # apply their own background guards for auth / timers / threads.
+        pass
     else:
-        log.warning(
-            "SpaceAnimora type not registered in this build; "
-            "skipping forced layout injection and using sidebar fallback",
-        )
+        if _has_native_animora_space():
+            _register_layout_ensure()
+        else:
+            log.warning(
+                "SpaceAnimora type not registered in this build; "
+                "skipping forced layout injection and using sidebar fallback",
+            )
+
+        # Brand theme (Refined Indigo) — applied once per theme.THEME_VERSION,
+        # including onto pre-existing grey userprefs. See theme.py.
+        from . import theme
+        theme.ensure_theme()
 
     log.info("Animora AI Panel registered")
 

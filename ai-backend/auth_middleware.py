@@ -37,7 +37,7 @@ _DEFAULT_PLAN = "free"
 
 def _looks_like_supabase(token: str) -> bool:
     """Peek at the unverified issuer to route Supabase tokens to Supabase
-    validation (vs. our own dev/auth-server JWTs)."""
+    validation (vs. our own dev-mode JWTs)."""
     try:
         iss = str(jwt.get_unverified_claims(token).get("iss", ""))
     except JWTError:
@@ -78,7 +78,7 @@ async def _validate_supabase(token: str) -> TokenClaims:
 async def validate_token(token: str) -> TokenClaims:
     """Single async entry point used by the WS handler. Routes Supabase
     tokens to Supabase verification; everything else (dev_server / a future
-    auth-server) uses the local-JWT decode_token() below."""
+    Supabase) uses the local-JWT decode_token() below."""
     if _looks_like_supabase(token):
         return await _validate_supabase(token)
     return decode_token(token)

@@ -2,25 +2,39 @@
 
 Patches applied on top of vanilla Blender 5.1.1 source to produce the Animora binary.
 
-> ⚠️ **2026-06 — IMPORTANT, READ BEFORE RE-CLONING.** The old `animora-native.patch`
-> below claimed the Animora delta was 4 files. That was badly out of date: the
-> live fork actually contained **53 modified native source files plus a whole new
-> native editor (`space_animora`)** and DNA/RNA registration. A naive re-clone
-> would have **destroyed all of it.**
->
-> The complete native delta is now captured in the repo:
-> - **`patches/animora-native-full.patch`** — all 53 modified `.cc/.h/CMakeLists`
->   files (generated with `--ignore-all-space`, so apply with
->   `git apply --ignore-whitespace`).
+> ⚠️ **2026-07 — IMPORTANT, READ BEFORE RE-CLONING.** The complete native delta
+> is captured in the repo:
+> - **`patches/animora-native-full.patch`** — **70 modified** `.cc/.h/.rc/
+>   CMakeLists` files (generated with `git diff --binary`, so apply with
+>   `git apply --ignore-whitespace`; `--binary` matters because several
+>   patched files are binary — see the gotcha below).
 > - **`patches/native-overlay/`** — new files a patch can't represent:
->   `source/blender/editors/space_animora/` (the native AI editor), the Animora
->   splash (`release/datafiles/splash_2x.png`), and the Geist font.
+>   `source/blender/editors/space_animora/` (the native AI editor) and the
+>   Geist font.
+>
+> **`release/datafiles/splash.png` and `release/datafiles/startup.blend` are
+> deliberately excluded from the patch.** Both are Git-LFS-tracked
+> (`diff=lfs` in `.gitattributes`), and `git diff --binary` does not produce
+> a usable patch hunk for LFS-filtered paths — applying the earlier patch
+> silently left the *pointer* content in place instead of the real asset.
+> Both are instead reproduced by `scripts/rebrand.py`'s `copy_assets()` /
+> `STARTUP_COPY`, which plainly `shutil.copy2`s them from
+> `assets/branding/splash.png` and `assets/startup/startup.blend` — no git
+> diff involved, no LFS interaction, no gotcha. (`assets/startup/startup.blend`
+> itself was missing from the repo until 2026-07 — `STARTUP_COPY` was a
+> silent no-op the whole time this comment didn't exist. Fixed by populating
+> that source file from the working fork tree.)
 >
 > The corrupted sculpt brush `.blend`s and icon datafiles were **deliberately
 > excluded** — a fresh clone restores upstream versions, which is what fixes the
 > grey viewport gizmos + broken sculpting.
+>
+> **Verifying a patch regen**: `git apply`'s binary-hunk support is required —
+> plain GNU `patch` cannot parse `GIT binary patch` hunks and will silently
+> leave binary files (the `.ico`s, etc.) at their pre-patch content with no
+> error. Always test-apply with `git apply`, never `patch`.
 
-## Safe re-clone procedure (use THIS, not the old steps below)
+## Safe re-clone procedure
 
 ```bash
 # 1. Clone vanilla Blender into a FRESH dir (do NOT delete the old fork yet).
@@ -48,54 +62,41 @@ can never end up with no working tree.
 
 ---
 
-## Legacy notes (the original, now-superseded 4-file patch)
-
 ## Why patches and not a full fork?
 
 The Blender source tree is ~7 GB and contains files that exceed GitHub's 100 MB single-file limit. Maintaining it as a vendored copy in this repo would make clones impractical and run into LFS bandwidth limits. Instead, this repo ships:
 
 - The Animora-specific code (addons, backend, auth, website, scripts, assets)
-- Small surgical patches against upstream Blender
-- A build script (`scripts/rebrand.py` + `scripts/build.py`) that fetches Blender, applies patches, and produces the Animora binary
+- A single native patch + overlay directory against upstream Blender
+- A build script (`scripts/rebrand.py` + `scripts/build.py`) that fetches Blender, applies the patch, and produces the Animora binary
 
-## Setup
+String-level rebrands (Blender → Animora across menus, dialogs, etc.) are handled separately by `scripts/rebrand.py` and don't need to be in the patch — that script is non-destructive and runs before every build, so it survives a Blender version bump without merge conflicts. Only genuine structural changes (new files, DNA/RNA registration, widget-spacing tweaks, etc.) belong in `animora-native-full.patch`.
+
+## Updating the patch
+
+When you make new changes to the Blender source, regenerate from the current
+working tree (HEAD is always the pristine upstream baseline — this repo's
+`blender-fork` never gets its own commits):
 
 ```bash
-# Clone Blender source separately (NOT into this repo)
-git clone --depth 1 --branch v5.1.1 https://projects.blender.org/blender/blender.git blender-fork
-
-# Apply Animora native patches
 cd blender-fork
-git apply ../patches/animora-native.patch
+git diff --binary HEAD -- . \
+    ':(exclude)release/datafiles/splash.png' \
+    ':(exclude)release/datafiles/startup.blend' \
+    > ../patches/animora-native-full.patch
 cd ..
-
-# Apply string-level rebrand (non-destructive, runs every build)
-python scripts/rebrand.py
-
-# Build
-python scripts/build.py
 ```
 
-## Patch contents
+Exclude any other LFS-tracked path (check `.gitattributes` for `filter=lfs`)
+that's already reproduced by `rebrand.py`'s `ASSET_COPIES`/`STARTUP_COPY` —
+see the warning banner at the top of this file for why. If you add a
+genuinely new file (not a modification to an existing upstream file), put it
+in `patches/native-overlay/` instead — a diff can't represent a brand-new
+file's creation in a way `git apply` reliably re-creates from a bare clone.
 
-`animora-native.patch` modifies four files:
-
-| File | Change |
-|---|---|
-| `source/blender/windowmanager/intern/wm_window.cc` | Window title shows `"Animora"` (no version number) |
-| `source/blender/windowmanager/intern/wm_init_exit.cc` | Terminal quit message: `"Blender quit"` → `"Animora quit"` |
-| `source/blender/editors/interface/interface_style.cc` | Increase widget spacing (`buttonspacey`, `columnspace`, etc.) |
-| `source/blender/editors/interface/interface_layout.cc` | Add gap between aligned buttons so they no longer visually touch |
-
-String-level rebrands (Blender → Animora across menus, dialogs, etc.) are handled separately by `scripts/rebrand.py` and don't need patches — that script is non-destructive and runs before every build.
-
-## Updating patches
-
-When you make new changes to the Blender source:
-
-```bash
-cd blender-fork
-git diff HEAD -- <changed files> > ../patches/animora-native.patch
-```
-
-Keep patches surgical — string changes belong in `scripts/rebrand.py` so they survive Blender version bumps without merge conflicts.
+**Before trusting a regenerated patch**, run the acceptance test: archive the
+current `blender-fork` HEAD tree to a scratch dir (`git archive HEAD | tar -x
+-C scratch/`), apply the new patch with `git apply --ignore-whitespace`
+(not plain `patch` — see the warning above), copy in `native-overlay/`, and
+diff the result against the live `blender-fork` working tree for every file
+the patch touches. They should match exactly (modulo line endings).

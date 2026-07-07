@@ -28,14 +28,15 @@ Animora/
 │   ├── anthropic_client.py  retry/timeout/cancel wrapper + token tracking
 │   ├── key_source.py        BYOK vs pooled-key abstraction
 │   └── dev_server.py        local-only launcher (stubs Redis + JWT — never ships)
-├── auth-server/             OAuth 2.0 + PKCE auth (oauth, tokens, device, abuse, db/)
+│                            Desktop auth lives in addons/animora_panel/auth/
+│                            (loopback PKCE against Supabase — see below)
 ├── docs/                    AI_ARCHITECTURE.md (~30 KB plan) + RUN_LOCAL.md
 ├── website/                 animora.tech (Next.js 14, App Router, TS strict)
 ├── assets/                  Branding (splash, icons, theme, startup.blend)
 ├── installer/windows/inno/  Inno Setup scripts + VC++ Redist bundle
 ├── scripts/                 build.py, rebrand.py, sync_addon.py, stage_for_installer.py,
 │                            build_default_startup.py, setup_theme.py
-└── patches/                 animora-native.patch (Animora delta over upstream Blender)
+└── patches/                 animora-native-full.patch + native-overlay/ (Animora delta over upstream Blender)
 ```
 
 **The AI panel's canonical source is `addons/animora_panel/` (top level).** `scripts/rebrand.py` copies it into `blender-fork/scripts/addons_core/animora_panel/` at build time. This is the design that decouples Animora from any specific Blender version — see `docs/UPGRADE_BLENDER.md`. Animora is the product; the AI panel is one component, implemented as a Blender addon for technical reasons but is part of Animora, not a third-party plugin.
@@ -43,7 +44,7 @@ Animora/
 **Single source of truth for the Blender base version**: `scripts/animora_config.py` (`BLENDER_VERSION`) and `installer/windows/inno/Animora.iss` (`BlenderVersion`). Bump both together. `sync_addon.py` and `rebrand.py` read from the config module.
 
 ## blender-fork is NOT in this repo
-`blender-fork/` is `.gitignore`d (7+ GB tree). Clone separately from `projects.blender.org` and apply `patches/animora-native.patch`. See `patches/README.md`. Never edit tracked upstream files; Animora-specific logic belongs in the addon, not in `blender-fork/source/`.
+`blender-fork/` is `.gitignore`d (7+ GB tree). Clone separately from `projects.blender.org` and apply `patches/animora-native-full.patch` + `patches/native-overlay/`. See `patches/README.md`. Never edit tracked upstream files; Animora-specific logic belongs in the addon, not in `blender-fork/source/`.
 
 ## Build & Run Commands
 ```bash
@@ -75,15 +76,12 @@ cd ai-backend && uvicorn main:app --reload --port 8000
 # AnthropicClient maps them to us.anthropic.claude-opus-4-6-v1 on Bedrock).
 # Full guide: docs/BEDROCK.md.
 
-# Auth server (local)
-cd auth-server && uvicorn main:app --reload --port 8001
-
 # Website (local)
 cd website && npm run dev
 ```
 
 ## Tests
-Pytest is configured (`pyproject.toml`: `testpaths = ["ai-backend/tests", "auth-server/tests", "addons/tests"]`, `asyncio_mode = "auto"`).
+Pytest is configured (`pyproject.toml`: `testpaths = ["ai-backend/tests", "addons/tests"]`, `asyncio_mode = "auto"`).
 ```bash
 pytest ai-backend/tests                                         # all
 pytest ai-backend/tests/test_phase5_quality.py -k quality       # single file / -k filter
@@ -122,7 +120,7 @@ Scoring rules live in `ai-backend/eval/scoring.py`. Benchmarks in `ai-backend/ev
 ruff check .                # lint
 ruff format .               # format
 ```
-`pyproject.toml` defines: line-length 100, py311 target, ignores E501. First-party packages: `animora_panel`, `ai_backend`, `auth_server`.
+`pyproject.toml` defines: line-length 100, py311 target, ignores E501. First-party packages: `animora_panel`, `ai_backend`.
 
 ## LLM provider abstraction (`ai-backend/llm_provider.py`)
 The orchestrator, router, eval harness, and tests all use **logical** model names (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`). `AnthropicClient` translates them to provider-specific IDs at the SDK boundary:
@@ -151,10 +149,19 @@ Binary WS frames from the addon carry a 13-byte header: `>BHHd` = 1B type + 2B w
 
 ### dev_server.py vs main.py
 - `dev_server.py` monkey-patches `session_manager.get_redis()` and `auth_middleware.decode_token()` with in-process stubs. It is dev-only.
-- `main.py` is what Fargate runs in production — real Redis (ElastiCache), real JWTs from `auth-server`, real Secrets Manager.
+- `main.py` is what Fargate runs in production — real Redis (ElastiCache), real Supabase-issued JWTs, real Secrets Manager.
 - `stage_for_installer.py` explicitly excludes `dev_server.py` from shipped bundles. Never import from it in production code paths.
 
-## Python Conventions (addon, ai-backend, auth-server)
+## Desktop auth (addons/animora_panel/auth/)
+Loopback-callback PKCE against Supabase (RFC 8252 §7.3) — no URL-scheme registration, no helper processes:
+1. Launch: unauthenticated users are held in a fullscreen 3-slide onboarding gate (`onboarding.py`); signed-in users restore silently and never see it. The AI panel has NO sign-in surface.
+2. Sign In (gate slide 3): `auth/controller.begin_sign_in()` generates PKCE+state, binds a one-shot HTTP listener on `127.0.0.1:0` (`auth/loopback.py`), and opens `{website}/signin?next=/auth/device?...&redirect_uri=http://127.0.0.1:{port}/auth/callback`.
+3. The website mints a 5-min single-use code (Supabase RPC `issue_device_handoff`, device-binding enforced) and navigates the browser to the loopback URL; the listener verifies `state` (constant-time) and serves a branded success page.
+4. The controller exchanges `code+verifier+device_id` at the Supabase Edge Function `auth-handoff-exchange` (`auth/supabase.py`), then connects the WS.
+5. `auth/session.py` persists the ROTATING refresh token in the OS keyring (service `"animora"`); access tokens >512 chars stay memory-only. Never refresh the same token from two processes; transient refresh failures NEVER clear tokens — only definitive 4xx rejections do (which reopen the gate at the sign-in slide).
+The redirect-URI allowlist lives in TWO places in the website repo (client check in `DeviceAuthorize.tsx` + SQL in `issue_device_handoff`) — change both together.
+
+## Python Conventions (addon, ai-backend)
 - Python 3.11+
 - Type hints on all function signatures
 - `ruff` for linting/formatting (line length 100)

@@ -33,6 +33,7 @@ from typing import Any, Awaitable, Callable
 from ..anthropic_client import AnthropicClient
 from ..prompts.artists_eye import ARTISTS_EYE_PROMPT, ARTISTS_EYE_VERSION
 from ..scene_diff import diff_text
+from .image_media import sniff_image_media_type
 from ..vision_buffer import get_hd_capture_by_trigger, get_latest_hd_capture
 from .events import bus
 from .personas import Persona
@@ -221,7 +222,7 @@ async def run_artists_eye_check(
                             "type": "image",
                             "source": {
                                 "type": "base64",
-                                "media_type": "image/png",
+                                "media_type": sniff_image_media_type(png_bytes),
                                 "data": base64.b64encode(png_bytes).decode("ascii"),
                             },
                         },

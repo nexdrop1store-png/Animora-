@@ -122,11 +122,6 @@ class AnimoraPreferences(AddonPreferences):
         description="HTTPS origin for REST endpoints (e.g. /validate-key)",
     )  # type: ignore[assignment]
 
-    auth_server_url: StringProperty(
-        name="Auth Server URL",
-        default="https://auth.animora.tech",
-    )  # type: ignore[assignment]
-
     website_url: StringProperty(
         name="Website URL",
         default="https://animora.tech",
@@ -154,6 +149,17 @@ class AnimoraPreferences(AddonPreferences):
         name="Verbose API Logging",
         default=False,
         description="Log every request and response body. Slows Animora and reveals scene data in logs — for debugging only.",
+    )  # type: ignore[assignment]
+
+    # ── Internal (hidden) ──────────────────────────────────────────────
+    # Stamp of the last Animora theme version applied to THESE preferences.
+    # Lives in userpref.blend on purpose: "Load Factory Preferences" resets
+    # it (theme reapplies), while normal launches never re-stomp the user's
+    # own theme tweaks. Bump theme.THEME_VERSION to roll out a new palette.
+    theme_version: IntProperty(
+        name="Applied Theme Version",
+        default=0,
+        options={"HIDDEN"},
     )  # type: ignore[assignment]
 
     # ── Render ─────────────────────────────────────────────────────────
@@ -219,7 +225,6 @@ class AnimoraPreferences(AddonPreferences):
             col = box.column(align=True)
             col.prop(self, "backend_url")
             col.prop(self, "backend_http_url")
-            col.prop(self, "auth_server_url")
 
         # Section 5: Debug
         layout.separator()
@@ -240,11 +245,6 @@ class AnimoraPreferences(AddonPreferences):
         if self.dev_mode:
             return "http://localhost:8000"
         return self.backend_http_url
-
-    def effective_auth_url(self) -> str:
-        if self.dev_mode:
-            return "http://localhost:8001"
-        return self.auth_server_url
 
     def effective_website_base(self) -> str:
         """Base URL of the sign-in/feedback website. This is the WEBSITE_BASE

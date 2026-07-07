@@ -426,10 +426,29 @@ async def websocket_endpoint(
                         await push_hd_capture(session_id, png_bytes, trigger)
                         session_data["last_hd_capture_ts"] = time.time()
                         session_data["last_hd_trigger"] = trigger
+                        # A user-uploaded reference is pinned durably for the
+                        # session so it survives past the 60s HD-capture window
+                        # and across follow-up turns ("now fix the logo") until
+                        # the user uploads a new one. Ordinary viewport
+                        # heartbeats never populate this.
+                        if trigger == "user_upload":
+                            session_data["reference_image"] = png_bytes
                     except Exception as exc:
                         log.warning("hd_capture.store_failed", extra={
                             "session_id": session_id, "error": str(exc),
                         })
+
+            elif msg_type == "clear_reference":
+                # Sent by the addon on New Conversation / attachment clear so a
+                # pinned reference image doesn't leak into an unrelated task.
+                session_data.pop("reference_image", None)
+
+            elif msg_type == "tool_progress":
+                # Sent by the addon's _ScriptRunner between statements of a
+                # multi-step script. Resets the coordinator's idle clock for
+                # this tool_use_id so a legitimately slow-but-progressing
+                # script doesn't trip the 45s "addon didn't respond" notice.
+                tool_coordinator.note_progress(msg.get("tool_use_id", ""))
 
             elif msg_type == "tool_result":
                 tool_use_id = msg.get("tool_use_id", "")
@@ -715,6 +734,13 @@ async def _handle_user_message(
         last_ts = session_data.get("last_hd_capture_ts", 0.0)
         age = time.time() - last_ts if last_ts else 999.0
         hd_capture = (png_bytes, trigger, age)
+    # A pinned user-reference always wins over a transient viewport capture and
+    # never ages out — so "recreate this" keeps working across follow-up turns.
+    # (context_builder frames trigger='user_upload' as the reproduce-faithfully
+    # target; age 0.0 keeps it inside HD_CAPTURE_MAX_AGE_SEC.)
+    ref_image = session_data.get("reference_image")
+    if ref_image:
+        hd_capture = (ref_image, "user_upload", 0.0)
 
     async def send_token(token: str) -> None:
         await _safe_ws_send(websocket, {"type": "stream_token", "token": token})

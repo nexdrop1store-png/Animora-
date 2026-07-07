@@ -1,11 +1,11 @@
 """
 Animora addon operators.
 
-OT_AnimoraSignIn       — opens browser to auth page (PKCE flow)
-OT_AnimoraSignOut      — signs out and clears tokens
+OT_AnimoraSignIn       — starts the browser sign-in (loopback PKCE flow)
+OT_AnimoraSignOut      — signs out and reopens the onboarding gate
+OT_AnimoraDevConnect   — dev-mode shortcut straight to the local backend
 OT_AnimoraSendMessage  — sends user message to AI backend
 OT_AnimoraStartRecording — starts voice recording (Deepgram)
-OT_AnimoraHandleAuthCallback — receives animora:// URL code
 """
 
 from __future__ import annotations
@@ -19,88 +19,43 @@ import webbrowser
 import bpy
 from bpy.types import Operator
 
-from . import auth, auth_core, deep_link, state, ws_client
+from . import state, ws_client
+from .auth import controller as auth_controller
+from .auth import session as auth_session
+from .auth import supabase as auth_api
 from .preferences import get_prefs
 
 log = logging.getLogger("animora.operators")
-
-# Pending-auth state, kept together until the callback returns (Step 1 of
-# the device hand-off). Written by OT_AnimoraSignIn, read by the poll timer.
-_pending_auth: dict[str, dict[str, float | str]] = {}
-_PENDING_AUTH_TIMEOUT_SEC = 180.0
 
 
 class OT_AnimoraSignIn(Operator):
     bl_idname = "animora.sign_in"
     bl_label = "Sign In"
-    bl_description = "Sign in to your Animora account"
+    bl_description = "Sign in to your Animora account in the browser"
 
     def execute(self, context: bpy.types.Context):
-        prefs = get_prefs()
-
-        # Dev-mode shortcut: skip PKCE/browser/Supabase entirely and connect
-        # straight to the local dev backend. Real sign-in (Dev Mode off) runs
-        # the full Supabase device hand-off below.
-        if prefs.dev_mode:
-            auth.dev_signin()
-            state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
-            _connect_ws()
-            self.report({"INFO"}, "Connected to local dev backend")
-            return {"FINISHED"}
-
-        # Step 1 — generate + keep together until the callback returns.
-        code_verifier, code_challenge = auth.generate_pkce()
-        signin_state = auth.generate_state()
-        _pending_auth[signin_state] = {
-            "verifier": code_verifier,
-            "started_at": time.monotonic(),
-        }
-
-        # A stale callback from an older attempt should never auto-complete a
-        # fresh sign-in request.
-        deep_link.read_and_consume_callback()
-        try:
-            deep_link.register_scheme()
-        except Exception as exc:
-            log.warning("animora:// scheme refresh skipped: %s", exc)
-
-        state.set_auth_status(
-            state.AuthS.PENDING_BROWSER,
-            "Waiting for browser confirmation",
-        )
-        device_id = auth.compute_device_fingerprint()
-        # Step 2 — open the system browser to the website's sign-in page.
-        url = auth_core.build_signin_url(
-            prefs.effective_website_base(),
-            code_challenge=code_challenge,
-            device_id=device_id,
-            state=signin_state,
-            device_label=auth_core.device_label(),
-        )
-        log.info("Opening Animora sign-in in the browser")
-        webbrowser.open(url)
+        error = auth_controller.begin_sign_in()
+        if error:
+            self.report({"ERROR"}, error)
+            return {"CANCELLED"}
         self.report({"INFO"}, "Browser opened — complete sign-in, then return here")
         return {"FINISHED"}
 
 
-class OT_AnimoraHandleAuthCallback(Operator):
-    """Manual fallback: complete sign-in from a pasted animora:// callback
-    URL. The normal path is the file-drop poll timer (_poll_auth_callback);
-    this exists for environments where the OS scheme couldn't be wired."""
-    bl_idname = "animora.handle_auth_callback"
-    bl_label = "Handle Auth Callback"
+class OT_AnimoraDevConnect(Operator):
+    """Dev-mode shortcut: skip PKCE/browser/Supabase entirely and connect
+    straight to the local dev backend (Preferences > Add-ons > Dev Mode)."""
+    bl_idname = "animora.dev_connect"
+    bl_label = "Connect to Local Backend"
+    bl_description = "Dev mode: connect to the local development backend"
 
-    url: bpy.props.StringProperty()  # type: ignore[assignment]
+    @classmethod
+    def poll(cls, context) -> bool:
+        return get_prefs().dev_mode
 
     def execute(self, context: bpy.types.Context):
-        parsed = auth_core.parse_callback_url(self.url)
-        if not parsed:
-            self.report({"ERROR"}, "Not a valid animora://auth/callback URL")
-            return {"CANCELLED"}
-        code, state = parsed
-        if not _complete_auth(code, state):
-            self.report({"ERROR"}, "Sign-in failed — please click Sign In again")
-            return {"CANCELLED"}
+        auth_controller.dev_connect()
+        self.report({"INFO"}, "Connected to local dev backend")
         return {"FINISHED"}
 
 
@@ -113,9 +68,9 @@ class OT_AnimoraSignOut(Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context: bpy.types.Context):
-        ws_client.client.disconnect()
-        auth.sign_out()
-        state.set_auth_status(state.AuthS.SIGNED_OUT, "")
+        auth_controller.sign_out()
+        from . import onboarding
+        onboarding.open_gate(slide=2)
         self.report({"INFO"}, "Signed out of Animora")
         return {"FINISHED"}
 
@@ -125,26 +80,65 @@ class OT_AnimoraSignOut(Operator):
 _suppress_input_update = False
 
 
+_sending = False  # re-entrancy guard — never emit the same turn twice
+
+
 def _send_current_input() -> bool:
-    """Send whatever is currently in the input field, then clear it. Shared
-    by the SEND button and the Enter/commit path so there is exactly one
-    send implementation. Returns True if a message was sent."""
+    """Send whatever is currently in the input field (plus any pending file
+    attachments), then clear both. Shared by the SEND button and the
+    composer's Enter so there is exactly one send implementation.
+    Returns True if a message was sent."""
     from . import state as state_module
+    global _sending
+    if _sending:
+        return False  # a send is already in flight this tick — ignore duplicates
     wm = bpy.context.window_manager
     text = (getattr(wm, "animora_input_text", "") or "").strip()
-    if not text:
+    if not text and not _pending_attachments:
         return False
     if not state.auth_can_send() or not ws_client.client.connected:
         log.warning("Send ignored — not connected (sign in first)")
         return False
+    _sending = True
+    try:
+        return _do_send(wm, text, state_module)
+    finally:
+        _sending = False
+
+
+def _do_send(wm, text, state_module) -> bool:
+
+    # Attachments: text files ride inline as fenced blocks; images travel
+    # over the vision channel (sent right before the message so the backend
+    # attaches them to this turn). The visible chat shows a compact summary.
+    if _pending_attachments:
+        # Send image bytes first so they're in the vision buffer before the
+        # user_message frame is processed by the backend.
+        from . import vision
+        for att in image_attachments():
+            try:
+                vision.send_image_attachment(ws_client.client, att["path"])
+            except Exception as exc:
+                log.warning("Failed to send image attachment %s: %s", att["name"], exc)
+
+        blocks = _attachment_wire_blocks()
+        wire_text = "\n\n".join(blocks + ([text] if text else []))
+        if not text:
+            wire_text += "\n\nPlease use the attached file(s) and respond."
+        names = ", ".join(a["name"] for a in _pending_attachments)
+        shown_text = (text + "\n" if text else "") + f"(attached: {names})"
+        clear_attachments()
+    else:
+        wire_text = text
+        shown_text = text
 
     prefs = get_prefs()
-    ws_client.client.send_message(text, context_flags={
+    ws_client.client.send_message(wire_text, context_flags={
         "share_viewport": prefs.share_viewport,
         "share_scene_graph": prefs.share_scene_graph,
     })
 
-    _append_chat("user", text)
+    _append_chat("user", shown_text)
     state_module.set_quality_notice(None)
     assistant_item = wm.animora_chat_history.add()
     assistant_item.role = "assistant"
@@ -172,26 +166,11 @@ def _send_current_input() -> bool:
     return True
 
 
-def _on_input_committed(self, context) -> None:
-    """`update` callback on animora_input_text. Fires when the field is
-    COMMITTED (the user presses Enter, or clicks away/onto SEND). Sending
-    here makes Enter submit (#1) and a single SEND click submit (#2) — the
-    first click commits the field, which sends. The actual send is deferred
-    to a 0-delay timer because calling the WS / ops from inside a property
-    update callback is unsafe."""
-    if _suppress_input_update:
-        return
-    text = (getattr(self, "animora_input_text", "") or "").strip()
-    if not text:
-        return
-
-    def _deferred():
-        try:
-            _send_current_input()
-        except Exception as exc:  # a timer must never raise
-            log.error("Deferred send failed: %s", exc)
-        return None
-    bpy.app.timers.register(_deferred, first_interval=0.0)
+# NOTE: the field's `update=` auto-send was REMOVED. A StringProperty commit
+# fires identically for Enter, Tab, click-away, and click-onto-another-button,
+# so it could never tell "send" from "clicked +". That caused clicking + to
+# send the prompt. Sending now happens ONLY via the explicit send (▲) button
+# (OT_AnimoraSendMessage) or the multiline composer's Enter (OT_AnimoraComposer).
 
 
 class OT_AnimoraSendMessage(Operator):
@@ -235,165 +214,12 @@ def _append_chat(role: str, content: str) -> None:
     item.content = content
 
 
-def _connect_ws() -> None:
-    prefs = get_prefs()
-    import uuid
-    session_id = auth.session.user_id or str(uuid.uuid4())
-    state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
-    ws_client.client.on_stream_token = _on_stream_token
-    ws_client.client.on_tool_call = _on_tool_call
-    ws_client.client.connect(
-        url=prefs.effective_backend_url(),
-        session_id=session_id,
-        access_token=auth.session.access_token,
-    )
-
-
 def _run_on_main_thread(fn) -> None:
     """Schedule `fn` on Blender's main thread (bpy is not thread-safe)."""
     def _once():
         fn()
         return None  # returning None unregisters this one-shot timer
     bpy.app.timers.register(_once, first_interval=0.0)
-
-
-def _complete_auth(code: str, callback_state: str) -> bool:
-    """Step 3–4: verify state, then exchange the one-time code for a Supabase
-    session on a background thread; connect the WS on success. Returns False
-    on a state mismatch (possible CSRF) or when no sign-in is pending."""
-    global _pending_auth
-    pending = _pending_auth.pop(callback_state, {})
-    verifier = str(pending.get("verifier", ""))
-    if not verifier:
-        log.warning("Auth callback with no pending request — ignoring")
-        return False
-    log.info("Auth callback received for pending state")
-    state.set_auth_status(
-        state.AuthS.EXCHANGING_CODE,
-        "Signing you in",
-    )
-
-    def _exchange():
-        if auth.exchange_code(code, verifier):
-            log.info("Auth code exchange succeeded")
-            _run_on_main_thread(_connect_ws)
-        else:
-            log.error("Auth code exchange failed")
-            auth.sign_out()
-            message = auth.last_auth_error() or "Sign-in failed. Please try again."
-            _run_on_main_thread(
-                lambda: state.set_auth_status(
-                    state.AuthS.FAILED,
-                    message,
-                )
-            )
-
-    threading.Thread(target=_exchange, daemon=True).start()
-    return True
-
-
-def _poll_auth_callback() -> float:
-    """bpy.app.timers tick: pick up an animora:// callback dropped by the
-    forwarder and complete sign-in. Cheap no-op when nothing is pending."""
-    try:
-        if _pending_auth:
-            # Expire attempts individually — a stale first attempt must not
-            # cancel a fresh second click of "Sign in".
-            now = time.monotonic()
-            expired = [
-                key for key, item in _pending_auth.items()
-                if now - float(item.get("started_at", 0.0)) > _PENDING_AUTH_TIMEOUT_SEC
-            ]
-            for key in expired:
-                _pending_auth.pop(key, None)
-            if expired and not _pending_auth:
-                state.set_auth_status(
-                    state.AuthS.FAILED,
-                    "Browser confirmation timed out. Click Sign in again.",
-                )
-                log.warning("Pending auth timed out waiting for callback")
-                return 1.0
-            url = deep_link.read_and_consume_callback()
-            if url:
-                log.info("Consumed auth callback drop file")
-                parsed = auth_core.parse_callback_url(url)
-                if parsed:
-                    _complete_auth(*parsed)
-                else:
-                    log.warning("Ignored malformed animora:// callback")
-                    state.set_auth_status(
-                        state.AuthS.FAILED,
-                        "The browser returned an invalid sign-in callback.",
-                    )
-    except Exception as exc:  # a timer must never raise
-        log.debug("Auth poll tick error: %s", exc)
-    return 1.0  # seconds to next tick
-
-
-# These callbacks run in bundle (recording) mode too: bundle.py signs in via
-# auth.dev_signin() + _connect_ws(), and both the send gate (auth_can_send)
-# and _draw_bundle_status key off AuthS.CONNECTED.
-
-def _on_ws_connecting() -> None:
-    if auth.has_restorable_session() or auth.session.signed_in:
-        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
-
-
-def _on_ws_connected() -> None:
-    state.set_auth_status(state.AuthS.CONNECTED, "")
-
-
-# Timestamp of the last automatic refresh-and-retry after a WS 401/403.
-# Guards against a refresh/connect/reject loop when the backend keeps
-# rejecting a token the auth stack keeps refreshing successfully.
-_last_auth_retry_at: float = 0.0
-
-
-def _on_ws_auth_rejected(message: str) -> None:
-    global _last_auth_retry_at
-    log.warning("WS auth rejected: %s", message)
-    _pending_auth.clear()
-
-    # The access token may simply have expired (e.g. laptop asleep past the
-    # refresh window). Try one silent refresh before discarding the refresh
-    # token and forcing a full browser sign-in.
-    now = time.monotonic()
-    if auth.session.refresh_token and now - _last_auth_retry_at > 60.0:
-        _last_auth_retry_at = now
-        state.set_auth_status(state.AuthS.CONNECTING, "Refreshing your session")
-        if auth.restore_session_async(
-            on_ready=lambda: _run_on_main_thread(_connect_ws),
-            on_invalid=lambda: _run_on_main_thread(_restore_session_invalid),
-        ):
-            return
-
-    auth.sign_out()
-    state.set_auth_status(state.AuthS.FAILED, message or "Session expired — please sign in again.")
-
-
-def _on_ws_transport_disconnected(message: str) -> None:
-    if auth.session.signed_in or auth.has_restorable_session():
-        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
-    if message:
-        log.warning("WS transport disconnected: %s", message)
-
-
-def _restore_session_invalid() -> None:
-    if auth.last_refresh_rejected():
-        state.set_auth_status(state.AuthS.FAILED, "Session expired — please sign in again.")
-    else:
-        state.set_auth_status(
-            state.AuthS.FAILED,
-            "Couldn't reach Animora — check your connection, then sign in to retry.",
-        )
-
-
-def _configure_ws_callbacks() -> None:
-    ws_client.client.on_connecting = _on_ws_connecting
-    ws_client.client.on_connected = _on_ws_connected
-    ws_client.client.on_auth_rejected = _on_ws_auth_rejected
-    ws_client.client.on_transport_disconnected = _on_ws_transport_disconnected
-    ws_client.client.token_provider = lambda: auth.session.access_token
 
 
 def _app_version() -> str:
@@ -412,7 +238,7 @@ class OT_AnimoraFeedback(Operator):
 
     def execute(self, context: bpy.types.Context):
         prefs = get_prefs()
-        url = auth_core.feedback_url(prefs.effective_website_base(), _app_version())
+        url = auth_api.feedback_url(prefs.effective_website_base(), _app_version())
         webbrowser.open(url)
         self.report({"INFO"}, "Opened Animora feedback in your browser")
         return {"FINISHED"}
@@ -575,8 +401,9 @@ def _build_exec_namespace() -> dict:
     handful of pure-Python helpers in the BANNED_IMPORTS whitelist)."""
     import math
     import random
-    import bpy
+
     import bmesh
+    import bpy
     import mathutils
     return {
         "bpy": bpy,
@@ -880,6 +707,7 @@ def _drain_cleanups():
 
     try:
         import bpy
+
         from . import vision
         wm = bpy.context.window_manager
         has_chat = hasattr(wm, "animora_chat_history")
@@ -986,9 +814,10 @@ def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> 
          that fails to send leaves the loop stuck in EXECUTING forever.
     """
     import ast
-    import bpy
     import time as _time
-    from . import state as state_module, vision
+
+    from . import state as state_module
+    from . import vision
 
     _exec_started = _time.monotonic()
     label = intent_summary.strip() or "AI script"
@@ -1159,8 +988,10 @@ class _ScriptRunner:
         the registration. Any exception inside this callback aborts the
         whole script (we don't try to recover mid-run — partial scripts
         leave the scene in a wedged state)."""
-        import bpy
         import traceback
+
+        import bpy
+
         from . import state as state_module
 
         if self._done:
@@ -1213,6 +1044,22 @@ class _ScriptRunner:
                 step_num, self.total, step_elapsed, self.label,
             )
 
+        # Tell the backend we're still working. Its ToolResultCoordinator
+        # resets an idle clock on this ping (see tool_result_coordinator.py
+        # note_progress()), so a script whose steps SUM past the 45s wait
+        # doesn't trip the "addon didn't respond" notice as long as it keeps
+        # making forward progress. Does not help a single statement that
+        # itself blocks the whole window — nothing can ping mid-exec().
+        try:
+            ws_client.client.send_json({
+                "type": "tool_progress",
+                "tool_use_id": self.tool_use_id,
+                "step": step_num,
+                "total": self.total,
+            })
+        except Exception:
+            pass  # best-effort; a dropped ping just means no clock extension
+
         # Redraw between statements so geometry appears live, not in
         # one frozen burst at the end. Skip view_layer.update() inside
         # the loop — it's expensive on dense scenes and is implicitly
@@ -1229,10 +1076,12 @@ class _ScriptRunner:
         return self._TICK_INTERVAL
 
     def _finalize_success(self) -> None:
-        import bpy
-        from . import state as state_module, vision
-
         import time as _time
+
+        import bpy
+
+        from . import state as state_module
+        from . import vision
         finalize_started = _time.monotonic()
 
         self._done = True
@@ -1321,7 +1170,8 @@ class _ScriptRunner:
         log.info("execute_animora_code finalize critical_path_ms=%d", finalize_ms)
 
     def _finalize_failure(self) -> None:
-        from . import state as state_module, vision
+        from . import state as state_module
+        from . import vision
         self._done = True
         state_module.mark_exec_finished()
         # Sprint 4F — counterpart to begin_exec_pause in _execute_script.
@@ -1418,7 +1268,6 @@ def _scene_graph_diff_brief(pre: dict, post: dict) -> dict:
     # Soft size cap. If the diff serialises to > 3 KB, replace the
     # detail-bearing arrays with name-only fallbacks. The LLM still gets
     # the names + counts; runaway scenes don't bloat the tool_result.
-    import json
     serialised = json.dumps(diff, default=str)
     if len(serialised) > 3000:
         diff["added"] = [item.get("name", "") for item in added_items][:24]
@@ -1539,8 +1388,9 @@ def _load_asset(
     Always sends a tool_result back to the orchestrator, even on
     failure — the agentic loop awaits this to advance.
     """
-    import bpy
     import os
+
+    import bpy
     log.info("load_asset.start id=%s kind=%s path=%s", asset_id, kind, local_path)
 
     def _send_result(ok: bool, output: str, error: str = "") -> None:
@@ -1753,9 +1603,11 @@ def _atomic_run(tool_use_id: str, label: str, fn) -> None:
       `domain` is the `bpy.data.<domain>` collection name (`objects`,
       `materials`, `lights`, `cameras`, `meshes`, `worlds`).
     """
-    import bpy
     import time as _time
     import traceback
+
+    import bpy
+
     from . import vision
 
     result = {"tool_use_id": tool_use_id, "output": "", "error": ""}
@@ -1907,8 +1759,8 @@ def _build_primitive_mesh(kind: str, name: str):
     context dependency. Torus falls back to a deferred bpy.ops call
     inside a temp_override (bmesh has no torus generator).
     """
-    import bpy
     import bmesh
+    import bpy
     mesh = bpy.data.meshes.new(name=f"{name}_Mesh")
     bm = bmesh.new()
     try:
@@ -2337,6 +2189,14 @@ class OT_AnimoraNewConversation(Operator):
         wm.animora_chat_history.clear()
         wm.animora_chat_index = 0
         wm.animora_input_text = ""
+        clear_attachments()
+        # Drop any server-pinned reference image so it doesn't leak into the
+        # new conversation (backend pins user uploads across turns).
+        try:
+            if ws_client.client.connected:
+                ws_client.client.send_json({"type": "clear_reference"})
+        except Exception as exc:
+            log.debug("clear_reference send skipped: %s", exc)
         state_module.reset()
         for area in context.screen.areas:
             area.tag_redraw()
@@ -2369,25 +2229,166 @@ class OT_AnimoraSendSuggested(Operator):
 
 
 # ---------------------------------------------------------------------------
-# File attachment placeholder
+# File attachments — text-like files are read and sent to the AI inline
+# with the next message (fenced blocks the model reads like pasted code).
 # ---------------------------------------------------------------------------
+
+_ATTACH_MAX_BYTES = 200_000  # per TEXT file; keeps prompts within token budgets
+_ATTACH_IMAGE_MAX_BYTES = 20_000_000  # 20 MB source image (downscaled before send)
+_ATTACH_TEXT_EXTS = {
+    ".txt", ".md", ".rst", ".py", ".json", ".csv", ".tsv", ".xml", ".svg",
+    ".yaml", ".yml", ".toml", ".ini", ".cfg", ".log", ".obj", ".mtl",
+    ".glsl", ".osl", ".html", ".css", ".js", ".ts", ".c", ".h", ".cpp",
+    ".hpp", ".rs", ".java", ".go", ".sh", ".bat", ".ps1",
+}
+_ATTACH_IMAGE_EXTS = {
+    ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp", ".exr",
+}
+_ATTACH_VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif"}
+# Each attachment: {name, path, size, kind: "text"|"image", content?}
+_pending_attachments: list[dict] = []
+
+
+def pending_attachments() -> list[dict]:
+    """Read-only view for the panel (name/size chips)."""
+    return _pending_attachments
+
+
+def clear_attachments() -> None:
+    _pending_attachments.clear()
+
+
+def _attachment_wire_blocks() -> list[str]:
+    """Text-file blocks + image references prepended to the outgoing
+    message. Image bytes travel separately over the vision channel (see
+    _send_current_input); here we only announce them so the model knows
+    the attached picture is a reference file, not the live viewport."""
+    blocks = []
+    images = [a for a in _pending_attachments if a.get("kind") == "image"]
+    for att in _pending_attachments:
+        if att.get("kind") == "image":
+            continue
+        blocks.append(f"[Attached file: {att['name']}]\n```\n{att['content']}\n```")
+    if images:
+        names = ", ".join(a["name"] for a in images)
+        if len(images) == 1:
+            blocks.append(
+                f"[Attached image: {names}] — the image shown above is this "
+                "uploaded reference file (NOT a screenshot of the current "
+                "viewport). Use its content, composition, colours, and details "
+                "as the reference for what I'm asking."
+            )
+        else:
+            blocks.append(
+                f"[Attached images: {names}] — I attached {len(images)} images. "
+                "The image shown above is the most recent one; treat attached "
+                "images as reference material for this request."
+            )
+    return blocks
+
+
+def image_attachments() -> list[dict]:
+    return [a for a in _pending_attachments if a.get("kind") == "image"]
+
 
 class OT_AnimoraAttachFile(Operator):
     bl_idname = "animora.attach_file"
     bl_label = "Attach File"
-    bl_description = "Attach a reference image or model to the conversation"
+    bl_description = (
+        "Attach an image or text file (PNG/JPG, script, notes, data, "
+        "OBJ/MTL…) — Animora reads it with your next message"
+    )
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")  # type: ignore[assignment]
+    filter_glob: bpy.props.StringProperty(  # type: ignore[assignment]
+        default="*" + ";*".join(sorted(_ATTACH_TEXT_EXTS | _ATTACH_IMAGE_EXTS)),
+        options={"HIDDEN"},
+    )
 
     def execute(self, context):
-        if self.filepath:
-            self.report({"INFO"}, f"Attached: {self.filepath}")
-            _append_chat("user", f"[attached: {self.filepath}]")
+        import os
+
+        if not self.filepath:
+            return {"CANCELLED"}
+        path = self.filepath
+        name = os.path.basename(path)
+        ext = os.path.splitext(name)[1].lower()
+
+        if ext in _ATTACH_VIDEO_EXTS:
+            self.report(
+                {"ERROR"},
+                "Video isn't supported yet — export a key frame as an image "
+                "and attach that, or describe the motion in words.",
+            )
+            return {"CANCELLED"}
+
+        is_image = ext in _ATTACH_IMAGE_EXTS
+        is_text = ext in _ATTACH_TEXT_EXTS
+        if not (is_image or is_text):
+            self.report(
+                {"ERROR"},
+                f"'{ext or name}' isn't supported. Attach an image (PNG/JPG) "
+                "or a text file (script, notes, data, OBJ/MTL).",
+            )
+            return {"CANCELLED"}
+
+        try:
+            size = os.path.getsize(path)
+        except OSError as exc:
+            self.report({"ERROR"}, f"Couldn't read file: {exc}")
+            return {"CANCELLED"}
+
+        limit = _ATTACH_IMAGE_MAX_BYTES if is_image else _ATTACH_MAX_BYTES
+        if size > limit:
+            self.report(
+                {"ERROR"},
+                f"{name} is {size // 1024} KB — the limit is "
+                f"{limit // 1024} KB for {'images' if is_image else 'text files'}.",
+            )
+            return {"CANCELLED"}
+
+        entry: dict = {"name": name, "path": path, "size": size}
+        if is_image:
+            entry["kind"] = "image"
+        else:
+            try:
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    entry["content"] = fh.read()
+            except OSError as exc:
+                self.report({"ERROR"}, f"Couldn't read file: {exc}")
+                return {"CANCELLED"}
+            entry["kind"] = "text"
+
+        # Replace a re-attached file instead of duplicating it.
+        _pending_attachments[:] = [a for a in _pending_attachments if a["path"] != path]
+        _pending_attachments.append(entry)
+        self.report({"INFO"}, f"Attached {name} — it will be sent with your next message")
+        for area in context.screen.areas:
+            if area.type == "ANIMORA":
+                area.tag_redraw()
         return {"FINISHED"}
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
+
+
+class OT_AnimoraRemoveAttachment(Operator):
+    bl_idname = "animora.remove_attachment"
+    bl_label = "Remove Attachment"
+    bl_description = "Remove this file from the next message"
+    bl_options = {"INTERNAL"}
+
+    index: bpy.props.IntProperty(default=-1)  # type: ignore[assignment]
+
+    def execute(self, context):
+        if 0 <= self.index < len(_pending_attachments):
+            removed = _pending_attachments.pop(self.index)
+            self.report({"INFO"}, f"Removed {removed['name']}")
+        for area in context.screen.areas:
+            if area.type == "ANIMORA":
+                area.tag_redraw()
+        return {"FINISHED"}
 
 
 # ---------------------------------------------------------------------------
@@ -2559,7 +2560,6 @@ class OT_AnimoraSelfTest(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        import time
         tests = [
             (
                 "cube",
@@ -2652,6 +2652,183 @@ class OT_AnimoraQuickSettings(Operator):
         col.prop(prefs, "default_model")
         col.prop(prefs, "streaming_enabled")
 
+        # Account — the ONLY sign-out surface. Signing in happens exclusively
+        # through the onboarding gate, never from the AI panel.
+        from .bundle import is_bundle_mode
+        if not is_bundle_mode() and auth_session.session.signed_in:
+            layout.separator()
+            acct = layout.column(align=True)
+            acct.label(
+                text=auth_session.session.email or "Signed in",
+                icon="USER",
+            )
+            acct.operator("animora.sign_out", text="Sign Out", icon="QUIT")
+
+
+# ---------------------------------------------------------------------------
+# Multiline composer — a modal keystroke editor.
+#
+# Blender has no multiline text widget, and a StringProperty field's value is
+# stale until commit, so a live growing "see the whole prompt" input is
+# impossible with layout.prop. This modal captures keys, keeps the text in a
+# pure (unit-tested) TextBuffer, mirrors it into wm.animora_input_text on every
+# keystroke (so the panel can draw it live, wrapped), and — crucially — makes
+# Enter the ONLY send trigger, so clicking + never sends.
+# ---------------------------------------------------------------------------
+
+from .composer_buffer import TextBuffer  # noqa: E402
+
+_composer_active = False
+_composer_buffer: TextBuffer | None = None
+_composer_caret_on = True
+_COMPOSER_BLINK_SEC = 0.5
+
+
+def composer_active() -> bool:
+    return _composer_active
+
+
+def composer_display(width: int) -> tuple[list[str], int, int, bool]:
+    """(wrapped_lines, caret_row, caret_col, caret_visible) for the panel to
+    render the live composing text. Empty fallback when inactive."""
+    if _composer_buffer is None:
+        return [""], 0, 0, False
+    lines = _composer_buffer.wrapped(width)
+    row, col = _composer_buffer.caret_rowcol(width)
+    return lines, row, col, _composer_caret_on
+
+
+def _composer_redraw() -> None:
+    scr = bpy.context.screen
+    if scr is None:
+        return
+    for area in scr.areas:
+        if area.type == "ANIMORA":
+            area.tag_redraw()
+
+
+class OT_AnimoraComposer(Operator):
+    """Modal multiline text editor for the composer. Enter sends,
+    Shift+Enter = newline, Esc keeps the text and exits, clicking away exits
+    without sending (so + attaches without sending)."""
+    bl_idname = "animora.composer"
+    bl_label = "Compose Message"
+    bl_options = {"INTERNAL"}
+
+    _timer = None
+
+    @classmethod
+    def poll(cls, context) -> bool:
+        return not _composer_active
+
+    def invoke(self, context, event):
+        global _composer_active, _composer_buffer, _composer_caret_on
+        _composer_buffer = TextBuffer()
+        _composer_buffer.set_text(getattr(context.window_manager, "animora_input_text", "") or "")
+        _composer_active = True
+        _composer_caret_on = True
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(_COMPOSER_BLINK_SEC, window=context.window)
+        wm.modal_handler_add(self)
+        _composer_redraw()
+        return {"RUNNING_MODAL"}
+
+    def _end(self, context, *, send: bool):
+        global _composer_active, _composer_buffer
+        wm = context.window_manager
+        if self._timer is not None:
+            wm.event_timer_remove(self._timer)
+            self._timer = None
+        text = _composer_buffer.text if _composer_buffer else ""
+        _composer_active = False
+        _composer_buffer = None
+        # Mirror the final text into the field so the baseline UI and send
+        # path see it (no update= callback exists anymore, so this is inert).
+        try:
+            wm.animora_input_text = text
+        except Exception:
+            pass
+        _composer_redraw()
+        if send and text.strip():
+            _send_current_input()
+
+    def _sync(self, context):
+        """Push live buffer text into the prop so the panel draws it, redraw."""
+        try:
+            context.window_manager.animora_input_text = _composer_buffer.text
+        except Exception:
+            pass
+        _composer_redraw()
+
+    def modal(self, context, event):
+        global _composer_caret_on
+        buf = _composer_buffer
+        if not _composer_active or buf is None:
+            return {"FINISHED"}
+
+        try:
+            if event.type == "TIMER":
+                _composer_caret_on = not _composer_caret_on
+                _composer_redraw()
+                return {"RUNNING_MODAL"}
+
+            # Mouse: any press outside our editing exits (keeps text, no send)
+            # and passes through so the clicked button (e.g. +) still fires.
+            if event.type in {"LEFTMOUSE", "RIGHTMOUSE"} and event.value == "PRESS":
+                self._end(context, send=False)
+                return {"PASS_THROUGH"}
+            if event.type in {"MOUSEMOVE", "INBETWEEN_MOUSEMOVE",
+                              "WHEELUPMOUSE", "WHEELDOWNMOUSE", "MIDDLEMOUSE"}:
+                return {"PASS_THROUGH"}
+
+            if event.value not in {"PRESS", "REPEAT"}:
+                return {"RUNNING_MODAL"}
+
+            _composer_caret_on = True  # keep caret solid while typing
+            t = event.type
+
+            if t == "RET" or t == "NUMPAD_ENTER":
+                if event.shift:
+                    buf.newline()
+                    self._sync(context)
+                    return {"RUNNING_MODAL"}
+                self._end(context, send=True)
+                return {"FINISHED"}
+            if t == "ESC":
+                self._end(context, send=False)
+                return {"CANCELLED"}
+            if t == "BACK_SPACE":
+                buf.delete_word_back() if event.ctrl else buf.backspace()
+                self._sync(context); return {"RUNNING_MODAL"}
+            if t == "DEL":
+                buf.delete(); self._sync(context); return {"RUNNING_MODAL"}
+            if t == "LEFT_ARROW":
+                buf.move_left(); self._sync(context); return {"RUNNING_MODAL"}
+            if t == "RIGHT_ARROW":
+                buf.move_right(); self._sync(context); return {"RUNNING_MODAL"}
+            if t == "HOME":
+                buf.move_home(); self._sync(context); return {"RUNNING_MODAL"}
+            if t == "END":
+                buf.move_end(); self._sync(context); return {"RUNNING_MODAL"}
+            if t == "V" and event.ctrl:
+                buf.insert(context.window_manager.clipboard or "")
+                self._sync(context); return {"RUNNING_MODAL"}
+            if t == "TAB":
+                return {"RUNNING_MODAL"}  # swallow; don't let focus escape
+
+            ch = event.unicode
+            if ch and ch.isprintable():
+                buf.insert(ch)
+                self._sync(context)
+                return {"RUNNING_MODAL"}
+
+            # Unhandled (function keys, shortcuts) — let them through.
+            return {"PASS_THROUGH"}
+        except Exception as exc:  # never wedge the UI
+            log.warning("Composer modal error: %s", exc)
+            self._end(context, send=False)
+            return {"CANCELLED"}
+
 
 # ---------------------------------------------------------------------------
 # Window manager properties for chat state
@@ -2665,13 +2842,15 @@ class AnimoraChatItem(bpy.types.PropertyGroup):
 _classes = [
     AnimoraChatItem,
     OT_AnimoraSignIn,
-    OT_AnimoraHandleAuthCallback,
+    OT_AnimoraDevConnect,
     OT_AnimoraSignOut,
     OT_AnimoraSendMessage,
     OT_AnimoraStartRecording,
     OT_AnimoraNewConversation,
     OT_AnimoraSendSuggested,
     OT_AnimoraAttachFile,
+    OT_AnimoraRemoveAttachment,
+    OT_AnimoraComposer,
     OT_AnimoraShowHistory,
     OT_AnimoraShowSettings,
     OT_AnimoraSaveApiKey,
@@ -2690,36 +2869,31 @@ def register() -> None:
 
     bpy.types.WindowManager.animora_input_text = bpy.props.StringProperty(
         name="Message", default="",
-        # Send on commit so Enter and a single SEND click both submit.
-        update=_on_input_committed,
+        # No update= callback: commit ≠ intent-to-send (that made clicking +
+        # send the prompt). Send is explicit — the ▲ button or the composer's
+        # Enter. See OT_AnimoraComposer.
     )
     bpy.types.WindowManager.animora_chat_history = bpy.props.CollectionProperty(
         type=AnimoraChatItem
     )
     bpy.types.WindowManager.animora_chat_index = bpy.props.IntProperty(default=0)
 
-    # Register the animora:// scheme (runtime fallback to the installer) and
-    # start the callback poll timer that completes browser sign-in.
-    try:
-        deep_link.register_scheme()
-    except Exception as exc:
-        log.warning("animora:// scheme registration skipped: %s", exc)
-    if not bpy.app.timers.is_registered(_poll_auth_callback):
-        bpy.app.timers.register(_poll_auth_callback, first_interval=1.0)
-    _configure_ws_callbacks()
-    if auth.has_restorable_session():
-        state.set_auth_status(state.AuthS.CONNECTING, "Connecting to Animora")
-        auth.restore_session_async(
-            on_ready=lambda: _run_on_main_thread(_connect_ws),
-            on_invalid=lambda: _run_on_main_thread(_restore_session_invalid),
-        )
-    else:
-        state.set_auth_status(state.AuthS.SIGNED_OUT, "")
+    if bpy.app.background:
+        # Headless instances (CI smoke runs, renders) get operators/props
+        # only — no WS wiring (auth side effects are guarded in
+        # auth.controller.register()).
+        return
+
+    # Stream/tool callbacks are stable assignments; the connection itself is
+    # driven by auth.controller (sign-in, session restore, reconnects).
+    ws_client.client.on_stream_token = _on_stream_token
+    ws_client.client.on_tool_call = _on_tool_call
 
 
 def unregister() -> None:
-    if bpy.app.timers.is_registered(_poll_auth_callback):
-        bpy.app.timers.unregister(_poll_auth_callback)
+    global _composer_active, _composer_buffer
+    _composer_active = False  # a live modal must not survive a reload
+    _composer_buffer = None
     del bpy.types.WindowManager.animora_input_text
     del bpy.types.WindowManager.animora_chat_history
     del bpy.types.WindowManager.animora_chat_index

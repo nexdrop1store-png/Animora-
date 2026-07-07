@@ -180,15 +180,13 @@ def _schedule_connect() -> None:
 
     def _do() -> None:
         try:
-            from . import auth
-            from .operators import _connect_ws
+            from .auth import controller
             from .preferences import get_prefs
 
             prefs = get_prefs()
-            # Point the WS + auth URLs at the local engine.
+            # Point the WS URLs at the local engine.
             prefs.dev_mode = True
-            auth.dev_signin()
-            _connect_ws()
+            controller.dev_connect()
             _set("ready")
         except Exception as exc:
             log.warning("bundle auto-connect failed: %s", exc)
@@ -202,6 +200,11 @@ def _schedule_connect() -> None:
 
 def register() -> None:
     global _startup_thread
+    import bpy
+
+    if bpy.app.background:
+        _set("off")
+        return
     if not is_bundle_mode():
         _set("off")
         return

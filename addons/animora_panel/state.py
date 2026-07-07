@@ -33,8 +33,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 log = logging.getLogger("animora.state")
 
@@ -90,7 +89,7 @@ class _State:
     `'.' * dot_tick + ' ' * (3 - dot_tick)` after the status text so the
     indicator visibly animates."""
 
-    quality_notice: Optional[dict] = None
+    quality_notice: dict | None = None
     """Last quality_notice payload from the server. Rendered inline as a
     soft warning card under the most recent assistant message."""
 
@@ -167,7 +166,14 @@ def is_active() -> bool:
 
 # ── Animated-dots + auto-fade timer ────────────────────────────────────
 
-_TIMER_INTERVAL = 0.4
+# 0.15 s heartbeat: the GPU chrome (border glow, composer outline, accent
+# strip) eases on time.monotonic() but only renders when the region
+# redraws — at the old 0.4 s tick the "breathing" looked like stutter.
+# The dot indicator advances every _DOT_DIVIDER ticks to keep its
+# familiar ~0.45 s cadence.
+_TIMER_INTERVAL = 0.15
+_DOT_DIVIDER = 3
+_tick_count = 0
 _COMPLETE_FADE_SEC = 1.5
 # Watchdog: if a single active state lasts longer than this, the AI is
 # probably stuck (network drop, backend crash, infinite-loop script).
@@ -220,7 +226,8 @@ def _tick() -> float:
          crash, runaway script). Prevents the panel from being stuck
          in "thinking..." forever.
     """
-    global _exec_warn_fired
+    global _exec_warn_fired, _tick_count
+    _tick_count += 1
     if state.current in ACTIVE_STATES:
         elapsed = time.monotonic() - state.entered_at
         if elapsed > _ACTIVE_STATE_TIMEOUT_SEC:
@@ -232,7 +239,8 @@ def _tick() -> float:
             )
             _redraw_animora_areas()
         else:
-            state.dot_tick = (state.dot_tick + 1) % 4
+            if _tick_count % _DOT_DIVIDER == 0:
+                state.dot_tick = (state.dot_tick + 1) % 4
             _redraw_animora_areas()
     elif state.current == S.COMPLETE:
         if time.monotonic() - state.entered_at > _COMPLETE_FADE_SEC:
@@ -306,6 +314,10 @@ def stop_timer() -> None:
 
 
 def register() -> None:
+    import bpy
+
+    if bpy.app.background:
+        return
     start_timer()
 
 

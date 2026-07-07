@@ -1,214 +1,283 @@
+"""Session-layer tests (animora_panel.auth.session) — fake keyring +
+mocked urlopen; no Blender, no network."""
+
 from __future__ import annotations
 
-import importlib.util
-import sys
+import io
+import json
 import threading
 import types
-from pathlib import Path
+import urllib.error
+import urllib.request
+
+import pytest
+
+from animora_panel.auth import session as session_mod
+from animora_panel.auth import supabase
 
 
-_PKG = Path(__file__).resolve().parent.parent / "animora_panel"
+class FakeKeyring:
+    def __init__(self):
+        self.store: dict[tuple[str, str], str] = {}
+
+    def set_password(self, service, key, value):
+        self.store[(service, key)] = value
+
+    def get_password(self, service, key):
+        return self.store.get((service, key))
+
+    def delete_password(self, service, key):
+        if (service, key) not in self.store:
+            raise KeyError(key)
+        del self.store[(service, key)]
 
 
-def _load_auth_module():
-    sys.modules.setdefault("bpy", types.ModuleType("bpy"))
+@pytest.fixture()
+def fake_keyring(monkeypatch):
+    kr = FakeKeyring()
+    module = types.ModuleType("keyring")
+    module.set_password = kr.set_password
+    module.get_password = kr.get_password
+    module.delete_password = kr.delete_password
+    monkeypatch.setitem(__import__("sys").modules, "keyring", module)
+    return kr
 
-    pkg = types.ModuleType("animora_panel")
-    pkg.__path__ = [str(_PKG)]  # type: ignore[attr-defined]
-    sys.modules["animora_panel"] = pkg
 
-    core_spec = importlib.util.spec_from_file_location(
-        "animora_panel.auth_core",
-        _PKG / "auth_core.py",
+@pytest.fixture(autouse=True)
+def reset_session():
+    session_mod.session.__init__()
+    yield
+    session_mod.session.__init__()
+    session_mod._last_refresh_rejected = False
+    session_mod._last_auth_error = ""
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(
+        url="https://example", code=code, msg="err", hdrs=None, fp=io.BytesIO(b"detail")
     )
-    core_mod = importlib.util.module_from_spec(core_spec)  # type: ignore[arg-type]
-    sys.modules["animora_panel.auth_core"] = core_mod
-    core_spec.loader.exec_module(core_mod)  # type: ignore[union-attr]
 
-    prefs_mod = types.ModuleType("animora_panel.preferences")
 
-    class _Prefs:
-        def effective_auth_url(self):
-            return "https://auth.animora.tech"
+def _ok_response(payload: dict):
+    class _Resp:
+        def read(self):
+            return json.dumps(payload).encode()
 
-    prefs_mod.get_prefs = lambda: _Prefs()
-    sys.modules["animora_panel.preferences"] = prefs_mod
+        def __enter__(self):
+            return self
 
-    auth_spec = importlib.util.spec_from_file_location(
-        "animora_panel.auth",
-        _PKG / "auth.py",
+        def __exit__(self, *args):
+            return False
+
+    return _Resp()
+
+
+# ── Storage ──────────────────────────────────────────────────────────────
+
+def test_save_load_clear_round_trip(fake_keyring):
+    session_mod.save_tokens("access-token", "refresh-token")
+    assert session_mod.load_tokens() == ("access-token", "refresh-token")
+
+    session_mod.clear_tokens()
+    assert session_mod.load_tokens() == ("", "")
+    assert not session_mod.session.signed_in
+
+
+def test_large_access_token_never_persisted(fake_keyring):
+    big = "x" * 600
+    session_mod.save_tokens(big, "refresh-token")
+    # In-memory session holds it; the keyring must not.
+    assert session_mod.session.access_token == big
+    assert (session_mod.KEYRING_SERVICE, session_mod.KEYRING_ACCESS_TOKEN) not in fake_keyring.store
+    assert fake_keyring.store[
+        (session_mod.KEYRING_SERVICE, session_mod.KEYRING_REFRESH_TOKEN)
+    ] == "refresh-token"
+
+
+def test_has_restorable_session(fake_keyring):
+    assert not session_mod.has_restorable_session()
+    session_mod.session.refresh_token = "r"
+    assert session_mod.has_restorable_session()
+
+
+# ── Response parsing ─────────────────────────────────────────────────────
+
+def test_parse_session_response_expires_at():
+    norm = supabase.parse_session_response(
+        {"access_token": "a", "refresh_token": "r", "expires_at": 1000.0,
+         "user": {"id": "u1", "email": "e@x.com"}}
     )
-    auth_mod = importlib.util.module_from_spec(auth_spec)  # type: ignore[arg-type]
-    sys.modules["animora_panel.auth"] = auth_mod
-    auth_spec.loader.exec_module(auth_mod)  # type: ignore[union-attr]
-    return auth_mod
+    assert norm["expires_at"] == 1000.0
+    assert norm["user_id"] == "u1"
+    assert norm["email"] == "e@x.com"
+    assert norm["plan"] == supabase.DEFAULT_PLAN
 
 
-def test_restore_session_async_success(monkeypatch):
-    auth = _load_auth_module()
-    auth.session.access_token = "access"
-    auth.session.refresh_token = "refresh"
-    auth.session.signed_in = False
+def test_parse_session_response_expires_in(monkeypatch):
+    import time as time_mod
+    monkeypatch.setattr(time_mod, "time", lambda: 500.0)
+    norm = supabase.parse_session_response(
+        {"access_token": "a", "refresh_token": "r", "expires_in": 3600}
+    )
+    assert norm["expires_at"] == pytest.approx(500.0 + 3600)
+
+
+def test_parse_session_response_flat_fields_win():
+    norm = supabase.parse_session_response(
+        {"access_token": "a", "refresh_token": "r", "expires_at": 1.0,
+         "user_id": "flat", "email": "flat@x.com", "plan": "studio",
+         "user": {"id": "nested", "email": "nested@x.com"}}
+    )
+    assert norm["user_id"] == "flat"
+    assert norm["email"] == "flat@x.com"
+    assert norm["plan"] == "studio"
+
+
+# ── Exchange ─────────────────────────────────────────────────────────────
+
+def test_exchange_code_success(fake_keyring, monkeypatch):
+    monkeypatch.setattr(session_mod, "compute_device_fingerprint", lambda: "dev-fp")
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda req, timeout=0: _ok_response(
+            {"access_token": "a", "refresh_token": "r", "expires_in": 3600,
+             "user": {"id": "u1", "email": "e@x.com"}}
+        ),
+    )
+    assert session_mod.exchange_code("code", "verifier")
+    assert session_mod.session.signed_in
+    assert session_mod.session.device_id == "dev-fp"
+    assert session_mod.last_auth_error() == ""
+
+
+def test_exchange_code_http_error_sets_message(fake_keyring, monkeypatch):
+    monkeypatch.setattr(session_mod, "compute_device_fingerprint", lambda: "dev-fp")
+
+    def _raise(req, timeout=0):
+        raise _http_error(400)
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+    assert not session_mod.exchange_code("code", "verifier")
+    assert "400" in session_mod.last_auth_error()
+    assert not session_mod.session.signed_in
+
+
+# ── Refresh ──────────────────────────────────────────────────────────────
+
+def test_refresh_4xx_is_definitive_rejection(fake_keyring, monkeypatch):
+    session_mod.session.refresh_token = "r"
+
+    def _raise(req, timeout=0):
+        raise _http_error(401)
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+    assert not session_mod.refresh_access_token()
+    assert session_mod.last_refresh_rejected()
+
+
+def test_refresh_5xx_is_transient(fake_keyring, monkeypatch):
+    session_mod.session.refresh_token = "r"
+
+    def _raise(req, timeout=0):
+        raise _http_error(503)
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+    assert not session_mod.refresh_access_token()
+    assert not session_mod.last_refresh_rejected()
+
+
+def test_refresh_network_error_is_transient(fake_keyring, monkeypatch):
+    session_mod.session.refresh_token = "r"
+
+    def _raise(req, timeout=0):
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+    assert not session_mod.refresh_access_token()
+    assert not session_mod.last_refresh_rejected()
+
+
+def test_refresh_success_rotates_tokens(fake_keyring, monkeypatch):
+    session_mod.session.refresh_token = "old-refresh"
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda req, timeout=0: _ok_response(
+            {"access_token": "new-access", "refresh_token": "new-refresh",
+             "expires_in": 3600}
+        ),
+    )
+    assert session_mod.refresh_access_token()
+    assert session_mod.session.refresh_token == "new-refresh"
+    assert fake_keyring.store[
+        (session_mod.KEYRING_SERVICE, session_mod.KEYRING_REFRESH_TOKEN)
+    ] == "new-refresh"
+
+
+# ── Restore ──────────────────────────────────────────────────────────────
+
+def test_restore_transient_failure_keeps_tokens(fake_keyring, monkeypatch):
+    monkeypatch.setattr(session_mod, "RESTORE_RETRY_DELAYS", (0.0, 0.0))
+    session_mod.session.access_token = "a"
+    session_mod.session.refresh_token = "r"
+
+    invalid = threading.Event()
+    monkeypatch.setattr(session_mod, "refresh_access_token", lambda: False)
+    monkeypatch.setattr(session_mod, "last_refresh_rejected", lambda: False)
+
+    assert session_mod.restore_session_async(on_invalid=invalid.set)
+    assert invalid.wait(2.0)
+    assert session_mod.session.refresh_token == "r"  # tokens survive
+
+
+def test_restore_definitive_rejection_clears_tokens(fake_keyring, monkeypatch):
+    monkeypatch.setattr(session_mod, "RESTORE_RETRY_DELAYS", (0.0,))
+    session_mod.session.access_token = "a"
+    session_mod.session.refresh_token = "r"
+
+    invalid = threading.Event()
+    monkeypatch.setattr(session_mod, "refresh_access_token", lambda: False)
+    monkeypatch.setattr(session_mod, "last_refresh_rejected", lambda: True)
+
+    assert session_mod.restore_session_async(on_invalid=invalid.set)
+    assert invalid.wait(2.0)
+    assert session_mod.session.refresh_token == ""
+    assert not session_mod.session.signed_in
+
+
+def test_restore_success_calls_ready(fake_keyring, monkeypatch):
+    monkeypatch.setattr(session_mod, "RESTORE_RETRY_DELAYS", (0.0,))
+    session_mod.session.refresh_token = "r"
 
     ready = threading.Event()
-    invalid = threading.Event()
 
     def _refresh():
-        auth.session.signed_in = True
+        session_mod.session.signed_in = True
         return True
 
-    monkeypatch.setattr(auth, "refresh_access_token", _refresh)
-
-    assert auth.restore_session_async(
-        on_ready=ready.set,
-        on_invalid=invalid.set,
-    )
+    monkeypatch.setattr(session_mod, "refresh_access_token", _refresh)
+    assert session_mod.restore_session_async(on_ready=ready.set)
     assert ready.wait(2.0)
-    assert not invalid.is_set()
-    assert auth.session.signed_in is True
+    assert session_mod.session.signed_in
 
 
-def test_restore_session_async_invalidates_rejected_refresh(monkeypatch):
-    auth = _load_auth_module()
-    auth.session.access_token = "access"
-    auth.session.refresh_token = "refresh"
-    auth.session.signed_in = False
-
-    invalid = threading.Event()
-    monkeypatch.setattr(auth, "refresh_access_token", lambda: False)
-    monkeypatch.setattr(auth, "last_refresh_rejected", lambda: True)
-
-    assert auth.restore_session_async(on_invalid=invalid.set)
-    assert invalid.wait(2.0)
-    assert auth.session.access_token == ""
-    assert auth.session.refresh_token == ""
-    assert auth.session.signed_in is False
+def test_restore_without_tokens_returns_false(fake_keyring):
+    assert not session_mod.restore_session_async()
 
 
-def test_restore_session_async_keeps_tokens_on_transient_failure(monkeypatch):
-    """Offline at launch must NOT wipe the refresh token — only a definitive
-    rejection by the auth providers may sign the user out."""
-    auth = _load_auth_module()
-    auth.session.access_token = "access"
-    auth.session.refresh_token = "refresh"
-    auth.session.signed_in = False
+def test_restore_missing_refresh_token_signs_out(fake_keyring, monkeypatch):
+    session_mod.session.access_token = "only-access"
+    session_mod.session.refresh_token = ""
 
     invalid = threading.Event()
-    monkeypatch.setattr(auth, "_RESTORE_RETRY_DELAYS", (0.0, 0.01, 0.01))
-    monkeypatch.setattr(auth, "refresh_access_token", lambda: False)
-    monkeypatch.setattr(auth, "last_refresh_rejected", lambda: False)
-
-    assert auth.restore_session_async(on_invalid=invalid.set)
+    assert session_mod.restore_session_async(on_invalid=invalid.set)
     assert invalid.wait(2.0)
-    assert auth.session.refresh_token == "refresh"
-    assert auth.session.signed_in is False
+    assert session_mod.session.access_token == ""
 
 
-def test_refresh_rejection_flag(monkeypatch):
-    """last_refresh_rejected: True only when every provider answered 4xx."""
-    import io
-    import urllib.error
+# ── Dev sign-in ──────────────────────────────────────────────────────────
 
-    auth = _load_auth_module()
-    auth.session.refresh_token = "refresh"
-
-    def _raise_401(req, timeout=0):
-        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {}, io.BytesIO(b""))
-
-    monkeypatch.setattr("urllib.request.urlopen", _raise_401)
-    assert auth.refresh_access_token() is False
-    assert auth.last_refresh_rejected() is True
-
-    def _raise_unreachable(req, timeout=0):
-        raise urllib.error.URLError("no route to host")
-
-    monkeypatch.setattr("urllib.request.urlopen", _raise_unreachable)
-    assert auth.refresh_access_token() is False
-    assert auth.last_refresh_rejected() is False
-
-
-def test_apply_session_preserves_trial_end():
-    auth = _load_auth_module()
-    auth._apply_session(  # noqa: SLF001 - targeted unit test
-        {
-            "access_token": "AT",
-            "refresh_token": "RT",
-            "expires_at": 1780000000.0,
-            "user_id": "u1",
-            "email": "u@example.com",
-            "plan": "trial",
-            "trial_end": 1779999999.0,
-        }
-    )
-    assert auth.session.trial_end == 1779999999.0
-
-
-def test_save_tokens_keeps_large_access_token_in_memory(monkeypatch):
-    auth = _load_auth_module()
-
-    calls = []
-
-    class _Keyring:
-        def set_password(self, service, key, value):
-            calls.append(("set", service, key, value))
-
-        def delete_password(self, service, key):
-            calls.append(("delete", service, key))
-
-    monkeypatch.setattr(auth, "_keyring_available", lambda: True)
-    monkeypatch.setitem(sys.modules, "keyring", _Keyring())
-
-    auth.save_tokens("A" * 1024, "refresh-token")
-
-    assert auth.session.access_token == "A" * 1024
-    assert auth.session.refresh_token == "refresh-token"
-    assert ("set", auth.KEYRING_SERVICE, auth.KEYRING_REFRESH_TOKEN, "refresh-token") in calls
-    assert ("delete", auth.KEYRING_SERVICE, auth.KEYRING_ACCESS_TOKEN) in calls
-
-
-def test_register_restores_from_refresh_token_only(monkeypatch):
-    auth = _load_auth_module()
-
-    monkeypatch.setattr(auth, "load_tokens", lambda: ("", "refresh-only"))
-    started = []
-    monkeypatch.setattr(auth, "start_refresh_thread", lambda: started.append(True))
-
-    auth.register()
-
-    assert auth.session.access_token == ""
-    assert auth.session.refresh_token == "refresh-only"
-    assert auth.session.signed_in is False
-    assert started == [True]
-
-
-def test_apply_session_tolerates_email_keyring_write_failure(monkeypatch):
-    auth = _load_auth_module()
-
-    class _Keyring:
-        def set_password(self, service, key, value):
-            if key == auth.KEYRING_USER_EMAIL:
-                raise RuntimeError("CredWrite failed")
-
-        def delete_password(self, service, key):
-            return None
-
-        def get_password(self, service, key):
-            return ""
-
-    monkeypatch.setattr(auth, "_keyring_available", lambda: True)
-    monkeypatch.setitem(sys.modules, "keyring", _Keyring())
-
-    auth._apply_session(  # noqa: SLF001 - targeted unit test
-        {
-            "access_token": "AT",
-            "refresh_token": "RT",
-            "expires_at": 1780000000.0,
-            "user_id": "u1",
-            "email": "u@example.com",
-            "plan": "free",
-            "trial_end": None,
-        }
-    )
-
-    assert auth.session.signed_in is True
-    assert auth.session.email == "u@example.com"
+def test_dev_signin_never_touches_keyring(fake_keyring):
+    session_mod.dev_signin()
+    assert session_mod.session.signed_in
+    assert session_mod.session.access_token == "dev"
+    assert fake_keyring.store == {}

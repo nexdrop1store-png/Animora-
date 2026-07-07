@@ -224,6 +224,36 @@ def smoke_test(build_dir: Path, target_platform: str) -> None:
         sys.exit(result)
 
 
+def step_default_startup(target_platform: str) -> None:
+    """Regenerate the branded startup.blend BEFORE compiling.
+
+    DataToC bakes blender-fork/release/datafiles/startup.blend into the
+    binary at compile time — without this step, whatever file happens to be
+    on disk ships silently. build_default_startup.py needs a GUI-capable
+    binary from a PREVIOUS build (area_split requires a real window); on a
+    first-ever build there is none, so warn loudly and continue — rerun the
+    build after the first compile to bake the branded startup.
+    """
+    log.info("--- Step 1.5: Regenerate default startup.blend ---")
+    if target_platform != "windows":
+        log.warning("startup regen implemented for the Windows pipeline only — skipping")
+        return
+    binary = BUILD_DIR / "windows" / "bin" / "blender.exe"
+    if not binary.exists():
+        binary = BUILD_DIR / "windows" / "bin" / "Animora.exe"
+    if not binary.exists():
+        log.warning(
+            "No previously built binary at %s — SKIPPING startup regen. "
+            "The compile will bake whatever startup.blend is on disk; rerun "
+            "the build once a binary exists.",
+            BUILD_DIR / "windows" / "bin",
+        )
+        return
+    script = REPO_ROOT / "scripts" / "build_default_startup.py"
+    # GUI mode on purpose (the script needs a window; it quits itself).
+    run([str(binary), "--python", str(script)])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build Animora")
     parser.add_argument(
@@ -235,6 +265,8 @@ def main() -> None:
     parser.add_argument("--skip-rebrand", action="store_true")
     parser.add_argument("--skip-compile", action="store_true")
     parser.add_argument("--skip-package", action="store_true")
+    parser.add_argument("--skip-startup", action="store_true",
+                        help="Skip regenerating the branded startup.blend before compile")
     parser.add_argument("--smoke-test", action="store_true")
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 4)
     args = parser.parse_args()
@@ -245,6 +277,9 @@ def main() -> None:
 
     if not args.skip_rebrand:
         step_rebrand()
+
+    if not args.skip_startup:
+        step_default_startup(args.platform)
 
     if not args.skip_compile:
         step_cmake_configure(args.platform, args.config, build_dir)

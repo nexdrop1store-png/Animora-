@@ -72,6 +72,23 @@ Resource heuristics (NOT security; UX safety nets):
   - Script length cap (config.max_script_length)
   - Subdivision level cap (≤ 8, otherwise it crashes Blender)
   - Render samples cap (config.max_render_samples)
+  - Edit-mode subdivide cut cap, particle count cap, bare range() cap
+    (2026-07 addition — see "Expensive-operation heuristics" below)
+
+Expensive-operation heuristics (2026-07 addition; also NOT security)
+----------------------------------------------------------------------
+Root-cause investigation into "Animora stops responding" found the addon's
+per-statement script runner has no way to time-box or preempt a single
+`exec()`'d statement — Blender's API is main-thread-only, so a genuinely
+expensive statement blocks the UI for its full duration with no recovery
+short of waiting it out. Rather than try to fix that after the fact, these
+checks catch the same handful of patterns that are RELIABLY expensive
+before they ever run, and reject with a reason the model can act on (the
+same reject-and-retry mechanism as the banned-imports checks above — this
+is deliberately NOT silent clamping; "maximum quality always" means the
+model should be told to re-approach a request, not have its output quietly
+downgraded). Thresholds are generous on purpose — tighten only with
+evidence, since a false rejection costs a retry round-trip.
 """
 
 from __future__ import annotations
@@ -203,5 +220,69 @@ def validate_script(script: str) -> ValidationResult:
                 ok=False,
                 reason=f"Render samples {samples} too high (max {settings.max_render_samples})",
             )
+
+    # ── Expensive-operation heuristics (2026-07) ────────────────────────
+    # Edit-mode subdivide is exponential per cut (each cut roughly 3-4x's
+    # the face count on a non-trivial mesh) — distinct from the modifier
+    # `.levels` cap above, which is a different operation with a different
+    # cost curve. 6 cuts is already 3^6..4^6 (~700x-4000x) denser than the
+    # start mesh; that's "runaway", not "add detail".
+    cuts_match = re.search(r"number_cuts\s*=\s*(\d+)", script)
+    if cuts_match:
+        cuts = int(cuts_match.group(1))
+        if cuts > 6:
+            return ValidationResult(
+                ok=False,
+                reason=(
+                    f"mesh.subdivide number_cuts={cuts} is too high (max 6) — "
+                    "it multiplies face count exponentially per cut and can "
+                    "hang the app. Use a lower number_cuts, or subdivide in "
+                    "a modifier instead of edit-mode."
+                ),
+            )
+
+    # Particle-system instance counts — attribute-assignment form
+    # (`particle_settings.count = N`), not a bare `count=` search, to avoid
+    # flagging unrelated variables named `count`.
+    particle_match = re.search(r"\.count\s*=\s*(\d+)", script)
+    if particle_match:
+        particle_count = int(particle_match.group(1))
+        if particle_count > 50_000:
+            return ValidationResult(
+                ok=False,
+                reason=(
+                    f"Particle count {particle_count} is too high (max 50,000) — "
+                    "very high counts can take minutes to evaluate. Lower the "
+                    "count, or use instancing/duplication for a similar look "
+                    "at a fraction of the cost."
+                ),
+            )
+
+    # Bare range() literals above this size are the classic runaway-loop
+    # shape (`for i in range(200000): bpy.ops...`). Coarse and can false-
+    # positive on a legitimate large-but-cheap pure-Python loop; the fix
+    # suggestion (fewer iterations / vectorize) is sound advice regardless.
+    for range_match in re.finditer(r"\brange\(\s*(\d+)\s*\)", script):
+        n = int(range_match.group(1))
+        if n > 5_000:
+            return ValidationResult(
+                ok=False,
+                reason=(
+                    f"range({n}) is large enough to risk hanging the app if "
+                    "each iteration touches bpy/bmesh. Reduce the iteration "
+                    "count, or batch the work (e.g. bmesh + one mesh.update() "
+                    "instead of one bpy.ops call per iteration)."
+                ),
+            )
+
+    # Boolean-modifier cost depends on the actual geometry (vertex density,
+    # overlap complexity) in a way an AST/regex pass can't estimate — log
+    # only, don't reject, so a legitimate boolean isn't blocked on a guess.
+    if re.search(r"""['"]BOOLEAN['"]""", script) and "modifier_apply" in script:
+        log.warning(
+            "quality_enforcer: script applies a BOOLEAN modifier — cost "
+            "depends on mesh density and can't be estimated statically; "
+            "not blocking, just flagging for the 'why was this slow' log trail."
+        )
 
     return ValidationResult(ok=True)
