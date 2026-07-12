@@ -896,6 +896,13 @@ def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> 
     total_steps = len(compiled_steps)
     log.info("execute_blender_script: %d top-level statements queued (%s)", total_steps, label)
 
+    # V2 Phase 2 — execute_python contract: capture the script's own
+    # print()/stderr output (bounded) and return it in the tool_result so
+    # the model's revision prompts see what the script reported before a
+    # failure. bpy-free module; see script_capture.py for the bounds.
+    from .script_capture import ScriptOutputCapture
+    capture = ScriptOutputCapture()
+
     # Immediate visible signal in the chat — the panel state pill is
     # easy to miss, but a chat line catches the eye. Posted BEFORE the
     # first tick so the user sees confirmation that Animora is starting
@@ -927,6 +934,7 @@ def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> 
         view3d_ctx=view3d_ctx,
         pre_graph=pre_graph,
         result=result,
+        capture=capture,
     )
     runner.start()
 
@@ -965,6 +973,7 @@ class _ScriptRunner:
         view3d_ctx: dict,
         pre_graph: dict,
         result: dict,
+        capture=None,
     ) -> None:
         self.tool_use_id = tool_use_id
         self.label = label
@@ -973,6 +982,12 @@ class _ScriptRunner:
         self.view3d_ctx = view3d_ctx
         self.pre_graph = pre_graph
         self.result = result
+        # stdout/stderr accumulator (script_capture.ScriptOutputCapture).
+        # Optional so the legacy/selftest construction path keeps working.
+        if capture is None:
+            from .script_capture import ScriptOutputCapture
+            capture = ScriptOutputCapture()
+        self.capture = capture
         self.total = len(compiled_steps)
         self.index = 0
         self._done = False
@@ -1017,12 +1032,16 @@ class _ScriptRunner:
         import time as _time
         step_started = _time.monotonic()
         try:
-            with bpy.context.temp_override(**self.view3d_ctx):
+            with bpy.context.temp_override(**self.view3d_ctx), self.capture.capture():
                 exec(step, self.namespace)  # noqa: S102
         except Exception as exc:
             tb = traceback.format_exc(limit=4)
             err = f"{type(exc).__name__}: {exc} (step {step_num}/{self.total})"
             self.result["error"] = err + "\n\n" + tb
+            # Everything the script printed BEFORE the failing statement —
+            # often the only clue to where its state diverged. Rides in
+            # `output` alongside `error`; the model sees both.
+            self.result["output"] = self.capture.format_for_tool_result()
             log.error("execute_blender_script error at step %d/%d: %s\n%s",
                       step_num, self.total, err, tb)
             _post_to_chat(
@@ -1085,7 +1104,10 @@ class _ScriptRunner:
         finalize_started = _time.monotonic()
 
         self._done = True
-        self.result["output"] = str(self.namespace.get("_result", "OK"))
+        self.result["output"] = (
+            str(self.namespace.get("_result", "OK"))
+            + self.capture.format_for_tool_result()
+        )
         log.info("execute_animora_code ok: %s (%d steps)", self.label, self.total)
 
         state_module.mark_exec_finished()

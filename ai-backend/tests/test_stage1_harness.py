@@ -7,11 +7,16 @@ fetch_asset) and the loop enforcer that makes blind chaining impossible.
 
 Test buckets:
   • Primitive shape tests (5) — verify each primitive's contract.
-  • Enforcer logic tests (Phase A) — additive blockout batches freely,
-    chained REFINEMENT edits are gated (first dispatches, rest defer),
-    read-only bypass, env-var on-by-default + disable.
-  • Blender-required tests (3) — skipped cleanly when `bpy` is not
-    importable; run on developer machines with Blender installed.
+  • Enforcer logic tests (Phase A / V2 Phase 2) — driven through the
+    PRODUCTION enforcer_gate_decision(), not a mirror: additive blockout
+    batches freely, chained REFINEMENT edits are gated (first dispatches,
+    rest defer), read-only bypass, env-var on-by-default + disable,
+    deferred-message contract, defer→capture ordering.
+  • execute_python contract tests — AST-split pattern, stdout/stderr
+    capture wiring, single-undo-entry wiring, viewport-frame header
+    contract. No bpy needed.
+  • Blender-required test (1) — skipped cleanly when `bpy` is not
+    importable; runs on developer machines with Blender installed.
 
 Run:
     pytest ai-backend/tests/test_stage1_harness.py -v
@@ -31,8 +36,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 # Bootstrap the ai_backend package — matches the existing test pattern
 # in test_phase5_quality.py / test_phase5_5_retry.py.
@@ -162,29 +166,96 @@ def test_primitive_fetch_asset_chain_present() -> None:
 # ── ENFORCER TESTS — pure backend, no Blender + no Anthropic ───────────
 
 
-def _simulate_gate(tool_calls: list[tuple[str, str]]) -> tuple[list[str], dict[str, str]]:
-    """Pure mirror of the Phase A enforcer gate in `_on_tool_call`:
-    read-only tools dispatch freely; ADDITIVE mutations (create_*,
-    duplicate, apply_material, set_parent) dispatch freely; only
-    subsequent REFINEMENT ops (set_transform, add_modifier, delete,
-    set_world, execute_*) defer until a capture. Returns
+def _simulate_gate(
+    tool_calls: list[tuple[str, str]], *, enforce: bool = True,
+) -> tuple[list[str], dict[str, str]]:
+    """Fold a stream of tool calls through the PRODUCTION gate —
+    streaming.enforcer_gate_decision — exactly as _on_tool_call applies
+    it (per-iteration refinement slot; deferred calls don't dispatch).
+    This used to be a hand-written mirror of the gate; V2 Phase 2
+    replaced it so a policy change in streaming.py fails these tests
+    instead of silently diverging. Returns
     (dispatched_ids, deferred_ids_by_name)."""
-    muts = streaming_mod._LOOP_ENFORCER_MUTATION_TOOLS
-    refine = streaming_mod._REFINEMENT_TOOLS
     iter_refinement_dispatched = False
     dispatched: list[str] = []
     deferred: dict[str, str] = {}
     for tname, tid in tool_calls:
-        if tname not in muts:            # read-only / backend signal
-            dispatched.append(tid)
+        decision = streaming_mod.enforcer_gate_decision(
+            tname,
+            enforce=enforce,
+            refinement_already_dispatched=iter_refinement_dispatched,
+        )
+        if decision == "defer":
+            deferred[tid] = tname
             continue
-        if tname in refine:
-            if iter_refinement_dispatched:
-                deferred[tid] = tname
-                continue
+        if decision == "dispatch_refinement":
             iter_refinement_dispatched = True
-        dispatched.append(tid)           # additive, or first refinement
+        dispatched.append(tid)
     return dispatched, deferred
+
+
+def test_enforcer_gate_decision_is_the_production_path() -> None:
+    """The extraction is only a proof if the loop actually calls it:
+    _on_tool_call must invoke enforcer_gate_decision, and the old inline
+    membership test must be gone."""
+    src = Path(streaming_mod.__file__).read_text(encoding="utf-8")
+    assert "gate = enforcer_gate_decision(" in src
+    assert "refinement_already_dispatched=iter_refinement_dispatched" in src
+    # The deferral synthesis must use the shared message builder.
+    assert "build_deferred_message(dn)" in src
+
+
+def test_enforcer_gate_decision_vocabulary() -> None:
+    """Pin the four decisions on representative tools."""
+    gd = streaming_mod.enforcer_gate_decision
+    # Read-only / signals bypass regardless of slot state.
+    assert gd("get_scene_info", enforce=True, refinement_already_dispatched=False) == "bypass"
+    assert gd("viewport_screenshot", enforce=True, refinement_already_dispatched=True) == "bypass"
+    # Additive mutations dispatch even after a refinement ran.
+    assert gd("create_primitive", enforce=True, refinement_already_dispatched=True) == "dispatch_mutation"
+    # Refinements: first claims the slot, second defers.
+    assert gd("set_transform", enforce=True, refinement_already_dispatched=False) == "dispatch_refinement"
+    assert gd("set_transform", enforce=True, refinement_already_dispatched=True) == "defer"
+    assert gd("execute_animora_code", enforce=True, refinement_already_dispatched=True) == "defer"
+    # Enforcer off → everything bypasses (debug escape hatch).
+    assert gd("set_transform", enforce=False, refinement_already_dispatched=True) == "bypass"
+
+
+def test_enforcer_disabled_never_defers() -> None:
+    """ANIMORA_ENFORCE_LOOP=0 semantics: the same chained-refinement
+    stream that defers under enforcement dispatches everything."""
+    dispatched, deferred = _simulate_gate(
+        [("set_transform", "t1"), ("set_transform", "t2"), ("delete_object", "t3")],
+        enforce=False,
+    )
+    assert dispatched == ["t1", "t2", "t3"]
+    assert deferred == {}
+
+
+def test_deferred_message_contract() -> None:
+    """The model-facing deferral text (the REAL builder, not a copy) must
+    name the deferred tool, state the one-refinement-per-cycle rule, and
+    instruct a re-emit after reviewing the forced capture."""
+    msg = streaming_mod.build_deferred_message("set_transform")
+    assert msg.startswith("[Animora loop enforcer] Deferred")
+    assert "set_transform" in msg
+    assert "one" in msg and "refinement per cycle" in msg
+    assert "re-emit" in msg
+    assert "captured" in msg  # ties the deferral to the forced screenshot
+
+
+def test_enforcer_defer_precedes_forced_capture_in_loop_body() -> None:
+    """Ordering property of the loop body: deferred tool_results are
+    synthesised, THEN the forced screenshot is injected for the next
+    iteration — so a deferred edit is only re-emitted after a capture
+    is in front of the model. Source-order assertion (the loop body is
+    linear; these blocks execute in file order every iteration)."""
+    src = Path(streaming_mod.__file__).read_text(encoding="utf-8")
+    synth = src.index("build_deferred_message(dn)")
+    inject = src.index("enforcer.screenshot.injected")
+    assert synth < inject, (
+        "deferral synthesis must precede screenshot injection in the loop body"
+    )
 
 
 def test_enforcer_mutation_set_is_a_frozenset() -> None:
@@ -312,16 +383,19 @@ def test_enforcer_escape_hatch_is_gated_refinement() -> None:
     assert deferred2 == {}
 
 
-# ── BLENDER-REQUIRED TESTS — skipped cleanly without bpy ───────────────
+# ── EXECUTE-PYTHON CONTRACT TESTS (no bpy needed) ───────────────────────
+# V2 Phase 2 note: these two AST tests were previously skipped behind a
+# bpy guard they never needed — they exercise the stdlib `ast` pattern
+# the runner uses, not the runner itself. Un-skipped so they run on
+# every machine and in CI.
 
 
-@pytest.mark.skipif(not _HAS_BPY, reason="Blender not installed; bpy unavailable")
 def test_execute_python_ast_split_statement_ordering() -> None:
-    """Inside Blender, run a 4-statement script through the AST-split
-    runner and confirm each statement executes in order. Skipped on
-    pure CI runners."""
-    # Pure smoke test of the AST parsing logic; the actual runner
-    # requires the addon's _ScriptRunner which needs a 3D viewport.
+    """The AST-split pattern the _ScriptRunner uses: a 4-statement script
+    parses into 4 top-level nodes, each independently compilable in
+    order. (The runner itself needs a 3D viewport; its capture/undo
+    wiring is contract-tested below and behavior-tested in
+    addons/tests/test_script_capture.py.)"""
     import ast as _ast
     script = (
         "import bpy\n"
@@ -341,7 +415,6 @@ def test_execute_python_ast_split_statement_ordering() -> None:
     assert len(compiled) == 4
 
 
-@pytest.mark.skipif(not _HAS_BPY, reason="Blender not installed; bpy unavailable")
 def test_execute_python_syntax_error_handled_cleanly() -> None:
     """A SyntaxError in the script should be caught and reported
     (not raised). The addon path returns a tool_result with the error
@@ -353,6 +426,56 @@ def test_execute_python_syntax_error_handled_cleanly() -> None:
     # The addon's _execute_script catches this and sends a tool_result.
     # That path is exercised in dev_server smoke tests; we just confirm
     # the error type here.
+
+
+def test_execute_python_stdout_capture_is_wired() -> None:
+    """V2 Phase 2 — the execute_python contract requires stdout/stderr
+    capture. Behavior is tested bpy-free in
+    addons/tests/test_script_capture.py; here we pin the WIRING in
+    operators.py: every statement exec runs inside capture(), and both
+    finalize paths fold the captured text into the tool_result."""
+    ops_src = Path("addons/animora_panel/operators.py").resolve().read_text(encoding="utf-8")
+    # Statement exec wrapped in the capture context:
+    assert ", self.capture.capture():" in ops_src
+    # Success path appends captured output to the model-facing result:
+    assert "+ self.capture.format_for_tool_result()" in ops_src
+    # Failure path surfaces prints from before the failing statement:
+    assert 'self.result["output"] = self.capture.format_for_tool_result()' in ops_src
+
+
+def test_execute_python_single_undo_entry_is_wired() -> None:
+    """The execute_python contract's 'single undo entry': one
+    bpy.ops.ed.undo_push per agent iteration, pushed upstream in
+    _on_tool_call (never a second push inside the script runner)."""
+    ops_src = Path("addons/animora_panel/operators.py").resolve().read_text(encoding="utf-8")
+    assert "_maybe_push_iteration_undo(iteration" in ops_src
+    assert "def _maybe_push_iteration_undo" in ops_src
+    # Exactly one live undo_push CALL site (the helper); the legacy
+    # in-runner push must stay retired. Match the call syntax so comment
+    # and docstring mentions don't count.
+    live_push_lines = [
+        ln for ln in ops_src.splitlines()
+        if "bpy.ops.ed.undo_push(" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(live_push_lines) == 1, (
+        f"expected exactly one undo_push call site, found {len(live_push_lines)}"
+    )
+
+
+def test_viewport_frame_header_contract() -> None:
+    """Cross-component contract: the addon packs viewport frames with a
+    13-byte '>BHHd' header (vision.py) and the backend unpacks the SAME
+    format (main.py _VPF_HEADER_FMT). If either side changes alone, the
+    vision stream silently breaks — this test makes the drift loud."""
+    import struct as _struct
+    vision_src = Path("addons/animora_panel/vision.py").resolve().read_text(encoding="utf-8")
+    main_src = Path("ai-backend/main.py").resolve().read_text(encoding="utf-8")
+    assert 'struct.pack(">BHHd"' in vision_src, "addon no longer packs >BHHd frames"
+    assert '_VPF_HEADER_FMT = ">BHHd"' in main_src, "backend no longer expects >BHHd frames"
+    assert _struct.calcsize(">BHHd") == 13  # 1B type + 2B w + 2B h + 8B ts
+
+
+# ── BLENDER-REQUIRED TESTS — skipped cleanly without bpy ───────────────
 
 
 @pytest.mark.skipif(not _HAS_BPY, reason="Blender not installed; bpy unavailable")

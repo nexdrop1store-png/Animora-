@@ -153,6 +153,56 @@ _REFINEMENT_TOOLS: frozenset[str] = frozenset({
 })
 
 
+def enforcer_gate_decision(
+    name: str,
+    *,
+    enforce: bool,
+    refinement_already_dispatched: bool,
+) -> str:
+    """Pure decision core of the Stage-1 loop-enforcer gate.
+
+    Extracted from _on_tool_call so the test suite drives the PRODUCTION
+    policy instead of a reimplemented mirror (V2 Phase 2 verify bar:
+    "a deliberate attempt to chain two edits without a capture is
+    provably blocked"). Keep ALL gate policy here; the closure only
+    applies the returned decision to its per-iteration state.
+
+    Returns one of:
+      "bypass"              — read-only / backend signal, or enforcer off:
+                              dispatch; no enforcer state change
+      "dispatch_mutation"   — additive mutation (blockout): dispatch and
+                              mark the scene as changed this iteration
+      "dispatch_refinement" — FIRST state-dependent refinement this
+                              iteration: dispatch and claim the slot
+      "defer"               — a refinement already ran this iteration:
+                              do NOT dispatch; synthesise a deferred
+                              tool_result so the model re-emits it after
+                              the forced capture
+    """
+    if not enforce or name not in _LOOP_ENFORCER_MUTATION_TOOLS:
+        return "bypass"
+    if name in _REFINEMENT_TOOLS:
+        return "defer" if refinement_already_dispatched else "dispatch_refinement"
+    return "dispatch_mutation"
+
+
+def build_deferred_message(tool_name: str) -> str:
+    """The model-facing tool_result text for a gate-deferred mutation.
+    Module-level so tests can pin the contract: it must name the tool,
+    explain the one-refinement-per-cycle rule, and instruct a re-emit
+    after reviewing the forced screenshot."""
+    return (
+        f"[Animora loop enforcer] Deferred — Animora's "
+        f"inspect-execute-verify rule allows only one "
+        f"state-changing refinement per cycle (additive "
+        f"creation may batch; edits like {tool_name} may not). The "
+        f"prior step in this iteration was captured and is "
+        f"shown to you below. After reviewing it, re-emit this "
+        f"{tool_name}(...) call on the next iteration if it is "
+        f"still the right next step, or revise your plan."
+    )
+
+
 async def stream_response(
     user_message: str,
     conversation_history: list[dict],
@@ -634,6 +684,10 @@ async def stream_response(
 
         async def _on_tool_call(name: str, tool_use_id: str,
                                  tool_input: dict[str, Any]) -> None:
+            # Loop-enforcer per-iteration flags are read AND written in the
+            # gate block below; Python requires the nonlocal declaration
+            # before the first use of the names in this scope.
+            nonlocal iter_mutation_dispatched, iter_refinement_dispatched
             # Backend-only signal: model is declaring it's ready for the
             # whole-scene check. Don't dispatch to the addon. Mark the
             # tool_use_id so the post-await block knows to synthesise its
@@ -716,38 +770,37 @@ async def stream_response(
                     # for an addon response that will never come.
                     rejected_tool_use_ids[tool_use_id] = verdict.reason
                     return
-            # Stage 1 — Loop enforcer gate. At most ONE mutation tool
-            # may dispatch per iteration. Read-only tools
-            # (get_scene_info, get_object_info, viewport_screenshot)
-            # bypass; backend signals (request_final_review, use_asset)
-            # already returned early above. The first mutation
-            # dispatches normally; subsequent mutations get a
-            # synthetic "deferred" tool_result resolved against the
-            # coordinator after await_results returns. Toggle off via
-            # ANIMORA_ENFORCE_LOOP=0 for later-stage development.
-            if _ENFORCE_LOOP and name in _LOOP_ENFORCER_MUTATION_TOOLS:
-                nonlocal iter_mutation_dispatched, iter_refinement_dispatched
+            # Stage 1 — Loop enforcer gate. Policy lives in the module-level
+            # enforcer_gate_decision() (so tests drive the production code
+            # path); this block only applies the decision to per-iteration
+            # state. Read-only tools bypass; additive blockout batches;
+            # chained REFINEMENT edits defer and get a synthetic tool_result
+            # after await_results. Toggle off via ANIMORA_ENFORCE_LOOP=0
+            # for later-stage development.
+            gate = enforcer_gate_decision(
+                name,
+                enforce=_ENFORCE_LOOP,
+                refinement_already_dispatched=iter_refinement_dispatched,
+            )
+            if gate != "bypass":
                 # Any mutation means the scene changed → force a CAPTURE before
                 # the next iteration (the screenshot-injection block below).
                 iter_mutation_dispatched = True
-                # Only REFINEMENT edits are gated: the first dispatches, the rest
-                # defer until the model has seen the result. Additive blockout
-                # (create_*, duplicate, apply_material, set_parent) batches freely.
-                if name in _REFINEMENT_TOOLS:
-                    if iter_refinement_dispatched:
-                        deferred_mutation_ids[tool_use_id] = name
-                        await bus.emit("enforcer.mutation.deferred", {
-                            "session_id": session_id,
-                            "iteration": iteration,
-                            "tool": name,
-                            "tool_use_id": tool_use_id,
-                        })
-                        log.info(
-                            "enforcer.mutation.deferred session=%s iter=%d "
-                            "tool=%s tool_use_id=%s — chained refinement blocked",
-                            session_id, iteration, name, tool_use_id,
-                        )
-                        return  # do NOT dispatch — synthesise tool_result later
+                if gate == "defer":
+                    deferred_mutation_ids[tool_use_id] = name
+                    await bus.emit("enforcer.mutation.deferred", {
+                        "session_id": session_id,
+                        "iteration": iteration,
+                        "tool": name,
+                        "tool_use_id": tool_use_id,
+                    })
+                    log.info(
+                        "enforcer.mutation.deferred session=%s iter=%d "
+                        "tool=%s tool_use_id=%s — chained refinement blocked",
+                        session_id, iteration, name, tool_use_id,
+                    )
+                    return  # do NOT dispatch — synthesise tool_result later
+                if gate == "dispatch_refinement":
                     # First refinement this iteration — claim the slot.
                     iter_refinement_dispatched = True
                     await bus.emit("enforcer.mutation.dispatched", {
@@ -1196,16 +1249,7 @@ async def stream_response(
             coordinator.resolve(rid, {
                 "tool_use_id": rid,
                 "is_error": False,
-                "output": (
-                    f"[Animora loop enforcer] Deferred — Animora's "
-                    f"inspect-execute-verify rule allows only one "
-                    f"state-changing refinement per cycle (additive "
-                    f"creation may batch; edits like {dn} may not). The "
-                    f"prior step in this iteration was captured and is "
-                    f"shown to you below. After reviewing it, re-emit this "
-                    f"{dn}(...) call on the next iteration if it is "
-                    f"still the right next step, or revise your plan."
-                ),
+                "output": build_deferred_message(dn),
             })
         # Sprint 3B: use_asset calls that FAILED at the fetch stage get
         # a synthesised error tool_result so the model knows the fallback
