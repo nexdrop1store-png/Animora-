@@ -66,6 +66,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ai-backend/requirements.txt
 
+      # The eval spends real API credits and cannot run without a key. Fail
+      # HERE with an actionable message instead of letting runner.py exit one
+      # step later — every "quality gate" failure recorded May–July 2026 was
+      # this missing secret, not a quality regression.
+      - name: Check ANTHROPIC_API_KEY secret is configured
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not set. Add it under Settings → Secrets and variables → Actions → New repository secret. The quality regression gate cannot run without it."
+            exit 1
+          fi
+          echo "ANTHROPIC_API_KEY is configured."
+
       - name: Run eval harness vs baseline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

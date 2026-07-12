@@ -29,12 +29,6 @@ build_log.txt
 tmp_probe.py
 test_addon_load.py
 
-# Node / website
-website/node_modules/
-website/.next/
-website/out/
-website/.vercel/
-
 # OS
 .DS_Store
 Thumbs.db
