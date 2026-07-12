@@ -5,6 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Animora is an AI-native 3D creation tool: a full fork and rebrand of Blender with a persistent AI panel, real-time vision system, cloud LLM backend, auth/billing, and website.
 
+## V2 — current work (always-true facts)
+V2 = the minimum credible PAID product. **In scope:** quality loop completion, five personas + taste layer, cost control + per-user token metering, billing (Trial 3-day device-bound / Standard $29 / Studio $79) with server-side entitlements, trial protection + device binding + security hardening, quality eval suite as a working CI gate. **Out of scope (V3 — requires an explicit scope-change decision):** cloud rendering, collaboration/multi-seat, cloud asset library, mobile companion.
+
+**The two loops (never skipped):**
+1. **Phase loop (how we work):** build in small increments → test → verify against the phase's stated bar → "Phase Complete" report → STOP for explicit approval. Never start the next phase unprompted.
+2. **Product loop (what Animora runs):** inspect scene → brief → plan → execute ONE step → capture viewport → critique vs artist's-eye → correct → re-read → advance → final review — enforced IN CODE by the loop enforcer (see `.claude/skills/animora-product-loop/`), not merely requested in the prompt.
+
+**Absolute rules:** no user-visible "blender" anywhere in the product (GPL credit screen is the only sanctioned mention); plan/entitlement decisions are SERVER-side only (a patched local "paid" flag must change nothing); secrets never ship client-side.
+
+**Numbering glossary — three schemes, never mix without saying which:** (1) repo-internal "Phase 1–15 / Stage 1–8 / Sprint N" in code comments and test names; (2) V2 build-plan Phases 0–10 (audit: `docs/V2_PHASE0_AUDIT.md`); (3) public roadmap PHASE_01–10 on animora.tech.
+
+**Project skills:** `.claude/skills/` holds 12 Animora skills (repo conventions, bpy patterns, addon architecture, product loop, quality gates, personas, orchestrator, metering/billing, device binding, API protection, debug, release cut). Start there before working in an unfamiliar subsystem.
+
 ## Monorepo Layout
 ```
 Animora/
@@ -30,8 +43,10 @@ Animora/
 │   └── dev_server.py        local-only launcher (stubs Redis + JWT — never ships)
 │                            Desktop auth lives in addons/animora_panel/auth/
 │                            (loopback PKCE against Supabase — see below)
-├── docs/                    AI_ARCHITECTURE.md (~30 KB plan) + RUN_LOCAL.md
-├── website/                 animora.tech (Next.js 14, App Router, TS strict)
+├── docs/                    AI_ARCHITECTURE.md (~30 KB plan) + RUN_LOCAL.md + V2_PHASE0_AUDIT.md
+├── supabase/                Import plan + inventory for server-side auth (SQL RPC + edge
+│                            functions live in the Supabase project — see supabase/README.md)
+├── .claude/skills/          12 project skills — the team's procedural knowledge base
 ├── assets/                  Branding (splash, icons, theme, startup.blend)
 ├── installer/windows/inno/  Inno Setup scripts + VC++ Redist bundle
 ├── scripts/                 build.py, rebrand.py, sync_addon.py, stage_for_installer.py,
@@ -75,10 +90,9 @@ cd ai-backend && uvicorn main:app --reload --port 8000
 # Model translation is transparent (router uses logical names like claude-opus-4-7;
 # AnthropicClient maps them to us.anthropic.claude-opus-4-6-v1 on Bedrock).
 # Full guide: docs/BEDROCK.md.
-
-# Website (local)
-cd website && npm run dev
 ```
+
+**Website:** the live animora.tech is a **Vite app in a separate repo — `tc-byte/animora` — deployed on Vercel** (project `animora`, team `taola-classics-projects`). It is NOT in this monorepo; the old `website/` stub here was removed in V2 Phase 1. Billing UI / roadmap / downloads-page work happens in that repo.
 
 ## Tests
 Pytest is configured (`pyproject.toml`: `testpaths = ["ai-backend/tests", "addons/tests"]`, `asyncio_mode = "auto"`).
@@ -147,9 +161,9 @@ The master prompt + persona section is deliberately kept identical across turns 
 ### Vision system (viewport frames)
 Binary WS frames from the addon carry a 13-byte header: `>BHHd` = 1B type + 2B width + 2B height + 8B timestamp (see `_VPF_HEADER_FMT` in `ai-backend/main.py`). Frames go into a Redis ring buffer (`vision_buffer.py`) with `PAUSE_AT` / `RESUME_AT` thresholds for backpressure. HD captures use a separate slot. When the LLM needs vision, `context_builder` attaches the latest frame.
 
-### dev_server.py vs main.py
+### dev_server.py vs main.py — and where production actually runs
 - `dev_server.py` monkey-patches `session_manager.get_redis()` and `auth_middleware.decode_token()` with in-process stubs. It is dev-only.
-- `main.py` is what Fargate runs in production — real Redis (ElastiCache), real Supabase-issued JWTs, real Secrets Manager.
+- `main.py` is the production entrypoint. **The LIVE backend is HuggingFace Spaces: `https://eatanimora-animora-backend.hf.space`** (health: `/health`; addon defaults in `addons/animora_panel/preferences.py`). `fly.toml` is a prepared Fly.io+Bedrock alternative that is NOT live; earlier "AWS Fargate" references are historical.
 - `stage_for_installer.py` explicitly excludes `dev_server.py` from shipped bundles. Never import from it in production code paths.
 
 ## Desktop auth (addons/animora_panel/auth/)
@@ -169,11 +183,8 @@ The redirect-URI allowlist lives in TWO places in the website repo (client check
 - No `print()` in production paths — use `logging` / `observability.logger()`
 - Addon code: follow Blender PEP 8 with `bpy` patterns; operators prefixed `OT_`, panels `PT_`
 
-## TypeScript / Next.js Conventions (website)
-- TypeScript strict mode
-- App Router only (no `pages/` directory)
-- Tailwind CSS + shadcn/ui
-- Server components by default; `"use client"` only when needed
+## Website conventions
+The live site is a Vite + React app in the separate repo `tc-byte/animora` (Vercel). Follow that repo's own conventions when working there. Cross-repo invariant to preserve from THIS side: the desktop auth loopback flow depends on the site's `/signin` → device-authorize pages and their redirect-URI allowlist — coordinate changes with `supabase/README.md` and the `animora-device-binding` skill.
 
 ## Security Rules
 - Never log access tokens, refresh tokens, raw API keys, or device fingerprints — log only sha256 prefixes via `anthropic_client.fingerprint_key()`.
@@ -185,9 +196,10 @@ The redirect-URI allowlist lives in TWO places in the website repo (client check
 - `/validate-key`: Redis-backed per-IP rate limit (10/min), generic error messages to clients (specifics go to server logs).
 
 ## Key External Services
-- **Claude API**: Haiku 4.5 (fast / intent), Sonnet 4.6 (primary), Opus 4.5 (Studio / complex). Routing logic in `ai-backend/orchestrator/router.py`.
+- **Claude API**: Opus 4.7 (ALL execution intents, every plan), Sonnet 4.6 (non-execution default + artist's-eye vision), Haiku 4.5 (intent classification, short questions, memory compression). Routing logic in `ai-backend/orchestrator/router.py`. On Bedrock, logical names map via `llm_provider.py`.
+- **HuggingFace Spaces**: LIVE production backend host (`eatanimora-animora-backend.hf.space`). Fly.io config (`fly.toml`) prepared but not live.
+- **Supabase**: auth (PKCE device handoff), Postgres (user/device/billing data), edge functions `auth-handoff-exchange`, `delete-account`, `notify-waitlist` + RPC `issue_device_handoff` — source-of-truth in the Supabase project until the `supabase/` import lands (see `supabase/README.md`).
+- **Vercel**: website hosting (repo `tc-byte/animora`, project `animora`).
+- **Stripe**: subscriptions and billing (V2 Phase 7 — config placeholders only today)
 - **Deepgram**: Nova-3 voice transcription
-- **Stripe**: Subscriptions and billing
-- **Redis**: Session state, rate limiting, vision ring buffer
-- **Supabase Postgres**: persistent user / device / billing data
-- **AWS Fargate**: production backend host
+- **Redis**: session state, rate limiting, vision ring buffer
