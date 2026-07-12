@@ -19,31 +19,35 @@ name: AI Quality Eval
 # (Stage 8) run cost, per-category mean cost, and quality-per-dollar.
 #
 # Triggered on:
-#   - PRs that touch the AI surface (backend, prompts, panel) — we
-#     only care when the prompt/persona/router could plausibly change
-#     output quality. Pure docs/website PRs skip this expensive job.
-#   - Push to main as a smoke (cheap insurance against a broken merge).
-#   - Manual trigger via workflow_dispatch for ad-hoc verification.
+#   - MANUAL ONLY (workflow_dispatch) while the API budget is tiny —
+#     V2 decision 2026-07-12. Each full run costs real money (see
+#     below); auto-running on every push would burn a $6 budget in two
+#     ordinary commits. Run it deliberately from the Actions tab as
+#     part of the phase-completion ritual for any change that touches
+#     prompts / personas / router / scoring.
+#
+#   RESTORE WHEN FUNDED: uncomment the pull_request + push triggers
+#   below to make the quality gate automatic again (that's the long-term
+#   intent — auto-insurance on every AI-surface change).
 #
 # Cost: each run = N benchmarks × ~$0.05-0.10 Opus per call. At 31
 # benchmarks one run is ~$2-3. To bound this, consider --filter to a
-# fast subset on PRs and the full suite on a schedule. Skipped paths
-# above keep this off the critical path of doc PRs.
+# fast subset on PRs and the full suite on a schedule.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "ai-backend/**"
-      - "addons/animora_panel/**"
-      - "patches/**"
-      - ".github/workflows/eval.yml"
-  push:
-    branches: [main]
-    paths:
-      - "ai-backend/**"
-      - "addons/animora_panel/**"
   workflow_dispatch:
+  # pull_request:
+  #   branches: [main]
+  #   paths:
+  #     - "ai-backend/**"
+  #     - "addons/animora_panel/**"
+  #     - "patches/**"
+  #     - ".github/workflows/eval.yml"
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "ai-backend/**"
+  #     - "addons/animora_panel/**"
 
 jobs:
   eval:
