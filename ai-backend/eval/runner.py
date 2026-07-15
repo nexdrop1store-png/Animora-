@@ -586,6 +586,15 @@ async def _main(args: argparse.Namespace) -> int:
                   if result.critic_score >= 0 else "")
             print(result.score_summary(),
                   f"({result.elapsed_ms} ms, {result.output_tokens} tok{cs})")
+            # Incremental dump after EVERY benchmark: each API call is paid
+            # for the moment it returns, so a mid-run kill (CI timeout-minutes,
+            # OOM, credit exhaustion) must never vaporize the paid results.
+            # The partial dump stays rescorable via --skip-llm --input-json.
+            if args.json:
+                Path(args.json).write_text(
+                    json.dumps([asdict(r) for r in results], indent=2),
+                    encoding="utf-8",
+                )
 
     report = _format_report(results)
 

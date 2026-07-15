@@ -73,7 +73,10 @@ jobs:
   eval:
     name: Quality regression gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60 min: a full 31-benchmark run on Bedrock paces ~73 s/benchmark
+    # (~40 min). The 30-min default killed run 29400154299 at benchmark
+    # 23/31, losing ~$9 of paid results. Keep comfortably above worst case.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
