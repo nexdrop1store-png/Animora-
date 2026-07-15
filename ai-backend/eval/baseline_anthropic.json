@@ -5,7 +5,7 @@
     "notes": [],
     "critic_score": 0.857,
     "first_step_ok": true,
-    "cost_usd": 0.121365
+    "cost_usd": 0.042735
   },
   {
     "name": "primitive.cuboid",
@@ -13,7 +13,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.06579
+    "cost_usd": 0.04776
   },
   {
     "name": "primitive.sphere",
@@ -29,7 +29,7 @@
     "notes": [],
     "critic_score": 0.857,
     "first_step_ok": true,
-    "cost_usd": 0.11313
+    "cost_usd": 0.03411
   },
   {
     "name": "furniture.chair.low_poly",
@@ -37,7 +37,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.51573
+    "cost_usd": 0.521805
   },
   {
     "name": "vehicle.car.basic",
@@ -45,7 +45,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.16847
+    "cost_usd": 1.1811
   },
   {
     "name": "vehicle.car.lambo_urus",
@@ -53,9 +53,9 @@
     "notes": [
       "missing op `light_add\\(|light\\.energy\\s*=|bpy\\.data\\.lights\\.new\\(|ShaderNodeTexEnvironment|EnvironmentTexture`"
     ],
-    "critic_score": 0.905,
-    "first_step_ok": null,
-    "cost_usd": 1.31163
+    "critic_score": 0.762,
+    "first_step_ok": true,
+    "cost_usd": 0.662235
   },
   {
     "name": "character.dragon",
@@ -63,7 +63,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.040295
+    "cost_usd": 1.10067
   },
   {
     "name": "scene.beach",
@@ -71,7 +71,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.821085
+    "cost_usd": 0.74319
   },
   {
     "name": "lighting.studio",
@@ -79,7 +79,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.299865
+    "cost_usd": 0.241515
   },
   {
     "name": "question.bsdf",
@@ -87,7 +87,7 @@
     "notes": [],
     "critic_score": 0.643,
     "first_step_ok": null,
-    "cost_usd": 0.000783
+    "cost_usd": 0.002073
   },
   {
     "name": "primitive.sphere.creative_safety_net",
@@ -95,17 +95,17 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.522975
+    "cost_usd": 0.513825
   },
   {
     "name": "composition.still_life",
     "ok": true,
     "notes": [
-      "over token budget (5447 > 5000)"
+      "over token budget (5548 > 5000)"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.937365
+    "cost_usd": 0.905895
   },
   {
     "name": "composition.depth_layering",
@@ -113,46 +113,43 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.17405
+    "cost_usd": 0.860145
   },
   {
     "name": "composition.three_point_lighting",
-    "ok": false,
-    "notes": [
-      "no meaningful .name= assignment",
-      "over token budget (6461 > 3500)"
-    ],
+    "ok": true,
+    "notes": [],
     "critic_score": 0.688,
     "first_step_ok": true,
-    "cost_usd": 0.87426
+    "cost_usd": 0.461985
   },
   {
     "name": "composition.rule_of_thirds",
     "ok": true,
-    "notes": [],
-    "critic_score": 1.0,
-    "first_step_ok": true,
-    "cost_usd": 0.948105
-  },
-  {
-    "name": "composition.grounded_furniture",
-    "ok": false,
     "notes": [
-      "no modifiers added (raw primitives only)"
+      "over token budget (6016 > 6000)"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.922185
+    "cost_usd": 1.08306
+  },
+  {
+    "name": "composition.grounded_furniture",
+    "ok": true,
+    "notes": [],
+    "critic_score": 1.0,
+    "first_step_ok": true,
+    "cost_usd": 0.91947
   },
   {
     "name": "character.standing_figure",
     "ok": true,
     "notes": [
-      "over token budget (8816 > 8000)"
+      "over token budget (9697 > 8000)"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.394565
+    "cost_usd": 1.55913
   },
   {
     "name": "asset.hdri_lighting",
@@ -160,7 +157,7 @@
     "notes": [],
     "critic_score": 0.643,
     "first_step_ok": null,
-    "cost_usd": 0.06033
+    "cost_usd": 0.052245
   },
   {
     "name": "asset.texture_application",
@@ -170,7 +167,7 @@
     ],
     "critic_score": 0.762,
     "first_step_ok": true,
-    "cost_usd": 0.475275
+    "cost_usd": 0.487245
   },
   {
     "name": "asset.reference_mesh",
@@ -178,7 +175,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.307875
+    "cost_usd": 0.588105
   },
   {
     "name": "furniture.chair.wooden_hero",
@@ -186,7 +183,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.98586
+    "cost_usd": 1.05636
   },
   {
     "name": "furniture.coffee_table.hero",
@@ -194,17 +191,17 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.603765
+    "cost_usd": 0.843915
   },
   {
     "name": "furniture.sofa.modern",
     "ok": true,
     "notes": [
-      "over token budget (8938 > 8000)"
+      "over token budget (9559 > 8000)"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.323675
+    "cost_usd": 1.514655
   },
   {
     "name": "furniture.floor_lamp",
@@ -215,17 +212,17 @@
     ],
     "critic_score": 0.696,
     "first_step_ok": true,
-    "cost_usd": 0.21807
+    "cost_usd": 0.197085
   },
   {
     "name": "furniture.bookshelf",
     "ok": true,
     "notes": [
-      "over token budget (6462 > 6000)"
+      "over token budget (7285 > 6000)"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.08906
+    "cost_usd": 1.1646
   },
   {
     "name": "scene.warm_evening_beach",
@@ -233,7 +230,7 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 0.954135
+    "cost_usd": 0.843525
   },
   {
     "name": "scene.cozy_living_room",
@@ -241,35 +238,37 @@
     "notes": [],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.13307
+    "cost_usd": 0.98439
   },
   {
     "name": "furniture.sideboard.luxury_vintage",
     "ok": false,
     "notes": [
-      "only 9 distinct objects (need >= 10)"
+      "only 6 distinct objects (need >= 10)",
+      "single-material setup (need >= 2 distinct materials)"
     ],
-    "critic_score": 0.524,
+    "critic_score": 0.762,
     "first_step_ok": true,
-    "cost_usd": 0.321195
+    "cost_usd": 0.27615
   },
   {
     "name": "furniture.chair.modern_minimalist",
-    "ok": true,
-    "notes": [],
-    "critic_score": 1.0,
-    "first_step_ok": true,
-    "cost_usd": 0.665205
-  },
-  {
-    "name": "furniture.shelf.industrial",
     "ok": false,
     "notes": [
-      "missing op `metallic\\s*=\\s*1\\.0|metallic=1\\.0`",
-      "over token budget (8100 > 6500)"
+      "forbidden op `metallic\\s*=\\s*1\\.0|metallic=1\\.0` present"
     ],
     "critic_score": 1.0,
     "first_step_ok": true,
-    "cost_usd": 1.3188
+    "cost_usd": 0.61428
+  },
+  {
+    "name": "furniture.shelf.industrial",
+    "ok": true,
+    "notes": [
+      "over token budget (7743 > 6500)"
+    ],
+    "critic_score": 1.0,
+    "first_step_ok": true,
+    "cost_usd": 1.166445
   }
 ]

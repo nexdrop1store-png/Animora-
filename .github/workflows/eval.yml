@@ -142,7 +142,17 @@ jobs:
           else
             args+=( --baseline ai-backend/eval/baseline.json --fail-on-regress )
           fi
-          python ai-backend/eval/runner.py "${args[@]}"
+          python ai-backend/eval/runner.py "${args[@]}" || {
+            rc=$?
+            # Exit 1 = some benchmarks below bar. In baseline-mint mode
+            # that's information, not failure — the mint succeeded and the
+            # report is the judge. Exit >= 2 (config/crash) always fails.
+            if [ "$MINT_BASELINE" = "true" ] && [ "$rc" -eq 1 ]; then
+              echo "Runner exit 1: some benchmarks below bar — expected for a baseline mint; see eval_report.md artifact."
+            else
+              exit "$rc"
+            fi
+          }
 
       # PR-comment the markdown report so reviewers see scores
       # inline without digging into job logs.
