@@ -509,6 +509,34 @@ def _rescore_from_dump(dump_path: Path) -> list[BenchmarkResult]:
     return results
 
 
+# Provider throttling (Bedrock 429 / ThrottlingException) is a per-minute
+# quota window, not a benchmark failure. Gate run 29434518557 scored 18
+# phantom FAILs because the window closed mid-suite. A throttled request
+# never executed and cost nothing, so re-running after a cool-down is
+# free; the client's own retry schedule is too short for RPM windows.
+_THROTTLE_MARKERS = ("RateLimitError", "ThrottlingException", "Too many requests")
+_THROTTLE_RETRIES = 2  # re-runs per benchmark, after the client's own retries
+_THROTTLE_BACKOFF_SEC = 75.0  # > one quota window; doubles on second retry
+
+
+def _was_throttled(result: BenchmarkResult) -> bool:
+    return any(m in n for n in result.notes for m in _THROTTLE_MARKERS)
+
+
+async def _run_one_throttle_aware(
+    client: AnthropicClient, bench: Benchmark
+) -> BenchmarkResult:
+    result = await _run_one(client, bench)
+    for attempt in range(_THROTTLE_RETRIES):
+        if not _was_throttled(result):
+            break
+        wait = _THROTTLE_BACKOFF_SEC * (attempt + 1)
+        print(f"throttled, cooling down {wait:.0f}s ... ", end="", flush=True)
+        await asyncio.sleep(wait)
+        result = await _run_one(client, bench)
+    return result
+
+
 async def _main(args: argparse.Namespace) -> int:
     configure()
 
@@ -563,7 +591,7 @@ async def _main(args: argparse.Namespace) -> int:
         for bench in benches:
             print(f"running {bench.name} ... ", end="", flush=True)
             if best_of == 1:
-                result = await _run_one(client, bench)
+                result = await _run_one_throttle_aware(client, bench)
             else:
                 # Stage 3B — best-of-N: run the benchmark N times, keep
                 # the candidate with the highest critic score (richer,
@@ -571,7 +599,7 @@ async def _main(args: argparse.Namespace) -> int:
                 # we can see the model's consistency on this prompt.
                 candidates = []
                 for _ in range(best_of):
-                    candidates.append(await _run_one(client, bench))
+                    candidates.append(await _run_one_throttle_aware(client, bench))
                 scores = [c.critic_score for c in candidates]
                 # Pick the highest critic score; tie-break on regex pass.
                 best_idx = max(
