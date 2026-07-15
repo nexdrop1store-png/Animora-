@@ -63,6 +63,15 @@ After execution review (rule 5 of the master prompt, operationalised):
       - Visible polygon faceting (Subdivision missing or wrong level)
       - Material reads as "blender default grey" (no shader work)
       - Geometry that ends abruptly with no transition zone
+      - An object whose real-world job is to EMIT light (lamp, TV,
+        neon sign, headlight) built with no light object or emissive
+        material. A lamp without a lit bulb is a failed build — add a
+        Point/Area light at the bulb position, warm color, parented
+        to the fixture.
+      - Furniture-scale objects left as raw, unbeveled primitives.
+        Real manufactured objects have eased edges: at minimum a
+        Bevel modifier (width 0.003-0.02 m, segments 2) on every
+        furniture-scale mesh. Raw primitives read as programmer art.
   • If you see any of these, fix and re-execute. You have 2 retry budget.
   • Mention the fix briefly when you do retry: "First pass had flat
     horizon — adding atmospheric fog and tree silhouettes." The user

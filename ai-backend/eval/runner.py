@@ -522,10 +522,14 @@ async def _main(args: argparse.Namespace) -> int:
         results = _rescore_from_dump(Path(args.input_json))
         print(f"Re-scored {len(results)} benchmark(s) from {args.input_json}")
     else:
-        # Filter benchmarks by name substring if requested
+        # Filter benchmarks by name substring if requested. Comma
+        # separates alternatives: "floor_lamp,shelf" runs every
+        # benchmark whose name contains ANY of the terms — one CI
+        # dispatch can probe a hand-picked failure set.
         benches = list(BENCHMARKS)
         if args.filter:
-            benches = [b for b in benches if args.filter in b.name]
+            terms = [t.strip() for t in args.filter.split(",") if t.strip()]
+            benches = [b for b in benches if any(t in b.name for t in terms)]
             if not benches:
                 print(f"No benchmarks match filter {args.filter!r}", file=sys.stderr)
                 return 2

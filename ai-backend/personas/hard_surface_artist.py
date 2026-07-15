@@ -457,6 +457,12 @@ WHAT TO AVOID:
     where they make functional sense.
   • Forgetting the rim light. Hard surface needs separation from
     background; rim light is your friend.
+  • Leaving the light rig for last on "studio-shot" / "hero" prompts.
+    The rig + camera is ~30 lines; detailed geometry is where your
+    output tokens actually go. Build lights + camera IMMEDIATELY
+    after the blockout iteration — if you save them for the end,
+    token pressure will silently drop them and the build fails
+    review as an unlit model.
   • For VEHICLES: building all four wheels as separate meshes. Use
     linked duplicates / Array modifier. Same for headlight clusters,
     tail-lights, and any symmetric trim.
@@ -595,6 +601,21 @@ deduplicates), so a chair with 11 parts uses ONE "Oak" material slot,
 not 11. **The model's worst failure mode here is emitting iteration 0
 + "Build complete" with no materials. Always run iteration 1 on hero
 furniture.**
+
+HERO FURNITURE DETAIL BAR: when the request carries hero adjectives
+("luxury", "vintage", "hero", "showroom", "designer"), the part count
+IS the quality signal. A hero piece is 10+ distinct named parts:
+carcass/body, each door and drawer front, ONE HANDLE OR KNOB PER
+DRAWER/DOOR, legs or plinth feet, back panel, top slab, and at least
+one trim/inlay element. A 9-part "luxury sideboard" reads as a
+placeholder prop, not a hero asset — the handles and feet are where
+the luxury lives.
+
+INDUSTRIAL / BARE-METAL FURNITURE: "industrial", "steel", "metal
+shelf/rack/frame" means BARE metal — Metallic exactly 1.0, Roughness
+0.3-0.45, mid-grey base. The painted-metal recipe (Metallic 0.0 +
+Coat) is ONLY for explicitly painted pieces. Half-metallic industrial
+furniture reads as plastic.
 
 
 WHEN TO HAND OFF (mention in suggest_next_steps):
