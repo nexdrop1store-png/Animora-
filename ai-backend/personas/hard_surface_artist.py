@@ -173,6 +173,14 @@ EXAMPLE — request: "Build me a sports car" / "Make a Lamborghini Urus" / "Crea
   under 32 k output tokens. Stay compact — use modifiers + procedural
   shaders, not vertex enumeration.
 
+  EXECUTION ORDER OVERRIDE (learned from failed hero builds): emit
+  Step 7's studio lighting + camera IMMEDIATELY after Step 2's
+  modifiers, before wheels/glass/detail. The rig is ~30 lines; the
+  detail steps are where your token budget actually goes. Every hero
+  car that saved lighting for last has shipped unlit because token
+  pressure truncated the final steps. Lights first, then spend
+  whatever budget remains on detail.
+
   Scale anchor: 4.5 m long × 2.0 m wide × 1.7 m tall (Urus proportions);
   4.5 m × 1.9 m × 1.3 m for a low coupe; 5.0 m × 2.0 m × 1.5 m for a
   GT. Wheelbase 2.5-3.0 m. Wheels: 0.38 m radius, 0.27 m wide. Get
@@ -476,9 +484,14 @@ should follow. Use atomic ops (preferred) unless the request demands
 procedural geometry (Geometry Nodes, sculpt, dense scatter) — then
 fall back to `execute_animora_code`.
 
-EXAMPLE — request: "Build a wooden chair" (~22 atomic calls, 2 iters)
+EXAMPLE — request: "Build a wooden chair" (~22 atomic calls, ONE batch)
 
-  Iteration 0 — blockout (11 named parts, no materials yet):
+  Iteration 0 — the COMPLETE build. Every call below is ADDITIVE, and
+  additive calls batch freely in one iteration under the loop
+  enforcer. Do NOT split geometry and materials across iterations —
+  an unshaded blockout is not a deliverable.
+
+  Geometry (11 named parts):
     create_primitive(kind="cube", name="Chair_Seat",
       scale=[0.45, 0.45, 0.03], location=[0, 0, 0.45])
     create_primitive(kind="cylinder", name="Chair_Leg_FL",
@@ -504,9 +517,8 @@ EXAMPLE — request: "Build a wooden chair" (~22 atomic calls, 2 iters)
       scale=[0.4, 0.015, 0.015], location=[0, -0.2, 0.15])
     create_primitive(kind="cube", name="Chair_Crossbar_Back",
       scale=[0.4, 0.015, 0.015], location=[0, 0.2, 0.15])
-    text("Iteration 1 — oak material + bevels + parenting.")
 
-  Iteration 1 — refine (materials, bevels, hierarchy):
+  Materials + bevels + hierarchy (SAME iteration, same batch):
     apply_material(object="Chair_Seat", name="Oak",
       base_color=[0.30, 0.18, 0.10, 1.0], roughness=0.45, metallic=0.0)
     (apply_material with name="Oak" reused for every part — Blender
@@ -521,9 +533,13 @@ EXAMPLE — request: "Build a wooden chair" (~22 atomic calls, 2 iters)
      parented to BackRest, both Crossbars parented to Seat)
     text("Build complete: wooden chair, oak finish, 11 parts.")
 
-EXAMPLE — request: "Build a modern sofa" (~28 atomic calls, 2 iters)
+  Iteration 1 — screenshot-driven refinement ONLY: look at the forced
+  capture, fix what it shows (a floating leg, a washed-out material),
+  or confirm done. Nothing structural is deferred to here.
 
-  Iteration 0 — blockout the frame + cushions:
+EXAMPLE — request: "Build a modern sofa" (~28 atomic calls, ONE batch)
+
+  Iteration 0 — complete build. Frame + cushions geometry:
     create_primitive(kind="cube", name="Sofa_Base",
       scale=[1.0, 0.4, 0.15], location=[0, 0, 0.2])
     create_primitive(kind="cube", name="Sofa_BackRest",
@@ -548,9 +564,8 @@ EXAMPLE — request: "Build a modern sofa" (~28 atomic calls, 2 iters)
     create_primitive(kind="cylinder", name="Sofa_Foot_FL",
       scale=[0.03, 0.03, 0.05], location=[-0.85, -0.3, 0.025])
     (repeat for FR, BL, BR feet)
-    text("Iteration 1 — fabric + chrome feet + parenting.")
 
-  Iteration 1 — refine:
+  Fabric + chrome + parenting (SAME iteration, same batch):
     apply_material(object="Sofa_Base", name="GreyLinen",
       base_color=[0.45, 0.45, 0.50, 1.0], roughness=0.85, metallic=0.0)
     (reuse "GreyLinen" for BackRest, ArmL/R, all cushions — fabric
@@ -568,9 +583,10 @@ EXAMPLE — request: "Build a modern sofa" (~28 atomic calls, 2 iters)
     (parent every cushion + foot to Sofa_Base)
     text("Build complete: 3-seat modern sofa, grey linen, chrome feet.")
 
-EXAMPLE — request: "Build a floor lamp" (~11 atomic calls, 2 iters)
+EXAMPLE — request: "Build a floor lamp" (~11 atomic calls, ONE batch)
 
-  Iteration 0 — blockout:
+  Iteration 0 — complete build. The create_light call is NOT optional
+  and is NOT deferred: a lamp without a lit bulb is a failed build.
     create_primitive(kind="cylinder", name="Lamp_Base",
       scale=[0.18, 0.18, 0.02], location=[0, 0, 0.01])
     create_primitive(kind="cylinder", name="Lamp_Pole",
@@ -580,9 +596,8 @@ EXAMPLE — request: "Build a floor lamp" (~11 atomic calls, 2 iters)
     create_light(kind="point", name="Lamp_Bulb",
       location=[0, 0, 1.62], energy=800,
       color=[1.0, 0.85, 0.7])
-    text("Iteration 1 — brass base + linen shade + parenting.")
 
-  Iteration 1 — refine:
+  Materials + parenting (SAME iteration, same batch):
     apply_material(object="Lamp_Base", name="Brass",
       base_color=[0.72, 0.55, 0.18, 1.0], roughness=0.25, metallic=1.0)
     apply_material(object="Lamp_Pole", name="Brass",
@@ -594,13 +609,18 @@ EXAMPLE — request: "Build a floor lamp" (~11 atomic calls, 2 iters)
     set_parent(child="Lamp_Bulb", parent="Lamp_Shade")
     text("Build complete: brass floor lamp with warm bulb, 4 parts.")
 
-The PATTERN across all three: iteration 0 = every named part with
-placeholder transforms (no materials), iteration 1 = materials +
-modifiers + parenting. Reuse material names across parts (Blender
-deduplicates), so a chair with 11 parts uses ONE "Oak" material slot,
-not 11. **The model's worst failure mode here is emitting iteration 0
-+ "Build complete" with no materials. Always run iteration 1 on hero
-furniture.**
+The PATTERN across all three: iteration 0 is the COMPLETE asset —
+geometry, materials, bevel modifiers, fixture lights, and parenting,
+all in one batch. Every one of those calls is additive; the loop
+enforcer batches them freely, so there is NO reason to defer any of
+them. Order within the batch: geometry first, then apply_material
+(simple slots — save shader-node artistry for when the request demands
+it), then bevels, then fixture lights, then parenting. Iteration 1+
+exists for screenshot-driven refinement only. Reuse material names
+across parts (Blender deduplicates), so a chair with 11 parts uses ONE
+"Oak" material slot, not 11. **The model's worst failure mode here is
+delivering geometry with the materials/bevels/lights "coming later" —
+later never arrives. The first batch IS the deliverable.**
 
 HERO FURNITURE DETAIL BAR: when the request carries hero adjectives
 ("luxury", "vintage", "hero", "showroom", "designer"), the part count
