@@ -34,8 +34,28 @@ name: AI Quality Eval
 # benchmarks one run is ~$2-3. To bound this, consider --filter to a
 # fast subset on PRs and the full suite on a schedule.
 
+#
+# Provider note (2026-07-15): the single ANTHROPIC_API_KEY secret slot
+# accepts EITHER a direct Anthropic key (sk-ant-...) OR an AWS Bedrock
+# long-term API key (ABSK...). The credential-check step detects the
+# shape and sets ANIMORA_LLM_PROVIDER accordingly. On Bedrock, Opus
+# calls run on Opus 4.6 (4.7 is gated — see docs/BEDROCK.md), so
+# baselines are NOT comparable across providers: the first run on a new
+# provider must be dispatched with mint_baseline=true and its
+# eval_baseline.json artifact committed as the gate's baseline.
+
 on:
   workflow_dispatch:
+    inputs:
+      filter:
+        description: "Run only benchmarks whose name contains this substring (diagnostic mode: no gate, no baseline mint)"
+        required: false
+        default: ""
+      mint_baseline:
+        description: "Mint a fresh baseline from this run instead of gating against the committed one (full suite only)"
+        type: boolean
+        required: false
+        default: false
   # pull_request:
   #   branches: [main]
   #   paths:
@@ -74,27 +94,52 @@ jobs:
       # HERE with an actionable message instead of letting runner.py exit one
       # step later — every "quality gate" failure recorded May–July 2026 was
       # this missing secret, not a quality regression.
-      - name: Check ANTHROPIC_API_KEY secret is configured
+      - name: Check API credentials + detect provider
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Repository secret ANTHROPIC_API_KEY is not set. Add it under Settings → Secrets and variables → Actions → New repository secret. The quality regression gate cannot run without it."
+          if [ -z "$API_KEY" ]; then
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not set. Paste a direct Anthropic key (sk-ant-...) or an AWS Bedrock long-term API key (ABSK...) under Settings → Secrets and variables → Actions. The quality regression gate cannot run without it."
             exit 1
           fi
-          echo "ANTHROPIC_API_KEY is configured."
+          case "$API_KEY" in
+            ABSK*)
+              echo "Detected AWS Bedrock bearer token — provider=bedrock (Opus runs as 4.6; see docs/BEDROCK.md)."
+              echo "ANIMORA_LLM_PROVIDER=bedrock" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Detected direct Anthropic key — provider=anthropic."
+              echo "ANIMORA_LLM_PROVIDER=anthropic" >> "$GITHUB_ENV"
+              ;;
+          esac
 
-      - name: Run eval harness vs baseline
+      - name: Run eval harness
         env:
+          # Single-slot secret: on Bedrock the bearer token is the auth and
+          # ANTHROPIC_API_KEY is ignored; on Anthropic the reverse.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.ANTHROPIC_API_KEY }}
+          BEDROCK_AWS_REGION: us-east-1
           ANIMORA_ENV: dev
           PYTHONIOENCODING: utf-8
+          FILTER: ${{ inputs.filter }}
+          MINT_BASELINE: ${{ inputs.mint_baseline }}
         run: |
-          python ai-backend/eval/runner.py \
-            --json eval_run.json \
-            --output eval_report.md \
-            --baseline ai-backend/eval/baseline.json \
-            --fail-on-regress
+          if [ -n "$FILTER" ] && [ "$MINT_BASELINE" = "true" ]; then
+            echo "::error::Refusing to mint a baseline from a filtered run — a partial baseline would poison the gate."
+            exit 1
+          fi
+          args=( --json eval_run.json --output eval_report.md )
+          if [ -n "$FILTER" ]; then
+            # Diagnostic mode: subset run, no gate (comparing a subset
+            # against the full baseline would report phantom regressions).
+            args+=( --filter "$FILTER" )
+          elif [ "$MINT_BASELINE" = "true" ]; then
+            args+=( --output-baseline eval_baseline.json )
+          else
+            args+=( --baseline ai-backend/eval/baseline.json --fail-on-regress )
+          fi
+          python ai-backend/eval/runner.py "${args[@]}"
 
       # PR-comment the markdown report so reviewers see scores
       # inline without digging into job logs.
@@ -127,4 +172,5 @@ jobs:
           path: |
             eval_run.json
             eval_report.md
+            eval_baseline.json
           retention-days: 30

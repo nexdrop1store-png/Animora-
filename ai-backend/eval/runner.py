@@ -17,7 +17,10 @@ suite is 12 calls. Budget at Opus rates ≈ $0.50 — cheaper than discovering
 the same regressions by clicking around in the panel.
 
 The runner depends on the same env config as dev_server.py — set
-ANIMORA_ENV=dev and have ANTHROPIC_API_KEY in your .env.
+ANIMORA_ENV=dev and have ANTHROPIC_API_KEY in your .env. To bill runs
+to AWS instead, set ANIMORA_LLM_PROVIDER=bedrock + AWS_BEARER_TOKEN_BEDROCK
+(see docs/BEDROCK.md; Opus calls run on Opus 4.6 there, so keep separate
+baselines per provider).
 """
 
 from __future__ import annotations
@@ -66,6 +69,7 @@ from ai_backend.eval.scoring import (
     score_against_benchmark,
     total_cost_usd,
 )
+from ai_backend.llm_provider import LLMProvider, provider_from_env
 from ai_backend.observability import configure
 from ai_backend.orchestrator.critic import reconstruct_scene_graph
 from ai_backend.orchestrator.events import bus
@@ -526,14 +530,27 @@ async def _main(args: argparse.Namespace) -> int:
                 print(f"No benchmarks match filter {args.filter!r}", file=sys.stderr)
                 return 2
 
-        api_key = settings.anthropic_api_key
-        if not api_key:
-            print(
-                "ANTHROPIC_API_KEY missing — set it in .env or use --skip-llm "
-                "with --input-json to rescore a captured dump.",
-                file=sys.stderr,
-            )
-            return 2
+        # Credential guard is provider-aware: on Bedrock the Anthropic key
+        # is ignored by AnthropicClient and auth is the AWS bearer token.
+        if provider_from_env() is LLMProvider.BEDROCK:
+            if not os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
+                print(
+                    "ANIMORA_LLM_PROVIDER=bedrock but AWS_BEARER_TOKEN_BEDROCK "
+                    "is missing — see docs/BEDROCK.md, or use --skip-llm with "
+                    "--input-json to rescore a captured dump.",
+                    file=sys.stderr,
+                )
+                return 2
+            api_key = ""
+        else:
+            api_key = settings.anthropic_api_key
+            if not api_key:
+                print(
+                    "ANTHROPIC_API_KEY missing — set it in .env or use --skip-llm "
+                    "with --input-json to rescore a captured dump.",
+                    file=sys.stderr,
+                )
+                return 2
 
         client = AnthropicClient(api_key=api_key, session_id="eval-harness")
 
