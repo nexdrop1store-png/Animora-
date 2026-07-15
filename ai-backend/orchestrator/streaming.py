@@ -78,8 +78,6 @@ _TOOL_RESULT_WAIT_SEC = 45.0
 # Two heavy steps run there: the SPEC-builder Sonnet call (Quality Plan
 # §5.1, ~18-25s) and the artist's-eye / final-review chain. They lift
 # quality but every second they add is a second the panel sits silent.
-# Turn them off by default for v1 demonstration; opt in via env var
-# once perceived latency is no longer the gating issue.
 def _flag(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name, "").strip().lower()
     if not raw:
@@ -88,7 +86,12 @@ def _flag(name: str, default: bool = False) -> bool:
 
 
 import os  # noqa: E402  (placed after the helper to keep its scope tight)
-_ENABLE_SPEC_BUILDER = _flag("ANIMORA_ENABLE_SPEC", default=False)
+# V2 Phase 5 (build-plan numbering): the taste layer ships ON. The spec
+# was kept dark for the v1 demo because of the ~18-25s of added latency;
+# V2 is the paid-quality product and the panel shows a "Planning the
+# build" phase notice during the wait. ANIMORA_ENABLE_SPEC=0 remains the
+# escape hatch if spec latency ever becomes the gating issue again.
+_ENABLE_SPEC_BUILDER = _flag("ANIMORA_ENABLE_SPEC", default=True)
 # Output-token budget for execution iter 0 with forced tool_choice. The
 # 32k default lets hero builds breathe but means Bedrock Opus 4.6
 # routinely takes 60-90s on the SDK side before the addon sees the

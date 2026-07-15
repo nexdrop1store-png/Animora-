@@ -175,10 +175,13 @@ def _validate_and_coerce(parsed: dict) -> dict:
             target = dict(expected)
             for sk in expected.keys():
                 v = sub.get(sk)
-                if isinstance(v, str):
+                if sk == "lens_mm":
+                    # Schema says integer; a string like "fifty" must not
+                    # pollute the int field via the generic str branch.
+                    if isinstance(v, (int, float)) and not isinstance(v, bool):
+                        target[sk] = int(v)
+                elif isinstance(v, str):
                     target[sk] = v[:300]
-                elif sk == "lens_mm" and isinstance(v, (int, float)):
-                    target[sk] = int(v)
             out[top_key] = target
 
     # Materials is an array of {on, type, notes}
