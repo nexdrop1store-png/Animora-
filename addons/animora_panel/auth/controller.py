@@ -279,7 +279,7 @@ def _definitive_sign_out(message: str) -> None:
     session.sign_out()
     state.set_auth_status(state.AuthS.FAILED, message)
     from .. import onboarding  # local import — onboarding imports auth
-    onboarding.open_gate(slide=2)
+    onboarding.open_gate()  # v1.1: only the sign-in slide (index 0) remains
 
 
 def _on_restore_invalid() -> None:

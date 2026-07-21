@@ -19,7 +19,7 @@ import webbrowser
 import bpy
 from bpy.types import Operator
 
-from . import state, ws_client
+from . import script_guard, state, ws_client
 from .auth import controller as auth_controller
 from .auth import session as auth_session
 from .auth import supabase as auth_api
@@ -70,7 +70,7 @@ class OT_AnimoraSignOut(Operator):
     def execute(self, context: bpy.types.Context):
         auth_controller.sign_out()
         from . import onboarding
-        onboarding.open_gate(slide=2)
+        onboarding.open_gate()  # v1.1: only the sign-in slide (index 0) remains
         self.report({"INFO"}, "Signed out of Animora")
         return {"FINISHED"}
 
@@ -879,18 +879,34 @@ def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> 
     # carries the original line numbers so tracebacks point back into
     # the model's script (not "<unknown:1>"), which keeps the model's
     # error-recovery prompts accurate.
+    #
+    # step_sources mirrors compiled_steps 1:1 — the source text of just
+    # that statement, cheap to re-derive via ast.get_source_segment.
+    # Used by the v1.1 hang-mitigation pre-check (does this statement
+    # even mention modifier_apply?) before paying the cost of a live
+    # bpy.context scan. Best-effort: an empty string just means that
+    # step's density-sensitive-modifier pre-check never fires — no
+    # different from before this mitigation existed.
     compiled_steps: list = []
+    step_sources: list = []
     for node in tree.body:
         try:
             mod = ast.Module(body=[node], type_ignores=[])
             ast.copy_location(mod, node)
             compiled_steps.append(compile(mod, f"<animora:{tool_use_id}>", "exec"))
+            try:
+                step_sources.append(ast.get_source_segment(script, node) or "")
+            except Exception:
+                step_sources.append("")
         except SyntaxError as exc:
             err = f"Compile error at line {getattr(node, 'lineno', '?')}: {exc.msg}"
             result["error"] = err
             log.error(err)
             _send_tool_result(result)
             return
+
+    import hashlib
+    script_hash = hashlib.sha1(script.encode("utf-8")).hexdigest()[:12]
 
     ns = _build_exec_namespace()
     total_steps = len(compiled_steps)
@@ -935,6 +951,8 @@ def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> 
         pre_graph=pre_graph,
         result=result,
         capture=capture,
+        step_sources=step_sources,
+        script_hash=script_hash,
     )
     runner.start()
 
@@ -946,6 +964,59 @@ def _send_tool_result(result: dict) -> None:
         ws_client.client.send_json({"type": "tool_result", **result})
     except Exception as send_exc:
         log.error("tool_result send failed: %s", send_exc)
+
+
+# ── v1.1 hang mitigation (see docs plan: "Stop the bleeding") ──────────
+#
+# _ScriptRunner._tick() runs each statement via a bare exec() on
+# Blender's MAIN THREAD with no timeout or watchdog — a single slow
+# statement (dense boolean, runaway pure-Python loop) freezes the whole
+# app. bpy is not thread-safe outside the main thread, and a blocking
+# C-level bpy.ops call cannot be preempted from Python once it's in
+# flight — so this is deliberately scoped to what's actually
+# achievable, not a claim that hangs are eliminated. The bpy-free
+# pieces (constants, the settrace deadline, the source-text pre-check,
+# the heartbeat marker read/write) live in script_guard.py — SAME
+# pattern as composer_buffer.py / script_capture.py — specifically so
+# they're unit-testable without a live Blender (this module imports
+# `bpy` unconditionally at the top, so nothing defined here is
+# importable in a plain-Python test process). Only the genuinely
+# bpy-dependent piece (resolving the live active object + polygon
+# count) stays in this file.
+
+
+def _find_density_sensitive_offender(ceiling: int = script_guard.BOOLEAN_POLY_CEILING):
+    """Live bpy-state check: does the active object (or a density-
+    sensitive modifier's linked .object operand) carry a face count
+    over `ceiling`? Returns (object_name, poly_count) if so, else None.
+
+    Called with the same context override _tick() uses for exec(), so
+    `bpy.context.view_layer.objects.active` resolves the same way the
+    about-to-run modifier_apply call would see it — this is a runtime
+    check using live bpy.data, not a static source-text guess, which
+    is exactly the information quality_enforcer.py's AST/regex pass
+    (running before any of this exists) cannot have."""
+    import bpy
+
+    active = bpy.context.view_layer.objects.active
+    if active is None or active.type != "MESH":
+        return None
+
+    candidates = [active]
+    for mod in active.modifiers:
+        if mod.type in script_guard.DENSITY_SENSITIVE_MODIFIER_TYPES:
+            other = getattr(mod, "object", None)
+            if other is not None and other.type == "MESH":
+                candidates.append(other)
+
+    for obj in candidates:
+        try:
+            poly_count = len(obj.data.polygons)
+        except Exception:
+            continue
+        if poly_count > ceiling:
+            return obj.name, poly_count
+    return None
 
 
 class _ScriptRunner:
@@ -974,6 +1045,8 @@ class _ScriptRunner:
         pre_graph: dict,
         result: dict,
         capture=None,
+        step_sources: list | None = None,
+        script_hash: str = "",
     ) -> None:
         self.tool_use_id = tool_use_id
         self.label = label
@@ -991,6 +1064,11 @@ class _ScriptRunner:
         self.total = len(compiled_steps)
         self.index = 0
         self._done = False
+        # v1.1 hang mitigation — best-effort, all optional. A legacy
+        # construction path (e.g. selftest) that omits these just skips
+        # the density pre-check / heartbeat, identical to before.
+        self.step_sources = step_sources or ([""] * self.total)
+        self.script_hash = script_hash
 
     def start(self) -> None:
         import bpy
@@ -1029,9 +1107,58 @@ class _ScriptRunner:
         except Exception:
             pass
 
+        import sys as _sys
         import time as _time
         step_started = _time.monotonic()
+
+        # v1.1 hang mitigation — heartbeat BEFORE running, so a force-
+        # kill mid-statement leaves a marker pointing at the step that
+        # never finished. Cleared in _finalize_success/_finalize_failure.
+        step_source = self.step_sources[self.index] if self.index < len(self.step_sources) else ""
+        script_guard.write_heartbeat(label=self.label, step=step_num, total=self.total,
+                                      script_hash=self.script_hash)
+
+        # v1.1 hang mitigation — live poly-count guard. Only pays the
+        # bpy.context scan cost if the step even mentions a density-
+        # sensitive modifier_apply; refuses BEFORE exec() if the live
+        # target mesh is over the safety ceiling, rather than
+        # attempting the operation and risking a freeze.
         try:
+            with bpy.context.temp_override(**self.view3d_ctx):
+                if script_guard.step_has_density_sensitive_modifier_apply(step_source):
+                    offender = _find_density_sensitive_offender()
+                    if offender is not None:
+                        obj_name, poly_count = offender
+                        err = (
+                            f"Refused: '{obj_name}' has {poly_count:,} polygons, "
+                            f"over the {script_guard.BOOLEAN_POLY_CEILING:,}-polygon safety "
+                            f"ceiling for a boolean/subsurf/array operation — "
+                            f"this would likely hang the app (step {step_num}/{self.total})."
+                        )
+                        self.result["error"] = err
+                        self.result["output"] = self.capture.format_for_tool_result()
+                        log.warning("execute_blender_script: %s", err)
+                        _post_to_chat(
+                            "assistant",
+                            f"✗ {err}\n\nTry Decimate on '{obj_name}' first, or "
+                            f"a lower-poly source mesh, before this operation.",
+                        )
+                        self._finalize_failure()
+                        return None
+        except Exception as exc:
+            # Guard itself failing must never block a legitimate script —
+            # log and fall through to normal execution.
+            log.debug("density_guard_failed: %s", exc)
+
+        # v1.1 hang mitigation — settrace soft-interrupt. Installed
+        # ONLY around this single exec() call and cleared in `finally`
+        # so it never leaks into surrounding addon code. Can only
+        # interrupt PURE-PYTHON execution between bytecode steps — a
+        # single blocking C call inside bpy.ops.* still cannot be
+        # preempted (see module-level comment above _ScriptRunner).
+        deadline = _time.monotonic() + script_guard.PURE_PYTHON_STEP_DEADLINE_SEC
+        try:
+            _sys.settrace(script_guard.install_step_deadline_trace(deadline))
             with bpy.context.temp_override(**self.view3d_ctx), self.capture.capture():
                 exec(step, self.namespace)  # noqa: S102
         except Exception as exc:
@@ -1052,6 +1179,8 @@ class _ScriptRunner:
             )
             self._finalize_failure()
             return None
+        finally:
+            _sys.settrace(None)
         # Surface long-running statements to logs — useful diagnostic
         # for "which step is actually slow" when the panel feels frozen.
         # bpy.ops.* operators occasionally take seconds even for simple
@@ -1061,6 +1190,15 @@ class _ScriptRunner:
             log.warning(
                 "execute_blender_script: slow step %d/%d took %.2fs (%s)",
                 step_num, self.total, step_elapsed, self.label,
+            )
+            # v1.1 hang mitigation — persist the slow-step warning, not
+            # just the in-memory logger, so it survives a force-kill on
+            # a LATER step and is visible on next launch even though it
+            # couldn't render live during any eventual freeze.
+            script_guard.write_heartbeat(
+                label=f"{self.label} (slow step {step_num}/{self.total}, "
+                      f"{step_elapsed:.1f}s)",
+                step=step_num, total=self.total, script_hash=self.script_hash,
             )
 
         # Tell the backend we're still working. Its ToolResultCoordinator
@@ -1110,6 +1248,7 @@ class _ScriptRunner:
         )
         log.info("execute_animora_code ok: %s (%d steps)", self.label, self.total)
 
+        script_guard.clear_heartbeat()  # v1.1 — clean finish, nothing stale to report
         state_module.mark_exec_finished()
         # Sprint 4F — counterpart to begin_exec_pause in _execute_script.
         try:
@@ -1195,6 +1334,7 @@ class _ScriptRunner:
         from . import state as state_module
         from . import vision
         self._done = True
+        script_guard.clear_heartbeat()  # v1.1 — failure was CAUGHT and reported, not a freeze
         state_module.mark_exec_finished()
         # Sprint 4F — counterpart to begin_exec_pause in _execute_script.
         try:

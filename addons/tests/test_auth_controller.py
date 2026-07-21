@@ -218,7 +218,9 @@ def test_definitive_rejection_reopens_gate_at_signin_slide(env, monkeypatch):
 
     env.controller._on_ws_auth_rejected("Session expired")
     assert env.state.state.auth_status == env.state.AuthS.FAILED
-    assert env.onboarding.gate_opens == [2]
+    # v1.1: the gate is down to one slide (sign-in, index 0) — was [2]
+    # back when slide 2 was the sign-in slide in the 3-slide flow.
+    assert env.onboarding.gate_opens == [0]
 
 
 def test_rejection_ignored_while_attempt_pending(env):

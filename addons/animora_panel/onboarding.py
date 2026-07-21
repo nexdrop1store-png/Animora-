@@ -1,9 +1,12 @@
 """Onboarding gate — the pre-app experience.
 
 When Animora launches without a signed-in session, the UI is taken over by
-a fullscreen, 3-slide onboarding flow (what Animora is → what it can do →
-sign in). The main interface is unreachable until authentication succeeds;
-after that, returning users with a valid session never see the gate again
+a fullscreen sign-in gate (v1.1: trimmed from the original 3-slide "what
+Animora is → what it can do → sign in" flow down to sign-in only — the
+first two image-only slides added a step between launch and using the
+product with no information the sign-in slide didn't already convey).
+The main interface is unreachable until authentication succeeds; after
+that, returning users with a valid session never see the gate again
 (silent restore in auth.controller). A definitive mid-session sign-out or
 session rejection reopens the gate at the sign-in slide.
 
@@ -28,7 +31,12 @@ import os
 
 log = logging.getLogger("animora.onboarding")
 
-_SLIDE_MIN, _SLIDE_MAX = 0, 2
+# v1.1: was 0,2 across 3 slides ("what Animora is" -> "what it can do"
+# -> "sign in"). Trimmed to the single sign-in slide — see module
+# docstring. Kept as named constants (not inlined 0) so clamp_slide()
+# and the WindowManager IntProperty range in register() stay derived
+# from one source of truth rather than a re-typed literal.
+_SLIDE_MIN, _SLIDE_MAX = 0, 0
 _WATCH_INTERVAL = 0.5
 _OPEN_RETRY_INTERVAL = 0.4
 
@@ -37,25 +45,12 @@ _watch_registered = False
 _preview_collection = None
 
 _ASSET_DIR = os.path.join(os.path.dirname(__file__), "onboarding_assets")
-_SLIDE_ICONS = ("slide_1", "slide_2", "slide_3")
+# v1.1: slide_1.png / slide_2.png (the two removed slides) are no longer
+# loaded — left on disk (harmless, a few KB in the installer) rather
+# than deleted, in case a future onboarding redesign wants them back.
+_SLIDE_ICONS = ("slide_3",)
 
 SLIDES = (
-    {
-        "icon": "slide_1",
-        "title": "Describe it. Animora builds it.",
-        "body": (
-            "Professional 3D creation, powered by an AI that",
-            "works like a senior artist — no experience needed.",
-        ),
-    },
-    {
-        "icon": "slide_2",
-        "title": "Watch your ideas take shape.",
-        "body": (
-            "Animora sees the viewport in real time, checks its own",
-            "work, and refines every detail until it's ready.",
-        ),
-    },
     {
         "icon": "slide_3",
         "title": "Sign in to start creating.",
@@ -634,12 +629,7 @@ def _make_panel():
                 rest = split.split(factor=0.86)
                 col = rest.column(align=False)
                 rest.column()
-                if slide < _SLIDE_MAX:
-                    self._draw_nav(col, slide)
-                else:
-                    self._draw_dots_nav(col, slide, arrows=False)
-                    col.separator(factor=0.6)
-                    self._draw_signin(col, context)
+                self._draw_signin(col, context)
                 return
 
             # Fallback (no GPU texture): the old widget-drawn layout with
@@ -679,47 +669,7 @@ def _make_panel():
                     row.label(text=line)
 
             col.separator(factor=1.0)
-
-            if slide < _SLIDE_MAX:
-                self._draw_nav(col, slide)
-            else:
-                self._draw_dots_nav(col, slide, arrows=False)
-                col.separator(factor=0.8)
-                self._draw_signin(col, context)
-
-        def _draw_nav(self, col, slide: int) -> None:
-            """One centered pager row: [◀] ● ○ ○ [▶] — icon chevrons."""
-            self._draw_dots_nav(col, slide, arrows=True)
-
-        def _draw_dots_nav(self, col, slide: int, *, arrows: bool) -> None:
-            nav = col.row()
-            nav.alignment = "CENTER"
-            inner = nav.row(align=True)
-            inner.scale_x = 1.5
-            inner.scale_y = 1.5
-
-            if arrows:
-                back = inner.row(align=True)
-                back.enabled = slide > _SLIDE_MIN
-                back_op = back.operator("animora.onboarding_nav", text="", icon="TRIA_LEFT")
-                back_op.offset = -1
-                back_op.goto = -1
-                inner.separator(factor=1.2)
-
-            for i in range(_SLIDE_MAX + 1):
-                op = inner.operator(
-                    "animora.onboarding_nav",
-                    text="●" if i == slide else "○",
-                    emboss=False,
-                )
-                op.goto = i
-                op.offset = 0
-
-            if arrows:
-                inner.separator(factor=1.2)
-                nxt_op = inner.operator("animora.onboarding_nav", text="", icon="TRIA_RIGHT")
-                nxt_op.offset = 1
-                nxt_op.goto = -1
+            self._draw_signin(col, context)
 
         def _draw_signin(self, col, context) -> None:
             from . import state
@@ -762,15 +712,6 @@ def _make_panel():
                     text=state.state.auth_message or "Sign-in failed. Please try again.",
                     icon="ERROR",
                 )
-
-            back = col.row()
-            back.alignment = "CENTER"
-            back_inner = back.row(align=True)
-            back_op = back_inner.operator(
-                "animora.onboarding_nav", text="", icon="TRIA_LEFT", emboss=False
-            )
-            back_op.offset = -1
-            back_op.goto = -1
 
             if get_prefs().dev_mode:
                 col.separator(factor=0.8)

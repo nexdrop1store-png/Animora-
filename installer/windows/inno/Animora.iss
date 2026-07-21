@@ -19,7 +19,7 @@
 ; MyAppVersion: Animora's PRODUCT version — what users see in the installer,
 ; Programs list, and About. Keep in sync with ANIMORA_VERSION in
 ; scripts/animora_config.py. (V1 = 1.x; intentionally NOT the Blender 5.1.)
-#define MyAppVersion     "1.0"
+#define MyAppVersion     "1.1"
 #define MyAppPublisher   "Animora Technologies"
 #define MyAppURL         "https://animora.tech"
 #define MyAppExeName     "Animora.exe"

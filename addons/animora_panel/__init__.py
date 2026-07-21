@@ -122,6 +122,28 @@ def register() -> None:
         from . import theme
         theme.ensure_theme()
 
+    # v1.1 hang mitigation — check for a stale script-execution heartbeat
+    # LAST, after every module (including ui.properties, which defines
+    # wm.animora_chat_history) has registered, so a diagnostic can
+    # actually post to chat instead of silently no-op-ing on a property
+    # that doesn't exist yet. Always logged regardless of chat success —
+    # this is the "make the next launch informative" half of the v1.1
+    # crash-mitigation plan (real-time delivery during an actual freeze
+    # is architecturally impossible; see operators.py's _ScriptRunner
+    # module comment).
+    try:
+        from . import operators as _operators_mod
+        from . import script_guard as _script_guard_mod
+        stale_notice = _script_guard_mod.check_and_clear_stale_heartbeat()
+        if stale_notice:
+            log.error(stale_notice)
+            try:
+                _operators_mod._post_to_chat("assistant", stale_notice)
+            except Exception as exc:
+                log.debug("stale_heartbeat.chat_post_failed: %s", exc)
+    except Exception as exc:
+        log.debug("stale_heartbeat.check_failed: %s", exc)
+
     log.info("Animora AI Panel registered")
 
 

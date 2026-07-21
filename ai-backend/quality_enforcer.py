@@ -276,9 +276,41 @@ def validate_script(script: str) -> ValidationResult:
             )
 
     # Boolean-modifier cost depends on the actual geometry (vertex density,
-    # overlap complexity) in a way an AST/regex pass can't estimate — log
-    # only, don't reject, so a legitimate boolean isn't blocked on a guess.
-    if re.search(r"""['"]BOOLEAN['"]""", script) and "modifier_apply" in script:
+    # overlap complexity) in a way an AST/regex pass can't estimate in the
+    # general case — so a bare boolean stays log-only, not rejected, to
+    # avoid blocking a legitimate boolean on a guess.
+    #
+    # BUT: v1.1 hang mitigation — if the SAME script also constructs a
+    # mesh near the subdivision caps above (levels>=5 or number_cuts>=4;
+    # i.e. under the hard reject threshold but still meaningfully dense)
+    # and then applies a boolean to it, that's precisely the "LLM builds
+    # a dense mesh, then booleans it" pattern that has hung the app in
+    # practice (see addons/animora_panel/operators.py _ScriptRunner —
+    # the addon-side poly-count guard catches booleans on PRE-EXISTING
+    # dense meshes at runtime, but a mesh built earlier in this same
+    # script isn't "pre-existing" from the addon's point of view until
+    # this statement runs, so catching the combination here, statically,
+    # closes that specific gap before execution ever starts).
+    has_boolean_apply = (
+        re.search(r"""['"]BOOLEAN['"]""", script) and "modifier_apply" in script
+    )
+    dense_mesh_in_script = (
+        (subdiv_match and int(subdiv_match.group(1)) >= 5)
+        or (cuts_match and int(cuts_match.group(1)) >= 4)
+    )
+    if has_boolean_apply and dense_mesh_in_script:
+        return ValidationResult(
+            ok=False,
+            reason=(
+                "Script builds a dense mesh (subdivision near the safety "
+                "cap) and then applies a BOOLEAN modifier to it — this "
+                "combination has hung the app before (boolean cost grows "
+                "with face count and overlap complexity). Lower the "
+                "subdivision level before the boolean, or apply the "
+                "boolean first and subdivide the result afterward."
+            ),
+        )
+    if has_boolean_apply:
         log.warning(
             "quality_enforcer: script applies a BOOLEAN modifier — cost "
             "depends on mesh density and can't be estimated statically; "
