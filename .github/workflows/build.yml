@@ -96,7 +96,7 @@ jobs:
         shell: bash
         run: |
           git clone --depth 1 --branch "$BLENDER_TAG" \
-            https://github.com/blender/blender.git blender-fork
+            https://projects.blender.org/blender/blender.git blender-fork
           git -C blender-fork lfs pull
 
       - name: Fetch Blender precompiled libraries
