@@ -19,7 +19,7 @@ import webbrowser
 import bpy
 from bpy.types import Operator
 
-from . import script_guard, state, ws_client
+from . import script_guard, state, updater, ws_client
 from .auth import controller as auth_controller
 from .auth import session as auth_session
 from .auth import supabase as auth_api
@@ -72,6 +72,48 @@ class OT_AnimoraSignOut(Operator):
         from . import onboarding
         onboarding.open_gate()  # v1.1: only the sign-in slide (index 0) remains
         self.report({"INFO"}, "Signed out of Animora")
+        return {"FINISHED"}
+
+
+class OT_AnimoraUpdateNow(Operator):
+    """One-click update: download the latest installer, verify its
+    SHA-256 (no code-signing certs exist yet — see updater.py's module
+    docstring), launch it silently with the auto-relaunch flag, and
+    quit Animora. Windows-only; poll() hides the button elsewhere so
+    users aren't offered a flow that can't work."""
+    bl_idname = "animora.update_now"
+    bl_label = "Update Now"
+    bl_description = "Download and install the latest Animora update"
+
+    @classmethod
+    def poll(cls, context) -> bool:
+        import sys
+        return sys.platform == "win32" and updater.is_update_pending()
+
+    def execute(self, context: bpy.types.Context):
+        release = updater.get_cached_release()
+        if not release:
+            self.report({"ERROR"}, "No update information available — try again shortly.")
+            return {"CANCELLED"}
+
+        def _on_progress(msg: str) -> None:
+            try:
+                state.set_state(state.S.EXECUTING, msg, tool_name="animora.update_now")
+            except Exception:
+                pass
+            _post_to_chat("assistant", f"⏺ {msg}")
+
+        def _on_error(msg: str) -> None:
+            log.error("update_now failed: %s", msg)
+            _post_to_chat("assistant", f"✗ Update failed: {msg}")
+            try:
+                state.set_state(state.S.ERROR, msg[:100])
+            except Exception:
+                pass
+
+        _post_to_chat("assistant", f"⏺ Updating to v{release.get('version', '?')}…")
+        updater.perform_update_async(release, on_progress=_on_progress, on_error=_on_error)
+        self.report({"INFO"}, "Updating — Animora will close and reopen automatically")
         return {"FINISHED"}
 
 
@@ -3041,6 +3083,7 @@ _classes = [
     OT_AnimoraSignIn,
     OT_AnimoraDevConnect,
     OT_AnimoraSignOut,
+    OT_AnimoraUpdateNow,
     OT_AnimoraSendMessage,
     OT_AnimoraStartRecording,
     OT_AnimoraNewConversation,
@@ -3085,6 +3128,20 @@ def register() -> None:
     # driven by auth.controller (sign-in, session restore, reconnects).
     ws_client.client.on_stream_token = _on_stream_token
     ws_client.client.on_tool_call = _on_tool_call
+
+    # v1.x — deferred one-shot update check, a few seconds after launch
+    # so it doesn't compete with startup/auth restore for the network.
+    # refresh_cache_async() itself runs the actual HTTP call on a
+    # background thread; this timer only kicks it off once. The panel
+    # also calls refresh_cache_async() on every redraw (cheap no-op
+    # while a check isn't due), so this isn't the only trigger — just
+    # the first one, ensuring an update banner can appear even before
+    # the panel has drawn once.
+    def _deferred_update_check():
+        updater.refresh_cache_async()
+        return None  # one-shot
+
+    bpy.app.timers.register(_deferred_update_check, first_interval=5.0)
 
 
 def unregister() -> None:

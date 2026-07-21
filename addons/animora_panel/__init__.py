@@ -10,7 +10,13 @@ from __future__ import annotations
 bl_info = {
     "name": "Animora AI Panel",
     "author": "Animora Technologies",
-    "version": (1, 1, 0),
+    # Kept in lockstep with scripts/animora_config.py::ANIMORA_VERSION and
+    # installer/windows/inno/Animora.iss's MyAppVersion — bump all three
+    # together on every release. updater.py reads THIS tuple at runtime
+    # (the only one of the three actually shipped inside the installed
+    # addon) to decide whether a published release is newer; letting it
+    # drift makes every future update check silently wrong.
+    "version": (1, 3, 0),
     "blender": (4, 0, 0),
     "location": "View3D > N-Panel > Animora",
     "description": "AI-powered assistant integrated into the 3D viewport",

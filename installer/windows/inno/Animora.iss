@@ -179,6 +179,11 @@ Filename: "{tmp}\VC_redist.x64.exe"; \
   Check: VCRedistNeedsInstall; \
   Flags: waituntilterminated
 Filename: "{app}\{#MyAppLauncher}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; v1.x auto-update relaunch — deliberately NOT postinstall/skipifsilent
+; (those are what the entry above skips in silent mode); Check: gates
+; this to fire ONLY when /ANIMORAUPDATE was passed on the command line,
+; so a plain /VERYSILENT install (e.g. IT deployment) is unaffected.
+Filename: "{app}\{#MyAppLauncher}"; Flags: nowait; Check: IsAutoUpdateRelaunch
 
 [UninstallDelete]
 ; Clean up runtime caches (don't touch user data in AppData\Roaming).
@@ -191,6 +196,31 @@ function InitializeSetup(): Boolean;
 begin
   { CloseApplications=force in [Setup] handles "Animora is running" automatically. }
   Result := True;
+end;
+
+{ v1.x in-app auto-update (addons/animora_panel/updater.py): the addon
+  downloads this same installer, verifies its SHA-256 against the
+  published app_releases.windows_sha256, then launches it with
+  /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ANIMORAUPDATE and quits.
+  The existing [Run] "Launch Animora" entry above has Flags: skipifsilent,
+  which SUPPRESSES the post-install launch specifically when running
+  silently — correct for an unattended/IT-deployed install, wrong for
+  an auto-update the user explicitly asked for. This function gates a
+  SECOND, always-fires (non-skipifsilent) Run entry on the presence of
+  the custom /ANIMORAUPDATE switch, so ordinary silent installs
+  (e.g. IT deployment scripts) are completely unaffected — only a run
+  carrying this specific marker relaunches Animora automatically. }
+function IsAutoUpdateRelaunch(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/ANIMORAUPDATE') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
 end;
 
 { Check whether VC++ 2015-2022 Redistributable (>= 14.40) is already installed.

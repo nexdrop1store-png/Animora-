@@ -38,10 +38,12 @@ and updates on every token via area.tag_redraw().
 
 from __future__ import annotations
 
+import sys
+
 import bpy
 from bpy.types import Panel
 
-from . import bundle, preview_icons, state, ws_client
+from . import bundle, preview_icons, state, updater, ws_client
 from .preferences import get_prefs
 
 # Pixel-to-char ratio at Blender's default UI scale. The default font
@@ -230,6 +232,8 @@ class _AnimoraMainPanelMixin:
         # text would wrap or clip.
         if not is_narrow:
             self._draw_scene_strip(outer, context)
+
+        self._draw_update_banner(outer)
 
         if history_len == 0 and state.state.current == state.S.IDLE:
             self._draw_onboarding(outer, context)
@@ -603,6 +607,33 @@ class _AnimoraMainPanelMixin:
         row.scale_y = 0.9
         row.label(text="Dev tools", icon="CONSOLE")
         row.operator("animora.self_test", text="Run Self-Test", icon="PLAY")
+
+    # --- update banner ------------------------------------------------------
+
+    def _draw_update_banner(self, layout) -> None:
+        """"Update available" card — only rendered once a background
+        check (updater.refresh_cache_async, kicked off from
+        operators.register() a few seconds after launch, and re-armed
+        each redraw here) confirms a newer PUBLISHED release exists.
+        Silent no-op before the first check completes or if it failed —
+        an update check must never show a false positive or an error
+        banner for something this low-stakes."""
+        updater.refresh_cache_async()  # no-op if a check is already in flight
+        release = updater.get_cached_release()
+        if not updater.update_available(release):
+            return
+
+        box = layout.box()
+        row = box.row(align=True)
+        row.label(text=f"Update available — v{release.get('version', '?')}", icon="INFO")
+        if sys.platform == "win32":
+            row.operator("animora.update_now", text="Update Now", icon="IMPORT")
+        else:
+            # Auto-update is Windows-only today (see updater.py's module
+            # docstring) — point elsewhere rather than show a button
+            # that can't work.
+            row.operator("wm.url_open", text="Download").url = "https://animora.tech/download"
+        box.separator(factor=0.3)
 
     # --- input area -------------------------------------------------------
 

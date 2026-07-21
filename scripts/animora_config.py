@@ -29,6 +29,15 @@ from pathlib import Path
 # About box, and splash. It is DELIBERATELY separate from the Blender base
 # version below: users should never see "5.1". Bump this for Animora
 # releases (V1 = 1.x); it has nothing to do with the Blender install dir.
+#
+# Bump in LOCKSTEP with two other files on every release:
+#   - installer/windows/inno/Animora.iss's #define MyAppVersion
+#   - addons/animora_panel/__init__.py's bl_info["version"] tuple —
+#     this one matters functionally, not just cosmetically: it's the
+#     only one of the three actually shipped inside the installed
+#     addon, so addons/animora_panel/updater.py reads it at runtime to
+#     decide whether a published release is newer. Letting it drift
+#     makes the in-app update check silently wrong.
 ANIMORA_VERSION = "1.3"
 
 # The Blender release Animora is currently built against.
