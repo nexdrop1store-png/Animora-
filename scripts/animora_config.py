@@ -29,7 +29,7 @@ from pathlib import Path
 # About box, and splash. It is DELIBERATELY separate from the Blender base
 # version below: users should never see "5.1". Bump this for Animora
 # releases (V1 = 1.x); it has nothing to do with the Blender install dir.
-ANIMORA_VERSION = "1.1"
+ANIMORA_VERSION = "1.2"
 
 # The Blender release Animora is currently built against.
 # Used ONLY for the internal install version dir Blender requires

@@ -2838,7 +2838,7 @@ class OT_AnimoraQuickSettings(Operator):
 # Enter the ONLY send trigger, so clicking + never sends.
 # ---------------------------------------------------------------------------
 
-from .composer_buffer import TextBuffer  # noqa: E402
+from .composer_buffer import TextBuffer, column_from_click_x  # noqa: E402
 
 _composer_active = False
 _composer_buffer: TextBuffer | None = None
@@ -2872,10 +2872,38 @@ def _composer_redraw() -> None:
 class OT_AnimoraComposer(Operator):
     """Modal multiline text editor for the composer. Enter sends,
     Shift+Enter = newline, Esc keeps the text and exits, clicking away exits
-    without sending (so + attaches without sending)."""
+    without sending (so + attaches without sending).
+
+    v1.2 click-to-position: click_row/click_wrap_chars/click_pixels_per_char
+    are set ONLY by panel.py's per-row buttons drawn for the ACTIVE editing
+    view (composer_display(), which wraps via TextBuffer._layout — the same
+    algorithm caret_from_rowcol() inverts). The idle-draft preview below
+    uses a DIFFERENT wrap function (_wrap_lines) whose row boundaries can
+    disagree with TextBuffer._layout's, so it deliberately does NOT set
+    these — clicking an idle draft keeps today's behavior (resume editing,
+    caret at end) rather than risk mapping a row index from the wrong
+    wrapper into caret_from_rowcol.
+
+    Mechanically: modal()'s LEFTMOUSE handler already ends the session and
+    returns PASS_THROUGH on every click (so the button actually under the
+    cursor still receives it) — clicking one of our own per-row buttons
+    re-invokes THIS SAME operator (poll() passes again the instant _end()
+    clears _composer_active), with click_row telling invoke() where to put
+    the caret instead of defaulting to end-of-text."""
     bl_idname = "animora.composer"
     bl_label = "Compose Message"
     bl_options = {"INTERNAL"}
+
+    click_row: bpy.props.IntProperty(default=-1)  # type: ignore[assignment]
+    click_wrap_chars: bpy.props.IntProperty(default=56)  # type: ignore[assignment]
+    click_pixels_per_char: bpy.props.FloatProperty(default=7.0)  # type: ignore[assignment]
+    # Estimated left padding (box + column margins) between the region's
+    # edge and where row text actually starts. Not measurable from the
+    # Python API (UILayout doesn't expose drawn widget rects) — a rough,
+    # untuned estimate. Worst case this is off by a couple of characters;
+    # arrow keys remain available to fine-correct, same accepted tradeoff
+    # as the pixels-per-char approximation itself.
+    click_left_margin_px: bpy.props.FloatProperty(default=8.0)  # type: ignore[assignment]
 
     _timer = None
 
@@ -2887,6 +2915,13 @@ class OT_AnimoraComposer(Operator):
         global _composer_active, _composer_buffer, _composer_caret_on
         _composer_buffer = TextBuffer()
         _composer_buffer.set_text(getattr(context.window_manager, "animora_input_text", "") or "")
+        if self.click_row >= 0:
+            col = column_from_click_x(
+                event.mouse_region_x, self.click_left_margin_px, self.click_pixels_per_char,
+            )
+            _composer_buffer.set_caret(
+                _composer_buffer.caret_from_rowcol(self.click_wrap_chars, self.click_row, col)
+            )
         _composer_active = True
         _composer_caret_on = True
         wm = context.window_manager

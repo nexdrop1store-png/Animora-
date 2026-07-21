@@ -40,7 +40,13 @@ from .retry import (
     summarize_verdict_for_event,
 )
 from .router import select_model
-from .spec import Spec, _discipline_brief, build_spec, spec_summary_for_event
+from .spec import (
+    Spec,
+    _discipline_brief,
+    build_spec,
+    should_skip_spec_for_trivial_prompt,
+    spec_summary_for_event,
+)
 from .tool_result_coordinator import ToolResultCoordinator
 
 log = logging.getLogger("animora.streaming")
@@ -385,7 +391,15 @@ async def stream_response(
         "question", "simple_edit", "unknown", "",
     )
     built_spec: Spec | None = None
-    if is_execution_intent and _ENABLE_SPEC_BUILDER:
+    # v1.2 — skip the ~20s SPEC call for genuinely trivial single-
+    # primitive asks (see should_skip_spec_for_trivial_prompt's
+    # docstring for why this needs more than complexity_estimate
+    # alone). Multi-part/descriptive asks are unaffected and still get
+    # the full taste-layer planning pass.
+    skip_spec_trivial = should_skip_spec_for_trivial_prompt(
+        user_message, intent_result.complexity_estimate,
+    )
+    if is_execution_intent and _ENABLE_SPEC_BUILDER and not skip_spec_trivial:
         # Surface the spec-builder phase so the panel knows what's
         # happening during the ~20s Sonnet call.
         if send_quality_notice is not None:

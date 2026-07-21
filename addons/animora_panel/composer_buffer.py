@@ -16,6 +16,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def column_from_click_x(click_x: float, left_margin_px: float, pixels_per_char: float) -> int:
+    """v1.2 click-to-position: convert a region-relative click X pixel
+    coordinate into a column index, using the same flat pixels-per-char
+    rate the panel already uses for word-wrapping (panel.py's
+    _BASE_PIXELS_PER_CHAR). Pulled out as a pure function (rather than
+    inlined in operators.py, which imports bpy unconditionally and so
+    can't be unit-tested directly) precisely so this arithmetic has
+    test coverage independent of a live Blender.
+
+    Never negative — a click left of the estimated text-start margin
+    clamps to column 0, not a negative index (caret_from_rowcol would
+    clamp it anyway, but doing it here keeps the contract explicit)."""
+    if pixels_per_char <= 0:
+        return 0
+    return max(0, round((click_x - left_margin_px) / pixels_per_char))
+
+
 @dataclass
 class TextBuffer:
     text: str = ""
@@ -76,6 +93,14 @@ class TextBuffer:
         """End of the current line (before the next "\n")."""
         nl = self.text.find("\n", self.caret)
         self.caret = nl if nl != -1 else len(self.text)
+
+    def set_caret(self, index: int) -> None:
+        """Set the caret to an absolute index, clamped to [0, len(text)].
+        Public counterpart to _clamp() for callers outside the class
+        (the composer modal operator's v1.2 click-to-position handler)
+        that shouldn't reach into the private clamp helper."""
+        self.caret = index
+        self._clamp()
 
     def clear(self) -> None:
         self.text = ""
@@ -142,6 +167,24 @@ class TextBuffer:
                 break
             best = (r, min(self.caret - start, len(text)))
         return best
+
+    def caret_from_rowcol(self, width: int, row: int, col: int) -> int:
+        """Inverse of caret_rowcol() — map a clicked (row, col) back to
+        an absolute caret index (v1.2: click-to-position in the
+        composer). Uses the same `_layout` so it can never diverge
+        from wrapped()/caret_rowcol().
+
+        Out-of-range row/col clamp to the nearest valid position:
+        a click below the last row goes to end-of-text, above the
+        first row goes to start-of-text, and a click past a short
+        row's own end lands at THAT row's end (not the next row's
+        start) — clicking in the empty space after a short line
+        should not jump the caret onto the following line."""
+        rows = self._layout(width)
+        row = max(0, min(row, len(rows) - 1))
+        start, text = rows[row]
+        col = max(0, min(col, len(text)))
+        return start + col
 
     # ── Internal ─────────────────────────────────────────────────────────
     def _clamp(self) -> None:

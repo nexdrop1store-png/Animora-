@@ -61,6 +61,18 @@ _MAX_WRAP_CHARS = 140
 _NARROW_REGION_PX = 280
 
 
+def _pixels_per_char_for_region(context) -> float:
+    """The same ui_scale-aware rate _wrap_chars_for_region derives
+    internally, exposed separately for v1.2's composer click-to-cursor
+    column math (which needs the raw per-char pixel rate, not the
+    already-divided-out character count)."""
+    try:
+        ui_scale = float(context.preferences.system.ui_scale)
+    except (AttributeError, TypeError):
+        return _BASE_PIXELS_PER_CHAR
+    return _BASE_PIXELS_PER_CHAR * max(0.5, ui_scale)
+
+
 def _wrap_chars_for_region(context) -> int:
     """Compute how many characters fit on one line in the current region.
 
@@ -198,6 +210,7 @@ class _AnimoraMainPanelMixin:
         # Passed down to message renderers so text reflows when the user
         # drags the panel wider.
         self._wrap_width = _wrap_chars_for_region(context)
+        self._pixels_per_char = _pixels_per_char_for_region(context)
 
         outer = layout.column(align=False)
         outer.scale_y = 1.0
@@ -629,7 +642,21 @@ class _AnimoraMainPanelMixin:
                     shown = line[:ccol] + "▏" + line[ccol:]
                 row = editor.row(align=True)
                 row.alignment = "LEFT"
-                row.label(text=shown or (" " if i != crow else "▏"))
+                # v1.2 — click-to-position: each row is the SAME composer
+                # operator (emboss=False so it still reads as plain text,
+                # same technique the idle-draft view below already uses),
+                # carrying which row was clicked + the exact wrap geometry
+                # this frame drew with. See OT_AnimoraComposer.invoke():
+                # modal()'s LEFTMOUSE handler already ends the current
+                # editing session and PASS_THROUGHs every click (so the
+                # button under the cursor still fires) — re-invoking the
+                # same operator on the clicked row, instead of always
+                # resetting the caret to end-of-text, is what fixes it.
+                click = row.operator("animora.composer", text=shown or " ",
+                                      emboss=False)
+                click.click_row = i
+                click.click_wrap_chars = wrap_chars
+                click.click_pixels_per_char = self._pixels_per_char
             hint = input_card.row()
             hint.scale_y = 0.7
             hint.label(text="Enter to send · Shift+Enter for a new line · Esc to close",

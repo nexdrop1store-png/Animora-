@@ -86,6 +86,58 @@ def _discipline_brief(persona_id: str, persona_display_name: str) -> str:
     return _DISCIPLINE_BRIEFS.get(persona_id, persona_display_name)
 
 
+# v1.2 — the SPEC call adds ~18-25s (its own timeout is 30s) to EVERY
+# execution turn, which is a real, named contributor to "Animora is
+# taking long" complaints. Skipping it is only safe for genuinely
+# trivial single-primitive asks — everything else keeps the taste-
+# layer quality lift. Deliberately conservative (word-count ceiling
+# AND a bare-primitive-noun match) rather than a broad word-count-only
+# cutoff, so a short but substantive ask ("build a cyberpunk katana")
+# still gets planned.
+# 0.6, not something lower: intent.py::try_fast_path always returns a
+# FIXED complexity_estimate of 0.55 for every fast-pathed build verb
+# ("make a cube" and "make a hyperdetailed dragon" both get 0.55) — a
+# ceiling below 0.55 would reject every fast-pathed message outright,
+# defeating the point (caught by this module's own tests using the
+# real fast-path value rather than an arbitrary low one).
+_TRIVIAL_PROMPT_MAX_WORDS = 8
+_TRIVIAL_PROMPT_COMPLEXITY_CEILING = 0.6
+_TRIVIAL_PRIMITIVE_NOUNS = frozenset({
+    "cube", "cuboid", "box", "sphere", "ball", "cylinder", "cone",
+    "plane", "circle", "torus", "primitive",
+})
+
+
+def should_skip_spec_for_trivial_prompt(user_message: str, complexity_estimate: float) -> bool:
+    """True when a prompt is simple enough that the SPEC builder's
+    ~20s planning call isn't worth its latency cost.
+
+    Both conditions must hold:
+      - short (<= _TRIVIAL_PROMPT_MAX_WORDS words) — a genuinely
+        descriptive ask ("build a cozy living room with warm
+        lighting") is long enough to fail this on its own.
+      - mentions a bare primitive noun ("make A CUBE") — catches the
+        "make a cube"-class prompt the fast-path intent classifier
+        also fires on, WITHOUT relying on complexity_estimate alone,
+        because the fast-path (intent.py::try_fast_path) always
+        returns a fixed 0.55 regardless of actual prompt complexity —
+        "make a cube" and "make a hyperdetailed dragon" hit the same
+        fast-path verb and get the same estimate, so complexity_estimate
+        by itself can't distinguish them for fast-pathed intents.
+
+    complexity_estimate still acts as a ceiling: a real (non-fast-path)
+    Haiku classification above _TRIVIAL_PROMPT_COMPLEXITY_CEILING skips
+    the noun heuristic entirely and keeps SPEC, regardless of length.
+    """
+    if complexity_estimate > _TRIVIAL_PROMPT_COMPLEXITY_CEILING:
+        return False
+    words = user_message.strip().split()
+    if not words or len(words) > _TRIVIAL_PROMPT_MAX_WORDS:
+        return False
+    lowered = user_message.lower()
+    return any(noun in lowered for noun in _TRIVIAL_PRIMITIVE_NOUNS)
+
+
 @dataclass
 class Spec:
     """A built creative brief, or an empty marker if the step was skipped/failed.
