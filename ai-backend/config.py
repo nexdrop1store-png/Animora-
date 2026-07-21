@@ -124,6 +124,27 @@ class Settings(BaseSettings):
     # Scene graph history
     scene_graph_history_size: int = 50
 
+    # v1.3 — admin usage visibility (usage_ledger.py). Deliberately an
+    # env-var allowlist rather than a real role system: this is a
+    # single-founder-admin MVP, not the V2 Phase 6/7 metering/billing
+    # build. Comma-separated emails, matched against TokenClaims.email
+    # (populated for Supabase-authenticated users only — see
+    # auth_middleware.py::_validate_supabase).
+    animora_admin_emails: str = ""
+
+    # Service-role key for the usage_events insert — the table has NO
+    # anon/authenticated grants (internal telemetry only), so a normal
+    # user-scoped Supabase call can't write to it; this is intentionally
+    # a distinct, more-privileged secret from SUPABASE_ANON_KEY in
+    # auth_middleware.py and must never be logged or sent to a client.
+    supabase_service_role_key: str = ""
+
+    @property
+    def admin_email_allowlist(self) -> frozenset[str]:
+        return frozenset(
+            e.strip().lower() for e in self.animora_admin_emails.split(",") if e.strip()
+        )
+
 
 def _enforce_secrets_safety(s: Settings) -> None:
     """Refuse to start if a deploy left a known dev JWT secret active.

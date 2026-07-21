@@ -48,6 +48,15 @@ SQL above and the website's device-authorize client check (repo
 `tc-byte/animora`). Change both together, and update the
 `animora-device-binding` skill if the rules change.
 
+## Related: v1.3 usage_events table
+Backend-owned (`ai-backend/usage_ledger.py`), but — since this directory is
+still pre-import and the only place ANY Supabase schema is versioned today
+is the recovered website repo (`nexdrop1store-png/animora-website`,
+`supabase/migrations/`) — its migration lives there too:
+`supabase/migrations/20260719120000_usage_events.sql`. Service-role-only
+(no anon/authenticated grants); requires `SUPABASE_SERVICE_ROLE_KEY` in the
+backend's env, distinct from the `SUPABASE_ANON_KEY` used for auth checks.
+
 ## Security notes
 - Never commit service-role keys or JWT secrets here — this directory holds
   SOURCE (functions, SQL), not credentials.

@@ -134,3 +134,9 @@ class TokenClaims(BaseModel):
     device_id: str
     seats_used: int = 1
     exp: float
+    # v1.3 — populated for Supabase-authenticated users (from the
+    # /auth/v1/user response); empty for local dev JWTs that carry no
+    # email claim. Used only for the admin-usage-visibility allowlist
+    # check (usage_ledger.py) — never treat this as an identity
+    # guarantee elsewhere, user_id is the real identity key.
+    email: str = ""

@@ -16,7 +16,7 @@ import struct
 import time
 from typing import Any
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .anthropic_client import (
@@ -43,6 +43,7 @@ from .session_manager import (
     save_session,
     update_scene_context,
 )
+from . import usage_ledger
 from .validate import router as validate_router
 from .vision_buffer import (
     PAUSE_AT,
@@ -73,6 +74,32 @@ app.include_router(validate_router)
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "version": "0.3.0"}
+
+
+@app.get("/admin/usage")
+async def admin_usage(authorization: str = Header(default=""),
+                       user_id: str | None = Query(default=None)) -> dict[str, Any]:
+    """v1.3 — admin usage visibility. Requires a valid session token
+    (same validation as the WS path) whose email is on the
+    ANIMORA_ADMIN_EMAILS allowlist. `?user_id=` narrows to one user's
+    aggregate; omitted, returns the overall + per-user + per-model
+    breakdown. Generic error messages to the client (specifics to
+    server logs) — same posture as /validate-key."""
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+    try:
+        claims = await validate_token(token)
+    except AuthError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session") from None
+    if not usage_ledger.is_admin_email(claims.email):
+        log.warning("admin_usage.forbidden", extra={"user_id": claims.user_id})
+        raise HTTPException(status_code=403, detail="Not authorized")
+    try:
+        return await usage_ledger.fetch_usage_aggregate(user_id)
+    except Exception as exc:
+        log.error("admin_usage.query_failed", extra={"error": str(exc)})
+        raise HTTPException(status_code=502, detail="Usage query failed") from None
 
 
 @app.websocket("/ws/{session_id}")
@@ -207,6 +234,7 @@ async def websocket_endpoint(
     anthropic_client = AnthropicClient(
         decision.api_key,
         session_id=session_id,
+        user_id=claims.user_id,
         emit=bus.emit,
     )
 
@@ -243,6 +271,15 @@ async def websocket_endpoint(
         if payload.get("session_id") == session_id:
             session_data["last_persona_id"] = payload.get("persona", "generalist")
     bus.on("intent.classified", _capture_persona)
+
+    # v1.3 — admin usage visibility. Best-effort durable log of every
+    # LLM call this session makes; a dropped row must never affect the
+    # user's turn (record_usage_event() swallows its own failures).
+    def _record_usage(payload: dict[str, Any]) -> None:
+        if payload.get("session_id") != session_id:
+            return
+        asyncio.create_task(usage_ledger.record_usage_event(payload))
+    bus.on("usage.recorded", _record_usage)
 
     # ── Sprint 4 — session recorder (Quality Plan §6.2 practical reframe) ─
     # Activated only when ANIMORA_RECORD_SESSIONS env is set. Captures

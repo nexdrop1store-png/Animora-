@@ -72,6 +72,7 @@ async def _validate_supabase(token: str) -> TokenClaims:
         device_id=str((user.get("user_metadata") or {}).get("device_id", "")),
         seats_used=1,
         exp=float(unverified.get("exp", time.time() + 3600)),
+        email=str(user.get("email") or ""),
     )
 
 

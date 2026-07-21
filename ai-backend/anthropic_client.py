@@ -90,6 +90,36 @@ _TERMINAL_ERRORS: tuple[type[Exception], ...] = tuple(
 )
 
 
+# v1.3 — admin usage visibility (deliberately smaller than V2 Phase 6's
+# full metering/billing plan; see .claude/skills/animora-metering-billing).
+# List prices, $ per MILLION tokens, as of this table's creation — this
+# WILL drift when Anthropic changes prices or ships new models; no
+# automated staleness detection exists, so treat as needing a periodic
+# manual check-in. Cache read/write tokens are priced differently from
+# base input tokens (a cache read is materially cheaper) — approximating
+# both as base input-token price would meaningfully overcharge a cache-
+# heavy turn, so they get their own rates per model family.
+MODEL_PRICING: dict[str, dict[str, float]] = {
+    "claude-opus-4-7": {
+        "input": 15.0, "output": 75.0,
+        "cache_write": 18.75, "cache_read": 1.50,
+    },
+    "claude-opus-4-6": {
+        "input": 15.0, "output": 75.0,
+        "cache_write": 18.75, "cache_read": 1.50,
+    },
+    "claude-sonnet-4-6": {
+        "input": 3.0, "output": 15.0,
+        "cache_write": 3.75, "cache_read": 0.30,
+    },
+    "claude-haiku-4-5-20251001": {
+        "input": 0.80, "output": 4.0,
+        "cache_write": 1.0, "cache_read": 0.08,
+    },
+}
+_FALLBACK_PRICING = {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30}
+
+
 # ── Result + error types ────────────────────────────────────────────────
 
 @dataclass
@@ -112,6 +142,23 @@ class TokenUsage:
             "cache_read_input_tokens": self.cache_read_input_tokens,
             "cache_hit_ratio": round(self.cache_hit_ratio, 3),
         }
+
+    def cost_usd(self, model: str) -> float:
+        """List-price estimate for this call, in USD. Unrecognized
+        models fall back to Sonnet-tier pricing (logged, never raises)
+        rather than silently returning 0 — a missing price table entry
+        for a new model should show up as a plausible-looking number
+        an admin might question, not a suspicious exact zero."""
+        rates = MODEL_PRICING.get(model)
+        if rates is None:
+            log.warning("cost_usd: no pricing entry for model=%r, using fallback rates", model)
+            rates = _FALLBACK_PRICING
+        return (
+            self.input_tokens * rates["input"]
+            + self.output_tokens * rates["output"]
+            + self.cache_creation_input_tokens * rates["cache_write"]
+            + self.cache_read_input_tokens * rates["cache_read"]
+        ) / 1_000_000
 
 
 @dataclass
@@ -192,6 +239,7 @@ class AnthropicClient:
         api_key: str,
         *,
         session_id: str = "unknown",
+        user_id: str = "unknown",
         timeout_sec: float = _PER_REQUEST_TIMEOUT_SEC,
         max_retries: int = _MAX_RETRIES,
         emit: Callable[[str, dict[str, Any]], Awaitable[None]] | None = None,
@@ -212,6 +260,7 @@ class AnthropicClient:
         self._provider = provider
         self._key = api_key
         self._session_id = session_id
+        self._user_id = user_id  # v1.3 — usage.recorded attribution only
         self._timeout = timeout_sec
         self._max_retries = max_retries
         # We manage retries ourselves so the SDK's own retry doesn't double up
@@ -402,8 +451,10 @@ class AnthropicClient:
 
                 await self._emit_safe("usage.recorded", {
                     "session_id": self._session_id,
+                    "user_id": self._user_id,
                     "model": model,
                     "usage": result.usage.to_dict(),
+                    "cost_usd": result.usage.cost_usd(model),
                     "elapsed_ms": result.elapsed_ms,
                     "attempts": attempt,
                 })
