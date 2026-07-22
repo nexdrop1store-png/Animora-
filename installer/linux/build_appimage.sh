@@ -9,6 +9,15 @@ BIN_DIR="${1:?usage: build_appimage.sh <bin-dir> <dist-dir>}"
 DIST_DIR="${2:?usage: build_appimage.sh <bin-dir> <dist-dir>}"
 mkdir -p "$DIST_DIR"
 
+# rebrand.py only patches user-facing strings/assets - Blender's own
+# CMakeLists.txt hardcodes the compiled executable's name, so cmake always
+# produces `blender`, never `animora`. Rename it here at packaging time
+# (mirrors scripts/stage_for_installer.py's blender.exe -> Animora.exe
+# rename on Windows).
+if [ ! -f "$BIN_DIR/animora" ] && [ -f "$BIN_DIR/blender" ]; then
+  mv "$BIN_DIR/blender" "$BIN_DIR/animora"
+fi
+
 if [ ! -x "$BIN_DIR/animora" ] && [ ! -f "$BIN_DIR/animora" ]; then
   echo "ERROR: 'animora' binary not found in $BIN_DIR" >&2
   exit 1

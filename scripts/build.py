@@ -224,7 +224,7 @@ def smoke_test(build_dir: Path, target_platform: str) -> None:
         sys.exit(result)
 
 
-def step_default_startup(target_platform: str) -> None:
+def step_default_startup(target_platform: str, config: str) -> None:
     """Regenerate the branded startup.blend BEFORE compiling.
 
     DataToC bakes blender-fork/release/datafiles/startup.blend into the
@@ -238,15 +238,18 @@ def step_default_startup(target_platform: str) -> None:
     if target_platform != "windows":
         log.warning("startup regen implemented for the Windows pipeline only — skipping")
         return
-    binary = BUILD_DIR / "windows" / "bin" / "blender.exe"
+    # Multi-config "Visual Studio 17 2022" generator: output lands at
+    # build/windows/<config>/bin/<config>/ (see CMAKE_PLATFORM_FLAGS).
+    bin_dir = BUILD_DIR / "windows" / config / "bin" / config
+    binary = bin_dir / "blender.exe"
     if not binary.exists():
-        binary = BUILD_DIR / "windows" / "bin" / "Animora.exe"
+        binary = bin_dir / "Animora.exe"
     if not binary.exists():
         log.warning(
             "No previously built binary at %s — SKIPPING startup regen. "
             "The compile will bake whatever startup.blend is on disk; rerun "
             "the build once a binary exists.",
-            BUILD_DIR / "windows" / "bin",
+            bin_dir,
         )
         return
     script = REPO_ROOT / "scripts" / "build_default_startup.py"
@@ -279,7 +282,7 @@ def main() -> None:
         step_rebrand()
 
     if not args.skip_startup:
-        step_default_startup(args.platform)
+        step_default_startup(args.platform, args.config)
 
     if not args.skip_compile:
         step_cmake_configure(args.platform, args.config, build_dir)

@@ -107,9 +107,13 @@ jobs:
         shell: bash
         run: |
           # Blender's own updater pulls the platform lib/ deps cmake needs.
-          python blender-fork/build_files/utils/make_update.py \
-            --use-linux-libraries --no-blender || \
-            make -C blender-fork update || true
+          # Must run with cwd=blender-fork: make_update.py resolves the
+          # submodule path (lib/<platform>_<arch>) relative to the current
+          # working directory, so invoking it with a path prefix from the
+          # repo root makes it silently report "no configured submodule"
+          # and skip the fetch entirely.
+          cd blender-fork
+          python build_files/utils/make_update.py --no-blender
 
       - name: Apply Animora native delta
         shell: bash

@@ -54,7 +54,17 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger("stage")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SRC_DIR = REPO_ROOT / "build" / "windows" / "bin"
+# The Windows cmake configure uses the multi-config "Visual Studio 17 2022"
+# generator (see scripts/build.py CMAKE_PLATFORM_FLAGS), so the compiled
+# output lands at build/windows/<config>/bin/<config>/ - the config segment
+# appears twice (once for build.py's own build_dir layout, once for the
+# generator's own per-config bin/ subfolder). Every build in this repo uses
+# Release (CI, docs, build.py's default), so it's not exposed as a CLI flag
+# here - override via ANIMORA_BUILD_CONFIG if that ever changes.
+import os as _os
+
+_CONFIG = _os.environ.get("ANIMORA_BUILD_CONFIG", "Release")
+SRC_DIR = REPO_ROOT / "build" / "windows" / _CONFIG / "bin" / _CONFIG
 DST_DIR = REPO_ROOT / "build" / "windows" / "animora-stage"
 STARTUP_BLEND_SRC = REPO_ROOT / "blender-fork" / "release" / "datafiles" / "startup.blend"
 
