@@ -42,14 +42,14 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
-OutputDir=C:\Users\Administrator\Desktop\Animora\dist
+OutputDir={#SourcePath}..\..\..\dist
 OutputBaseFilename=Animora-Setup
-SetupIconFile=C:\Users\Administrator\Desktop\Animora\blender-fork\release\windows\icons\winblender.ico
+SetupIconFile={#SourcePath}..\..\..\blender-fork\release\windows\icons\winblender.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
 WizardStyle=modern
-WizardImageFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\wizard-image.bmp
-WizardSmallImageFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\wizard-small.bmp
+WizardImageFile={#SourcePath}wizard-image.bmp
+WizardSmallImageFile={#SourcePath}wizard-small.bmp
 WizardImageStretch=yes
 Compression=lzma2/max
 SolidCompression=yes
@@ -60,7 +60,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 MinVersion=10.0
-LicenseFile=C:\Users\Administrator\Desktop\Animora\installer\windows\inno\license.txt
+LicenseFile={#SourcePath}license.txt
 ShowLanguageDialog=no
 DisableWelcomePage=no
 DisableReadyPage=no
@@ -90,9 +90,9 @@ Name: "associate_blend"; Description: "Open &.blend files with Animora"; GroupDe
 ; Animora-launcher.exe, *.pdb excluded, etc. The recipient never sees
 ; "blender_*" filenames in the install progress bar.
 ; Run `python scripts/stage_for_installer.py` before invoking this .iss.
-Source: "C:\Users\Administrator\Desktop\Animora\build\windows\animora-stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}..\..\..\build\windows\animora-stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; VC++ 2015-2022 Redistributable — installed silently as prerequisite if missing.
-Source: "C:\Users\Administrator\Desktop\Animora\installer\windows\inno\redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "{#SourcePath}redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 ; ── Recording build: bundled AI engine + addon marker ───────────────────
 ; Present ONLY when build/backend-dist/ exists (produced by
@@ -102,10 +102,10 @@ Source: "C:\Users\Administrator\Desktop\Animora\installer\windows\inno\redist\VC
 ; or a plain build depending on whether the freeze output is present.
 ;
 ; 1. The frozen backend → {app}\engine\  (addon auto-launches engine\animora-backend.exe)
-Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\animora-backend\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "{#SourcePath}..\..\..\build\backend-dist\animora-backend\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 ; 2. The bundle marker → the addon dir. Its presence is what flips the
 ;    addon into recording mode (auto-launch + auto-connect, no sign-in).
-Source: "C:\Users\Administrator\Desktop\Animora\build\backend-dist\bundle_config.json"; DestDir: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#SourcePath}..\..\..\build\backend-dist\bundle_config.json"; DestDir: "{app}\{#BlenderVersion}\scripts\addons_core\animora_panel"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 ; Launch via the windowed launcher (no console window); keep the Animora.exe

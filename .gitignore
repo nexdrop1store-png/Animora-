@@ -61,6 +61,12 @@ installer/linux/build/
 # producing a Windows installer.
 installer/windows/sfx/payload.7z
 
+# VC++ 2015-2022 x64 redistributable — a ~25 MB Microsoft-distributed
+# binary the Inno script bundles as a prerequisite. Not ours to commit;
+# fetch with:
+#   curl -fSL -o installer/windows/inno/redist/VC_redist.x64.exe https://aka.ms/vs/17/release/vc_redist.x64.exe
+installer/windows/inno/redist/
+
 # Secrets / certs (never commit)
 *.pem
 *.key

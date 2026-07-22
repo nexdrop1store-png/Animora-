@@ -76,6 +76,14 @@ jobs:
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           choco install innosetup -y
 
+      - name: Fetch VC++ redistributable (Inno bundles it as a prerequisite)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          mkdir -p installer/windows/inno/redist
+          curl -fSL -o installer/windows/inno/redist/VC_redist.x64.exe \
+            https://aka.ms/vs/17/release/vc_redist.x64.exe
+
       - name: macOS deps
         if: matrix.platform == 'macos'
         run: brew install cmake ninja
