@@ -103,6 +103,16 @@ def step_compile(build_dir: Path, config: str, jobs: int) -> None:
         ["cmake", "--build", ".", "--config", config, "--parallel", str(jobs)],
         cwd=build_dir,
     )
+    # CMake's install() rules (the bundled Python, the blender.crt/ and
+    # blender.shared/ SxS runtime folders, MaterialX libraries, etc.) only
+    # run when the "install" target is built explicitly - they are NOT part
+    # of the default build graph. Without this, bin/<config>/ only contains
+    # the bare linked blender.exe/blender-launcher.exe and stage_for_installer.py
+    # fails looking for the SxS assemblies.
+    run(
+        ["cmake", "--build", ".", "--config", config, "--target", "install", "--parallel", str(jobs)],
+        cwd=build_dir,
+    )
 
 
 def step_package(target_platform: str, build_dir: Path, config: str) -> None:
