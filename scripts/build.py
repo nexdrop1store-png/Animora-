@@ -141,6 +141,9 @@ def _package_windows(build_dir: Path, config: str) -> None:
         roots = [
             Path(os.environ.get("ProgramFiles(x86)", "")),
             Path(os.environ.get("ProgramFiles", "")),
+            # winget installs JRSoftware.InnoSetup per-user here by default,
+            # not under Program Files - confirmed on a fresh install.
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs",
         ]
         for root in roots:
             if not str(root):
