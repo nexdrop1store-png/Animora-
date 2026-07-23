@@ -143,3 +143,56 @@ def test_boolean_apply_after_low_subdivision_still_passes():
     )
     v = validate_script(script)
     assert v.ok is True
+
+
+# ── Class-hierarchy sandbox escape (dunder attribute traversal) ──────────
+# `().__class__.__bases__[0].__subclasses__()` reaches any loaded class
+# (subprocess.Popen included) using no banned import and no banned
+# bare-name call — only banning ast.Name("__builtins__") and bare-name
+# calls left this open. Found in manual security review.
+
+
+def test_class_hierarchy_subclasses_escape_rejected():
+    script = (
+        "base = ().__class__.__bases__[0]\n"
+        "target = None\n"
+        "for c in base.__subclasses__():\n"
+        "    if c.__name__ == 'Popen':\n"
+        "        target = c\n"
+        "p = target(['cmd'])\n"
+    )
+    v = validate_script(script)
+    assert v.ok is False
+    assert "__bases__" in v.reason
+
+
+def test_bare_class_attribute_access_rejected():
+    script = "t = type(obj).__class__\n"
+    v = validate_script(script)
+    assert v.ok is False
+    assert "__class__" in v.reason
+
+
+def test_function_globals_escape_rejected():
+    # (lambda: 0).__globals__ reaches the defining module's globals,
+    # including any imported names — a separate escape from the
+    # __bases__/__subclasses__ chain.
+    script = "g = (lambda: 0).__globals__\n"
+    v = validate_script(script)
+    assert v.ok is False
+    assert "__globals__" in v.reason
+
+
+def test_ordinary_attribute_access_still_passes():
+    # Regression guard: legitimate bpy attribute chains (no dunders)
+    # must not be caught by the new dunder-attribute ban.
+    script = (
+        "import bpy\n"
+        "bpy.ops.mesh.primitive_cube_add(size=2)\n"
+        "obj = bpy.context.active_object\n"
+        "obj.name = 'MyCube'\n"
+        "mod = obj.modifiers.new(name='Bevel', type='BEVEL')\n"
+        "mod.width = 0.01\n"
+    )
+    v = validate_script(script)
+    assert v.ok is True

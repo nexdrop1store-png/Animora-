@@ -142,6 +142,21 @@ BANNED_CALLS = {
     "breakpoint",  # would drop into a debugger inside Animora
 }
 
+# Dunder attributes that let a script reach arbitrary loaded classes/code
+# via Python's own object model, without ever using a banned import or a
+# banned bare-name call: `().__class__.__bases__[0].__subclasses__()` walks
+# every subclass of `object` currently loaded (subprocess.Popen included)
+# using nothing but attribute access. No legitimate bpy content-creation
+# script needs to touch Python's type-introspection machinery.
+BANNED_DUNDER_ATTRS = {
+    "__class__", "__base__", "__bases__", "__mro__", "__subclasses__",
+    "__globals__", "__code__", "__closure__", "__dict__",
+    "__getattribute__", "__setattr__", "__delattr__",
+    "__reduce__", "__reduce_ex__",
+    "__init_subclass__", "__subclasshook__",
+    "__loader__", "__spec__", "__import__",
+}
+
 
 @dataclass
 class ValidationResult:
@@ -198,6 +213,17 @@ def validate_script(script: str) -> ValidationResult:
         if isinstance(node, ast.Name) and node.id == "__builtins__":
             return ValidationResult(
                 ok=False, reason="Reference to __builtins__ is not allowed",
+            )
+
+        # ── Banned dunder attribute access (class-hierarchy sandbox escape) ─
+        # Catches `x.__class__`, `x.__class__.__bases__`, `().__class__
+        # .__bases__[0].__subclasses__()`, etc. — reaching subprocess.Popen
+        # or any other loaded class this way uses no banned import and no
+        # banned bare-name call, so it must be blocked at the attribute-name
+        # level regardless of what object the attribute is accessed on.
+        if isinstance(node, ast.Attribute) and node.attr in BANNED_DUNDER_ATTRS:
+            return ValidationResult(
+                ok=False, reason=f"Banned attribute access: .{node.attr}",
             )
 
     # ── Resource heuristics (NOT security; just sanity limits) ──────────
