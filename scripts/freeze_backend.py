@@ -114,23 +114,29 @@ def _run_pyinstaller() -> int:
     return 0
 
 
-def _extract_bedrock_creds() -> dict[str, str]:
-    """Pull AWS_BEARER_TOKEN_BEDROCK + BEDROCK_AWS_REGION from ai-backend/.env
-    so the shipped bundle has a working key. Falls back to placeholders +
-    a loud warning if they're absent."""
-    creds = {"AWS_BEARER_TOKEN_BEDROCK": "", "BEDROCK_AWS_REGION": "us-east-1"}
-    env_file = AI_BACKEND / ".env"
-    if env_file.is_file():
-        for raw in env_file.read_text(encoding="utf-8").splitlines():
-            line = raw.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key = key.strip().upper()
-            value = value.strip().strip('"').strip("'")
-            if key in creds and value:
-                creds[key] = value
-    return creds
+def _recording_env_file_contents() -> str:
+    """The animora_backend.env text shipped next to the frozen exe.
+
+    SECURITY (Bug 6): this file is inside the installer and is trivially
+    extractable, so it MUST NOT contain the Bedrock key — that was the only
+    client-embedded credential left in the whole product. It carries the
+    NON-SECRET region only. The recording operator supplies the key at
+    runtime via the AWS_BEARER_TOKEN_BEDROCK environment variable on their
+    own machine; bundled_server._load_bundled_env uses setdefault, so a
+    process env var always takes precedence over this file. Pure function so
+    it can be unit-tested (asserting no key ever leaks in)."""
+    return "\n".join([
+        "# Animora recording-build backend config (NON-SECRET).",
+        "# Shipped inside the installer next to animora-backend.exe.",
+        "#",
+        "# The Bedrock key is DELIBERATELY NOT here (it would be extractable",
+        "# from the bundle). Set it in your shell before launching Animora:",
+        "#   Windows:      set AWS_BEARER_TOKEN_BEDROCK=ABSK...",
+        "#   macOS/Linux:  export AWS_BEARER_TOKEN_BEDROCK=ABSK...",
+        "# bundled_server prefers the process env var over this file.",
+        "BEDROCK_AWS_REGION=us-east-1",
+        "",
+    ])
 
 
 def _write_bundle_files() -> int:
@@ -139,25 +145,13 @@ def _write_bundle_files() -> int:
         log.error("PyInstaller did not produce %s — build failed", app_dir)
         return 1
 
-    creds = _extract_bedrock_creds()
-    env_lines = [
-        "# Animora recording-build backend credentials.",
-        "# Shipped INSIDE the installer next to animora-backend.exe.",
-        "# SECURITY: this Bedrock key is extractable from the bundle —",
-        "# rotate it in the AWS console after the cofounder finishes capturing.",
-        f"AWS_BEARER_TOKEN_BEDROCK={creds['AWS_BEARER_TOKEN_BEDROCK']}",
-        f"BEDROCK_AWS_REGION={creds['BEDROCK_AWS_REGION']}",
-        "",
-    ]
-    (app_dir / "animora_backend.env").write_text("\n".join(env_lines), encoding="utf-8")
-    if creds["AWS_BEARER_TOKEN_BEDROCK"]:
-        log.info("wrote animora_backend.env WITH a Bedrock key (token present)")
-    else:
-        log.warning(
-            "ai-backend/.env had no AWS_BEARER_TOKEN_BEDROCK — wrote a PLACEHOLDER. "
-            "Edit %s and paste the ABSK... key before shipping, or the cofounder's "
-            "turns will all fail.", app_dir / "animora_backend.env",
-        )
+    (app_dir / "animora_backend.env").write_text(
+        _recording_env_file_contents(), encoding="utf-8",
+    )
+    log.info(
+        "wrote KEY-FREE animora_backend.env (region only) — the operator "
+        "supplies AWS_BEARER_TOKEN_BEDROCK via the environment at runtime",
+    )
 
     (DIST / "bundle_config.json").write_text(_BUNDLE_CONFIG, encoding="utf-8")
     log.info("wrote %s", DIST / "bundle_config.json")

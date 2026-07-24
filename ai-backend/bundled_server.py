@@ -10,9 +10,13 @@ auto-launches the frozen exe on startup (see addons/animora_panel/bundle.py).
 What it does that dev_server.py does NOT:
   • Forces ANIMORA_RECORD_SESSIONS=1 — recording is always on.
   • Forces ANIMORA_LLM_PROVIDER=bedrock — the recording build uses Bedrock.
-  • Reads Bedrock creds from a bundled `animora_backend.env` sitting NEXT TO
-    the frozen exe (NOT from ai-backend/.env — that file isn't reliably
-    locatable once frozen, because config.py anchors on __file__ which
+  • Reads NON-SECRET config (region) from a bundled `animora_backend.env`
+    sitting NEXT TO the frozen exe. The Bedrock KEY is NOT in that file
+    (Bug 6 — it would be extractable from the shipped bundle); the operator
+    provides AWS_BEARER_TOKEN_BEDROCK via the environment at runtime, and it
+    takes precedence over the file. (Config isn't read from ai-backend/.env —
+    that file isn't reliably locatable once frozen, because config.py
+    anchors on __file__ which
     resolves inside PyInstaller's _MEIPASS).
   • Writes recordings to "<Desktop>/Animora Recordings" — a user-writable
     folder a non-technical user can find, zip, and send back. ({app} is
@@ -120,9 +124,12 @@ os.environ.setdefault("BEDROCK_AWS_REGION", "us-east-1")
 
 if not os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
     log.error(
-        "AWS_BEARER_TOKEN_BEDROCK is not set and animora_backend.env did not "
-        "supply it. The backend will start but every AI turn will fail. "
-        "Check that animora_backend.env shipped next to the exe."
+        "AWS_BEARER_TOKEN_BEDROCK is not set. The recording bundle ships "
+        "KEY-FREE by design (Bug 6 — a key in the bundle is extractable), so "
+        "you must set it in your shell BEFORE launching Animora:\n"
+        "    Windows:      set AWS_BEARER_TOKEN_BEDROCK=ABSK...\n"
+        "    macOS/Linux:  export AWS_BEARER_TOKEN_BEDROCK=ABSK...\n"
+        "The backend will start but every AI turn fails until it is set."
     )
 
 
