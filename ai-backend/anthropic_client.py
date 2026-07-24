@@ -117,7 +117,8 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_write": 1.0, "cache_read": 0.08,
     },
 }
-_FALLBACK_PRICING = {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30}
+# No _FALLBACK_PRICING by design (Bug 1): an unpriced model records 0.0 +
+# an ERROR log, never a guessed number. See TokenUsage.cost_usd.
 
 
 # ── Result + error types ────────────────────────────────────────────────
@@ -144,15 +145,24 @@ class TokenUsage:
         }
 
     def cost_usd(self, model: str) -> float:
-        """List-price estimate for this call, in USD. Unrecognized
-        models fall back to Sonnet-tier pricing (logged, never raises)
-        rather than silently returning 0 — a missing price table entry
-        for a new model should show up as a plausible-looking number
-        an admin might question, not a suspicious exact zero."""
+        """List-price estimate for this call, in USD, from the single
+        authoritative MODEL_PRICING table.
+
+        NO silent fallback (Bug 1): an unrecognized model ID means we're
+        billing a model whose price we never entered — a real problem. We
+        log an ERROR and record 0.0 rather than GUESSING a plausible number
+        from a generic fallback rate. A guessed cost silently corrupts the
+        admin dashboard's totals in a way nobody catches; a 0 plus a
+        grep-able error line does not. (input_tokens from the API already
+        EXCLUDES cached tokens, so summing the four buckets at their own
+        rates does not double-count.)"""
         rates = MODEL_PRICING.get(model)
         if rates is None:
-            log.warning("cost_usd: no pricing entry for model=%r, using fallback rates", model)
-            rates = _FALLBACK_PRICING
+            log.error(
+                "cost_usd: NO pricing entry for model=%r — recording 0.0. "
+                "Add it to MODEL_PRICING.", model,
+            )
+            return 0.0
         return (
             self.input_tokens * rates["input"]
             + self.output_tokens * rates["output"]

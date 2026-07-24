@@ -100,41 +100,52 @@ def _aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Pure aggregation, pulled out from fetch_usage_aggregate so the
     summing logic is unit-testable without a live Supabase project."""
     total_input = total_output = 0
+    # Bug 1 — cache tokens were RECORDED per row but never surfaced, so the
+    # dashboard under-reported real token volume, worst for cache-heavy Opus
+    # execution turns (each iteration re-sends a large cached prompt read
+    # back cheaply as cache_read). Aggregate + expose them.
+    total_cache_read = total_cache_creation = 0
     total_cost = 0.0
     by_user: dict[str, dict[str, Any]] = {}
     by_model: dict[str, dict[str, Any]] = {}
+
+    def _bucket() -> dict[str, Any]:
+        return {
+            "input_tokens": 0, "output_tokens": 0,
+            "cache_read_tokens": 0, "cache_creation_tokens": 0,
+            "cost_usd": 0.0, "calls": 0,
+        }
 
     for row in rows:
         uid = row.get("user_id") or "unknown"
         model = row.get("model") or "unknown"
         in_tok = int(row.get("input_tokens", 0) or 0)
         out_tok = int(row.get("output_tokens", 0) or 0)
+        cache_read = int(row.get("cache_read_input_tokens", 0) or 0)
+        cache_creation = int(row.get("cache_creation_input_tokens", 0) or 0)
         cost = float(row.get("cost_usd", 0.0) or 0.0)
 
         total_input += in_tok
         total_output += out_tok
+        total_cache_read += cache_read
+        total_cache_creation += cache_creation
         total_cost += cost
 
-        u = by_user.setdefault(
-            uid, {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "calls": 0},
-        )
-        u["input_tokens"] += in_tok
-        u["output_tokens"] += out_tok
-        u["cost_usd"] += cost
-        u["calls"] += 1
-
-        m = by_model.setdefault(
-            model, {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "calls": 0},
-        )
-        m["input_tokens"] += in_tok
-        m["output_tokens"] += out_tok
-        m["cost_usd"] += cost
-        m["calls"] += 1
+        for bucket_map, key in ((by_user, uid), (by_model, model)):
+            b = bucket_map.setdefault(key, _bucket())
+            b["input_tokens"] += in_tok
+            b["output_tokens"] += out_tok
+            b["cache_read_tokens"] += cache_read
+            b["cache_creation_tokens"] += cache_creation
+            b["cost_usd"] += cost
+            b["calls"] += 1
 
     return {
         "total_calls": len(rows),
         "total_input_tokens": total_input,
         "total_output_tokens": total_output,
+        "total_cache_read_tokens": total_cache_read,
+        "total_cache_creation_tokens": total_cache_creation,
         "total_cost_usd": round(total_cost, 4),
         "by_user": {k: {**v, "cost_usd": round(v["cost_usd"], 4)} for k, v in by_user.items()},
         "by_model": {k: {**v, "cost_usd": round(v["cost_usd"], 4)} for k, v in by_model.items()},

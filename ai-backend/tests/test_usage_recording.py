@@ -61,12 +61,27 @@ def test_cost_usd_cache_read_cheaper_than_input():
     assert read_heavy.cost_usd("claude-sonnet-4-6") < input_heavy.cost_usd("claude-sonnet-4-6")
 
 
-def test_cost_usd_unknown_model_falls_back_not_raises():
+def test_cost_usd_unknown_model_records_zero_not_a_guess(caplog):
     usage = TokenUsage(input_tokens=1_000_000, output_tokens=1_000_000)
-    # Must not raise for a model not in MODEL_PRICING — falls back to
-    # Sonnet-tier rates rather than crashing the usage.recorded emit.
-    cost = usage.cost_usd("claude-some-future-model-nobody-added-yet")
-    assert cost == 18.0  # same as the Sonnet fallback rates
+    # Bug 1 — an unpriced model must NOT be guessed at a fallback rate
+    # (that silently corrupts dashboard totals). It records 0.0 and logs an
+    # ERROR so the missing entry is grep-able. Must never raise.
+    import logging
+    with caplog.at_level(logging.ERROR):
+        cost = usage.cost_usd("claude-some-future-model-nobody-added-yet")
+    assert cost == 0.0
+    assert any("NO pricing entry" in r.message for r in caplog.records)
+
+
+def test_cost_usd_does_not_double_count_cached_input():
+    # input_tokens from the API already EXCLUDES cache_read; each bucket is
+    # priced at its own rate, so a cache-heavy call is far cheaper than if
+    # the cached tokens were billed at the full input rate.
+    from ai_backend.anthropic_client import MODEL_PRICING
+    u = TokenUsage(input_tokens=1000, cache_read_input_tokens=100_000)
+    rates = MODEL_PRICING["claude-opus-4-7"]
+    expected = (1000 * rates["input"] + 100_000 * rates["cache_read"]) / 1_000_000
+    assert abs(u.cost_usd("claude-opus-4-7") - expected) < 1e-12
 
 
 # ── usage_ledger.is_admin_email ───────────────────────────────────────
@@ -123,6 +138,25 @@ def test_aggregate_rows_sums_across_users_and_models():
 
     assert result["by_model"]["claude-opus-4-7"]["calls"] == 2
     assert result["by_model"]["claude-sonnet-4-6"]["calls"] == 1
+
+
+def test_aggregate_rows_surfaces_cache_tokens():
+    # Bug 1 — cache_read / cache_creation are recorded per row and must now
+    # appear in the aggregate (they were being dropped, under-reporting real
+    # token volume, worst for cache-heavy Opus turns).
+    rows = [
+        {"user_id": "u1", "model": "claude-opus-4-7", "input_tokens": 100,
+         "output_tokens": 50, "cache_read_input_tokens": 9000,
+         "cache_creation_input_tokens": 1000, "cost_usd": 0.01},
+        {"user_id": "u1", "model": "claude-opus-4-7", "input_tokens": 100,
+         "output_tokens": 50, "cache_read_input_tokens": 9000,
+         "cache_creation_input_tokens": 0, "cost_usd": 0.01},
+    ]
+    result = usage_ledger._aggregate_rows(rows)
+    assert result["total_cache_read_tokens"] == 18000
+    assert result["total_cache_creation_tokens"] == 1000
+    assert result["by_user"]["u1"]["cache_read_tokens"] == 18000
+    assert result["by_model"]["claude-opus-4-7"]["cache_creation_tokens"] == 1000
 
 
 def test_aggregate_rows_handles_missing_fields_gracefully():
