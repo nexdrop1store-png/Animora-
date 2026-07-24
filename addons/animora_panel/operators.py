@@ -1357,13 +1357,27 @@ class _ScriptRunner:
         except Exception:
             pass
 
-        # Sprint 4G — SEND THE TOOL_RESULT FIRST, before any of the
-        # potentially-expensive cleanup work below. The backend's
-        # coordinator is ticking down a 45 s timeout; the model can
-        # start composing the next iteration the instant we send. The
-        # diff / HD capture / chat post are nice-to-have UX; the backend
-        # has the model-facing fields (output, tool_use_id) already so
-        # nothing else is load-bearing for the loop to advance.
+        # Bug 5 — commit the final depsgraph + repaint the viewport BEFORE
+        # reporting done, so created geometry is visible in the viewport
+        # immediately, not a tick later (and not at all if the deferred
+        # finalize below is starved). This mirrors the atomic-tool path
+        # (_atomic_run), which already does view_layer.update()+tag_redraw
+        # before its send. It is the ONE view_layer.update on the critical
+        # path; the expensive scene-graph serialize stays deferred, so this
+        # does NOT reintroduce the 100s-late tool_result Sprint 4G removed
+        # (that cost was the full bpy.data walk, not view_layer.update).
+        try:
+            _force_viewport_redraw()
+        except Exception as exc:
+            log.debug("finalize.commit_redraw_failed: %s", exc)
+
+        # Sprint 4G — SEND THE TOOL_RESULT (now that the scene is committed
+        # and the viewport is tagged) before the potentially-expensive
+        # cleanup work below. The backend's coordinator is ticking down a
+        # timeout; the model can start composing the next iteration the
+        # instant we send. The diff / HD capture / chat post are
+        # nice-to-have UX; the backend has the model-facing fields (output,
+        # tool_use_id) already so nothing else is load-bearing.
         _send_tool_result(self.result)
         try:
             state_module.set_state(state_module.S.COMPLETE, self.label)
@@ -1383,10 +1397,10 @@ class _ScriptRunner:
         label_ref = self.label
 
         def _deferred_finalize():
-            try:
-                _force_viewport_redraw()
-            except Exception as exc:
-                log.debug("deferred.force_redraw failed: %s", exc)
+            # Bug 5 — the viewport commit+redraw moved to the critical path
+            # above (before the tool_result send), so it's no longer done
+            # here. This deferred pass now only handles the off-critical-path
+            # work: scene-graph serialize/diff, chat post, and HD capture.
             try:
                 post_graph = vision.serialize_scene_graph()
                 diff = _scene_graph_diff_brief(pre_graph, post_graph)
