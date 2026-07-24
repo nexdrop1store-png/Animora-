@@ -152,6 +152,12 @@ def _aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+# Bug 8 — cap how many distinct users we resolve id→email for in one
+# aggregate, so a large user base can't fan out into thousands of admin-API
+# calls. Early product; revisit with a batch endpoint if it's ever hit.
+_MAX_EMAIL_RESOLVE = 200
+
+
 async def fetch_usage_aggregate(user_id: str | None = None) -> dict[str, Any]:
     """Query usage_events and aggregate token/cost totals — overall,
     per-user, per-model. `user_id` filters to a single user's rows.
@@ -164,7 +170,12 @@ async def fetch_usage_aggregate(user_id: str | None = None) -> dict[str, Any]:
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY not configured")
 
     params: dict[str, str] = {
-        "select": "user_id,model,input_tokens,output_tokens,cost_usd",
+        # Bug 1 — cache columns MUST be selected or _aggregate_rows sums
+        # zero for them (they exist in the table but weren't being read).
+        "select": (
+            "user_id,model,input_tokens,output_tokens,"
+            "cache_read_input_tokens,cache_creation_input_tokens,cost_usd"
+        ),
         "limit": str(_MAX_ROWS_PER_QUERY),
         "order": "created_at.desc",
     }
@@ -180,6 +191,41 @@ async def fetch_usage_aggregate(user_id: str | None = None) -> dict[str, Any]:
             },
             params=params,
         )
-    resp.raise_for_status()
-    rows = resp.json()
-    return _aggregate_rows(rows)
+        resp.raise_for_status()
+        rows = resp.json()
+        aggregate = _aggregate_rows(rows)
+        # Bug 8 — resolve user UUIDs to emails SERVER-SIDE (service-role
+        # Auth admin API), so the admin can see WHO is using Animora. We do
+        # NOT ship the user table to the client to join in the browser.
+        await _attach_emails(client, aggregate)
+    return aggregate
+
+
+async def _attach_emails(client: "httpx.AsyncClient", aggregate: dict[str, Any]) -> None:
+    """Best-effort: add an `email` field to each by_user entry, resolved
+    via GET /auth/v1/admin/users/{id}. A failure to resolve leaves email
+    None — it must never break the aggregate. Never logs the email."""
+    by_user: dict[str, Any] = aggregate.get("by_user", {})
+    uids = [u for u in by_user if u and u != "unknown"][:_MAX_EMAIL_RESOLVE]
+    if not uids:
+        return
+    headers = {
+        "apikey": settings.supabase_service_role_key,
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+    }
+
+    async def _one(uid: str) -> tuple[str, str | None]:
+        try:
+            r = await client.get(
+                f"{SUPABASE_URL}/auth/v1/admin/users/{uid}", headers=headers,
+            )
+            if r.status_code == 200:
+                return uid, (r.json() or {}).get("email")
+        except Exception:
+            pass
+        return uid, None
+
+    import asyncio
+    results = await asyncio.gather(*(_one(u) for u in uids))
+    for uid, email in results:
+        by_user[uid]["email"] = email

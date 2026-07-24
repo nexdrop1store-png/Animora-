@@ -96,10 +96,21 @@ async def admin_usage(authorization: str = Header(default=""),
         log.warning("admin_usage.forbidden", extra={"user_id": claims.user_id})
         raise HTTPException(status_code=403, detail="Not authorized")
     try:
-        return await usage_ledger.fetch_usage_aggregate(user_id)
+        aggregate = await usage_ledger.fetch_usage_aggregate(user_id)
     except Exception as exc:
         log.error("admin_usage.query_failed", extra={"error": str(exc)})
         raise HTTPException(status_code=502, detail="Usage query failed") from None
+    # Bug 8 — access log: which admin, when (log ts), how many records, and
+    # whether it was scoped to one user. Personal data (emails) is NOT
+    # logged — only the admin's own identity and counts.
+    log.info("admin_usage.access", extra={
+        "admin_email": claims.email,
+        "admin_user_id": claims.user_id,
+        "filter_user_id": user_id or "",
+        "records": aggregate.get("total_calls", 0),
+        "distinct_users": len(aggregate.get("by_user", {})),
+    })
+    return aggregate
 
 
 @app.websocket("/ws/{session_id}")
