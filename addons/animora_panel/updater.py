@@ -63,6 +63,35 @@ log = logging.getLogger("animora.updater")
 _cached_release: dict[str, Any] | None = None
 _check_in_flight = False
 
+# v1.4.1 — update progress text shown in the STATUS BAR (bottom-right of the
+# Animora window), NOT in the AI panel/chat. Empty string = no update
+# activity. The status-bar draw (panel.py) reads this; OT_AnimoraUpdateNow
+# sets it via set_progress() so download/install status never looks like the
+# AI is working on the scene.
+_progress_text: str = ""
+
+
+def set_progress(text: str) -> None:
+    global _progress_text
+    _progress_text = text or ""
+    _redraw_status_bar()
+
+
+def get_progress() -> str:
+    return _progress_text
+
+
+def _redraw_status_bar() -> None:
+    try:
+        import bpy
+        if bpy.context.screen is None:
+            return
+        for area in bpy.context.screen.areas:
+            if area.type == "STATUSBAR":
+                area.tag_redraw()
+    except Exception:
+        pass
+
 
 def get_cached_release() -> dict[str, Any] | None:
     """The most recently fetched release row, or None if no check has
@@ -249,29 +278,57 @@ def download_and_verify(url: str, expected_sha256: str, *,
 
 
 def launch_installer_and_quit(installer_path: Path) -> bool:
-    """Launch the downloaded+verified installer as a DETACHED process
-    (so it survives Animora quitting) with the silent + auto-relaunch
-    flags, then quit Animora on the next timer tick. Windows-only —
-    matches the Inno-Setup-only distribution channel this whole module
-    targets. Returns False (and does NOT quit) if launching failed, so
-    the caller can surface an error instead of silently vanishing."""
+    """Run the installer silently and RELAUNCH Animora afterward, then
+    quit. Windows-only.
+
+    Reliability (v1.4.1): the previous version passed /ANIMORAUPDATE and
+    trusted the Inno installer's own [Run] entry to reopen Animora after a
+    silent install — which proved flaky (the app closed but never
+    reopened). Instead we own the relaunch: a tiny temp batch, run by a
+    detached, windowless cmd, chains the two steps deterministically —
+        <installer> /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+        (only if it exits 0)  start "" Animora-launcher.exe
+    The installer force-closes THIS Animora (CloseApplications=force); the
+    cmd is its own process group with no console, so it survives that and
+    relaunches the app once the install is done. No console/PowerShell
+    window appears at any point. We deliberately DROP /ANIMORAUPDATE so the
+    installer's [Run] relaunch doesn't ALSO fire (double-launch)."""
     if sys.platform != "win32":
         log.warning("updater.launch_skipped: auto-update is Windows-only")
         return False
 
     import bpy
+    import tempfile
 
-    # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP: the installer must
-    # outlive this process — Animora is about to quit to let it
-    # overwrite files (the installer's own CloseApplications=force
-    # additionally guards against timing races).
-    DETACHED_PROCESS = 0x00000008
+    # The windowed launcher lives next to the running executable
+    # (sys.executable == the installed Animora.exe), so this is robust to
+    # the exact install dir / Blender-version folder name.
+    exe_dir = Path(sys.executable).resolve().parent
+    launcher = exe_dir / "Animora-launcher.exe"
+    if not launcher.is_file():
+        alt = exe_dir / "Animora.exe"
+        if alt.is_file():
+            launcher = alt
+
+    try:
+        bat = Path(tempfile.gettempdir()) / "animora_update_relaunch.bat"
+        bat.write_text(
+            "@echo off\r\n"
+            f'"{installer_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\r\n'
+            # errorlevel 0 == success; only relaunch a clean install.
+            f'if not errorlevel 1 start "" "{launcher}"\r\n',
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        log.error("updater.bat_write_failed: %s", exc)
+        return False
+
+    CREATE_NO_WINDOW = 0x08000000
     CREATE_NEW_PROCESS_GROUP = 0x00000200
     try:
         subprocess.Popen(  # noqa: S603
-            [str(installer_path), "/VERYSILENT", "/SUPPRESSMSGBOXES",
-             "/NORESTART", "/ANIMORAUPDATE"],
-            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            ["cmd", "/c", str(bat)],
+            creationflags=CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,
             close_fds=True,
         )
     except Exception as exc:

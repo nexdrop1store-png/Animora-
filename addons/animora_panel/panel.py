@@ -233,7 +233,10 @@ class _AnimoraMainPanelMixin:
         if not is_narrow:
             self._draw_scene_strip(outer, context)
 
-        self._draw_update_banner(outer)
+        # v1.4.1 — the update notice moved OUT of the AI panel to the status
+        # bar (bottom-right of the window); see _draw_statusbar_update below.
+        # It never belonged in the chat surface — clicking it there made the
+        # update look like AI scene work.
 
         if history_len == 0 and state.state.current == state.S.IDLE:
             self._draw_onboarding(outer, context)
@@ -794,6 +797,36 @@ class PT_AnimoraPropertiesHints(Panel):
 
 
 # ---------------------------------------------------------------------------
+# Status-bar update notice (v1.4.1)
+# ---------------------------------------------------------------------------
+# The "Update available"/download-progress UI lives in the STATUS BAR at the
+# bottom-right of the Animora window — NOT in the AI panel. Appending to
+# STATUSBAR_HT_header draws AFTER Blender's own stats, i.e. on the right side.
+# It only appears when an update is actually pending or in progress, so it's
+# invisible normally.
+
+def _draw_statusbar_update(self, context) -> None:
+    from . import updater
+    layout = self.layout
+    progress = updater.get_progress()
+    if progress:
+        layout.separator_spacer()
+        layout.label(text=progress, icon="IMPORT")
+        return
+    updater.refresh_cache_async()  # cheap no-op unless a check is due
+    release = updater.get_cached_release()
+    if not updater.update_available(release):
+        return
+    layout.separator_spacer()  # push to the far right
+    ver = release.get("version", "?") if release else "?"
+    if sys.platform == "win32":
+        layout.operator("animora.update_now", text=f"Update to v{ver}", icon="IMPORT")
+    else:
+        op = layout.operator("wm.url_open", text=f"Update to v{ver}", icon="IMPORT")
+        op.url = "https://animora.tech/download"
+
+
+# ---------------------------------------------------------------------------
 # Registration — the UIList class is gone; chat rendering is custom now.
 # ---------------------------------------------------------------------------
 
@@ -808,8 +841,16 @@ _classes = [
 def register() -> None:
     for cls in _classes:
         bpy.utils.register_class(cls)
+    try:
+        bpy.types.STATUSBAR_HT_header.append(_draw_statusbar_update)
+    except Exception:
+        pass  # status-bar notice is best-effort; never block panel register
 
 
 def unregister() -> None:
+    try:
+        bpy.types.STATUSBAR_HT_header.remove(_draw_statusbar_update)
+    except Exception:
+        pass
     for cls in reversed(_classes):
         bpy.utils.unregister_class(cls)

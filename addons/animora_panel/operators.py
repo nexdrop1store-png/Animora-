@@ -96,22 +96,18 @@ class OT_AnimoraUpdateNow(Operator):
             self.report({"ERROR"}, "No update information available — try again shortly.")
             return {"CANCELLED"}
 
+        # v1.4.1 — progress goes to the STATUS BAR (bottom-right), NOT the AI
+        # panel's scene-work state or the chat. Routing it through
+        # state.EXECUTING/_post_to_chat made the update look like the AI was
+        # "working on the scene" — exactly what the user reported.
         def _on_progress(msg: str) -> None:
-            try:
-                state.set_state(state.S.EXECUTING, msg, tool_name="animora.update_now")
-            except Exception:
-                pass
-            _post_to_chat("assistant", f"⏺ {msg}")
+            updater.set_progress(msg)
 
         def _on_error(msg: str) -> None:
             log.error("update_now failed: %s", msg)
-            _post_to_chat("assistant", f"✗ Update failed: {msg}")
-            try:
-                state.set_state(state.S.ERROR, msg[:100])
-            except Exception:
-                pass
+            updater.set_progress(f"Update failed: {msg[:80]}")
 
-        _post_to_chat("assistant", f"⏺ Updating to v{release.get('version', '?')}…")
+        updater.set_progress(f"Updating to v{release.get('version', '?')}…")
         updater.perform_update_async(release, on_progress=_on_progress, on_error=_on_error)
         self.report({"INFO"}, "Updating — Animora will close and reopen automatically")
         return {"FINISHED"}
@@ -3050,6 +3046,10 @@ class OT_AnimoraComposer(Operator):
     the caret instead of defaulting to end-of-text."""
     bl_idname = "animora.composer"
     bl_label = "Compose Message"
+    # Short description so Blender doesn't surface this operator's long
+    # __doc__ as a giant tooltip when hovering/clicking the composer rows
+    # (v1.4.1 — the user was getting the whole docstring as a popup).
+    bl_description = "Click to edit your message"
     bl_options = {"INTERNAL"}
 
     click_row: bpy.props.IntProperty(default=-1)  # type: ignore[assignment]
