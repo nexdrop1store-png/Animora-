@@ -128,8 +128,29 @@ def _spawn_backend(exe: Path) -> None:
     global _backend_proc
     creationflags = 0
     if sys.platform == "win32":
-        # No console window for the spawned engine.
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        # Fully DETACH the engine from Animora's console + process group.
+        #
+        # CREATE_NO_WINDOW alone (the previous flag) only HIDES the child's
+        # window — the child still shares Animora's console session and
+        # process group. Two consequences that match the recording-build
+        # bug reports:
+        #   • A console control event (CTRL_CLOSE_EVENT / CTRL_C) delivered
+        #     to that shared console is broadcast to EVERY attached process,
+        #     so closing the engine's console (or any console in the group)
+        #     also signals Animora — "closing that window kills Animora."
+        #   • A console-subsystem engine can still flash a window in some
+        #     launch paths.
+        # DETACHED_PROCESS gives the child NO console at all, and
+        # CREATE_NEW_PROCESS_GROUP makes it the root of its own group so no
+        # console signal can propagate between it and Animora in either
+        # direction. This is the exact combo updater.py already relies on
+        # to launch the installer safely (see launch_installer_and_quit).
+        # (DETACHED_PROCESS and CREATE_NO_WINDOW are mutually exclusive;
+        # DETACHED_PROCESS is the stronger isolation and the right choice
+        # for a background server whose stdio we already send to DEVNULL.)
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        creationflags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     log.info("spawning engine: %s", exe)
     _backend_proc = subprocess.Popen(
         [str(exe)],
