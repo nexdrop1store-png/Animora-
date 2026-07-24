@@ -16,7 +16,7 @@ bl_info = {
     # (the only one of the three actually shipped inside the installed
     # addon) to decide whether a published release is newer; letting it
     # drift makes every future update check silently wrong.
-    "version": (1, 4, 0),
+    "version": (1, 4, 1),
     "blender": (4, 0, 0),
     "location": "View3D > N-Panel > Animora",
     "description": "AI-powered assistant integrated into the 3D viewport",

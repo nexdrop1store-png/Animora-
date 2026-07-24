@@ -38,7 +38,7 @@ from pathlib import Path
 #     addon, so addons/animora_panel/updater.py reads it at runtime to
 #     decide whether a published release is newer. Letting it drift
 #     makes the in-app update check silently wrong.
-ANIMORA_VERSION = "1.4"
+ANIMORA_VERSION = "1.4.1"
 
 # The Blender release Animora is currently built against.
 # Used ONLY for the internal install version dir Blender requires
