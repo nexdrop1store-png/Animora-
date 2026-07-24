@@ -714,13 +714,21 @@ class _AnimoraMainPanelMixin:
         draft = current_text.strip()
 
         if draft and not state.is_active():
-            # Show the full draft wrapped (never truncated); clicking it
-            # resumes editing in the composer.
-            draft_lines = _wrap_lines(draft, wrap_chars)
+            # Show the full draft wrapped (never truncated); clicking a line
+            # resumes editing in the composer AT that line (v1.4.1 — the idle
+            # draft previously opened at end-of-text on any click, so the
+            # first click never positioned the caret). Wrap with the SAME
+            # algorithm the editor uses so the clicked row maps correctly.
+            draft_lines = ops_module.composer_wrap_idle(current_text, wrap_chars)
             dcol = input_card.column(align=True)
             dcol.scale_y = 0.9
-            for line in draft_lines[:12]:
-                dcol.operator("animora.composer", text=line or " ", emboss=False)
+            for i, line in enumerate(draft_lines[:12]):
+                drow = dcol.row(align=True)
+                drow.alignment = "LEFT"
+                op = drow.operator("animora.composer", text=line or " ", emboss=False)
+                op.click_row = i
+                op.click_wrap_chars = wrap_chars
+                op.click_pixels_per_char = self._pixels_per_char
             input_card.separator(factor=0.2)
 
         prompt_row = input_card.row(align=True)

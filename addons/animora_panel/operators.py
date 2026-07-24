@@ -3014,6 +3014,15 @@ def composer_display(width: int) -> tuple[list[str], int, int, bool]:
     return lines, row, col, _composer_caret_on
 
 
+def composer_wrap_idle(text: str, width: int) -> list[str]:
+    """Wrap an idle draft with the EXACT same algorithm the live editor and
+    OT_AnimoraComposer.invoke() use (TextBuffer._layout), so a click on an
+    idle line maps to the same (row, col) the composer will reopen with.
+    Using panel.py's separate _wrap_lines here would make the row indices
+    disagree and put the caret on the wrong line."""
+    return TextBuffer(text=text or "").wrapped(width)
+
+
 def _composer_redraw() -> None:
     scr = bpy.context.screen
     if scr is None:
@@ -3061,7 +3070,11 @@ class OT_AnimoraComposer(Operator):
     # untuned estimate. Worst case this is off by a couple of characters;
     # arrow keys remain available to fine-correct, same accepted tradeoff
     # as the pixels-per-char approximation itself.
-    click_left_margin_px: bpy.props.FloatProperty(default=8.0)  # type: ignore[assignment]
+    # Text starts inside a box + column + LEFT-aligned row, so the real left
+    # inset is larger than a bare region edge — ~14px is closer than the old
+    # 8px. Proportional-font mapping is inherently approximate (the wrap uses
+    # an AVERAGE px/char); the row is exact, arrow keys fine-tune the column.
+    click_left_margin_px: bpy.props.FloatProperty(default=14.0)  # type: ignore[assignment]
 
     _timer = None
 
