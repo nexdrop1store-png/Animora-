@@ -44,6 +44,22 @@ class EventBus:
         """Subscribe a callback (sync or async) to an event."""
         self._listeners[event].append(callback)
 
+    def off(self, event: str, callback: Listener) -> None:
+        """Unsubscribe a callback. Safe if it isn't registered. This is
+        REQUIRED for anything subscribed per-WebSocket-connection: the bus
+        is a process-wide singleton, so a per-connection handler that is
+        never removed accumulates across reconnects — and a same-session
+        reconnect leaves the dropped connection's handler still matching
+        the session_id, double-firing every event (this is what inflated
+        the usage ledger 2x)."""
+        listeners = self._listeners.get(event)
+        if not listeners:
+            return
+        try:
+            listeners.remove(callback)
+        except ValueError:
+            pass
+
     async def emit(self, event: str, payload: dict[str, Any]) -> None:
         """Fire an event. Failing listeners are logged but never raise."""
         for cb in self._listeners[event]:

@@ -274,6 +274,18 @@ async def websocket_endpoint(
         "plan": claims.plan, "key_source": decision.source.value,
     })
 
+    # These event-bus subscriptions are PER-CONNECTION (closures over
+    # session_id / session_data / recorder). The bus is a process-wide
+    # singleton, so each one MUST be removed when this connection ends or it
+    # leaks across reconnects — and a same-session reconnect double-fires
+    # them (that inflated the usage ledger 2x). Track every subscription and
+    # unregister them all in the finally block below.
+    _bus_subs: list[tuple[str, Any]] = []
+
+    def _sub(event: str, cb: Any) -> None:
+        bus.on(event, cb)
+        _bus_subs.append((event, cb))
+
     # Phase 5: capture the active persona for each turn so the artist's-eye
     # check (triggered later by tool_result arrival) knows which checklist
     # to apply. The persona is decided inside streaming.py; we pick it up
@@ -281,7 +293,7 @@ async def websocket_endpoint(
     def _capture_persona(payload: dict[str, Any]) -> None:
         if payload.get("session_id") == session_id:
             session_data["last_persona_id"] = payload.get("persona", "generalist")
-    bus.on("intent.classified", _capture_persona)
+    _sub("intent.classified", _capture_persona)
 
     # v1.3 — admin usage visibility. Best-effort durable log of every
     # LLM call this session makes; a dropped row must never affect the
@@ -290,7 +302,7 @@ async def websocket_endpoint(
         if payload.get("session_id") != session_id:
             return
         asyncio.create_task(usage_ledger.record_usage_event(payload))
-    bus.on("usage.recorded", _record_usage)
+    _sub("usage.recorded", _record_usage)
 
     # ── Sprint 4 — session recorder (Quality Plan §6.2 practical reframe) ─
     # Activated only when ANIMORA_RECORD_SESSIONS env is set. Captures
@@ -354,11 +366,11 @@ async def websocket_endpoint(
             return
         recorder.mark_script_rescue()
 
-    bus.on("agent.iteration_started", _record_iteration_started)
-    bus.on("agent.iteration_done", _record_iteration_done)
-    bus.on("intent.classified", _record_intent)
-    bus.on("model.selected", _record_model)
-    bus.on("script.rescue.triggered", _record_rescue)
+    _sub("agent.iteration_started", _record_iteration_started)
+    _sub("agent.iteration_done", _record_iteration_done)
+    _sub("intent.classified", _record_intent)
+    _sub("model.selected", _record_model)
+    _sub("script.rescue.triggered", _record_rescue)
 
     stream_paused = False
     pending_tool_results: dict[str, dict[str, Any]] = {}
@@ -622,6 +634,12 @@ async def websocket_endpoint(
         except Exception:
             pass
     finally:
+        # Remove this connection's event-bus subscriptions — the bus is a
+        # process-wide singleton, so leaving them attached leaks handlers
+        # across reconnects and double-fires per-session events (the 2x
+        # usage-ledger inflation). Must run on EVERY exit path.
+        for _ev, _cb in _bus_subs:
+            bus.off(_ev, _cb)
         # Sprint 4H — cancel any in-flight turn so it doesn't keep
         # streaming into a dead socket after the WS closed.
         if _active_turn_task is not None and not _active_turn_task.done():
