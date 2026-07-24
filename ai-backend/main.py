@@ -496,6 +496,12 @@ async def websocket_endpoint(
                     "output": msg.get("output", ""),
                     "error": error,
                     "scene_diff": msg.get("scene_diff"),
+                    # Bug 2 — compact full-scene hierarchy (name/type/parent)
+                    # the addon computes post-commit. Rendered once per
+                    # iteration in build_tool_result_message so the model
+                    # always sees the current object set, not the stale
+                    # turn-start graph.
+                    "scene_snapshot": msg.get("scene_snapshot"),
                     # Phase 8 — addon embeds HD viewport capture directly
                     # in the tool_result message so the agentic loop's
                     # next iteration can attach it as image content.

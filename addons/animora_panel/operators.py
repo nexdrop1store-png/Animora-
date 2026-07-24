@@ -829,6 +829,39 @@ def _force_viewport_redraw() -> None:
             area.tag_redraw()
 
 
+# Bug 2 — cap so a pathological scene can't bloat every tool_result.
+_SCENE_SNAPSHOT_MAX_OBJECTS = 200
+
+
+def _compact_scene_hierarchy() -> list[dict]:
+    """A CHEAP name/type/parent snapshot of the whole scene, attached to
+    each mutating tool_result so the model sees the FULL current object
+    list + hierarchy before its next edit (Bug 2: 'make the sofa smooth'
+    only touched one child because the model was reasoning about a scene
+    graph baked into the system prompt at turn start and never refreshed).
+
+    Deliberately NOT vision.serialize_scene_graph() — that walks modifiers,
+    materials, shaders and vertex counts per object (200-500 ms on dense
+    scenes) and is why Sprint 4G pulled it off the critical path. This is
+    three attribute reads per object; a 200-object scene is well under a
+    millisecond. Safe to run on the critical path right after the depsgraph
+    commit."""
+    import bpy
+    out: list[dict] = []
+    try:
+        for obj in bpy.context.scene.objects:
+            out.append({
+                "name": obj.name,
+                "type": obj.type,
+                "parent": obj.parent.name if obj.parent else None,
+            })
+            if len(out) >= _SCENE_SNAPSHOT_MAX_OBJECTS:
+                break
+    except Exception as exc:
+        log.debug("compact_scene_hierarchy failed: %s", exc)
+    return out
+
+
 def _execute_script(tool_use_id: str, script: str, intent_summary: str = "") -> None:
     """Run a sandboxed bpy script with proper viewport context override.
 
@@ -1370,6 +1403,11 @@ class _ScriptRunner:
             _force_viewport_redraw()
         except Exception as exc:
             log.debug("finalize.commit_redraw_failed: %s", exc)
+
+        # Bug 2 — attach the fresh full-scene hierarchy (cheap name/type/
+        # parent snapshot) so the model sees ALL objects, not the stale
+        # turn-start graph, before its next edit.
+        self.result["scene_snapshot"] = _compact_scene_hierarchy()
 
         # Sprint 4G — SEND THE TOOL_RESULT (now that the scene is committed
         # and the viewport is tagged) before the potentially-expensive
@@ -1949,6 +1987,11 @@ def _atomic_run(tool_use_id: str, label: str, fn) -> None:
                 return
 
         result["output"] = payload if isinstance(payload, str) else str(payload)
+
+        # Bug 2 — fresh full-scene hierarchy so the model sees ALL objects
+        # (and their parent relationships) before its next edit, not the
+        # scene graph baked into the system prompt at turn start.
+        result["scene_snapshot"] = _compact_scene_hierarchy()
 
         # ── CRITICAL PATH ENDS HERE — send the tool_result NOW ────────
         body_ms = int((_time.monotonic() - started) * 1000)

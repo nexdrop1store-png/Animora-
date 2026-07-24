@@ -299,7 +299,59 @@ def build_tool_result_message(
             "is_error": is_error,
         })
 
+    # Bug 2 — append ONE current-scene-state block after all tool_results
+    # (not per tool, to avoid token bloat), using the freshest snapshot the
+    # addon attached this iteration. This is what stops the model from
+    # reasoning about the scene graph baked into the system prompt at turn
+    # start — e.g. "make the sofa smooth" touching only one child because
+    # the model never saw the other sofa meshes were added.
+    snapshot = None
+    for tool_use_id in tool_use_ids_in_order:
+        snap = (outcomes.get(tool_use_id, {}) or {}).get("scene_snapshot")
+        if snap:
+            snapshot = snap  # last one wins — freshest post-commit state
+    hierarchy_text = _format_scene_hierarchy(snapshot) if snapshot else ""
+    if hierarchy_text:
+        user_content.append({"type": "text", "text": hierarchy_text})
+
     return {"role": "user", "content": user_content}
+
+
+def _format_scene_hierarchy(snapshot: list[dict[str, Any]]) -> str:
+    """Render the addon's compact name/type/parent snapshot into a terse
+    current-scene block. Groups children under their parent so a request
+    like 'smooth the sofa' can be resolved to every constituent mesh."""
+    if not isinstance(snapshot, list) or not snapshot:
+        return ""
+    by_parent: dict[str | None, list[dict[str, Any]]] = {}
+    for obj in snapshot:
+        if not isinstance(obj, dict):
+            continue
+        by_parent.setdefault(obj.get("parent"), []).append(obj)
+
+    lines: list[str] = [
+        f"[CURRENT SCENE — {len(snapshot)} object(s), authoritative; "
+        f"prefer this over any earlier scene description]",
+    ]
+    # Roots first (parent is None), then each root's children indented.
+    def _fmt(obj: dict[str, Any]) -> str:
+        return f"{obj.get('name', '?')} ({obj.get('type', '?')})"
+
+    roots = by_parent.get(None, [])
+    for root in roots:
+        lines.append(f"- {_fmt(root)}")
+        for child in by_parent.get(root.get("name"), []):
+            lines.append(f"    - {_fmt(child)}")
+    # Any objects whose parent isn't itself a root in this snapshot
+    # (deep nesting / capped list) — list them flat so nothing is dropped.
+    listed = {id(o) for r in roots for o in ([r] + by_parent.get(r.get("name"), []))}
+    for parent, kids in by_parent.items():
+        if parent is None:
+            continue
+        for obj in kids:
+            if id(obj) not in listed:
+                lines.append(f"- {_fmt(obj)} (parent: {parent})")
+    return "\n".join(lines)
 
 
 def _format_scene_diff(diff: dict[str, Any]) -> str:
