@@ -1117,12 +1117,58 @@ class _ScriptRunner:
         bpy.app.timers.register(self._tick, first_interval=0.0)
 
     def _tick(self):
+        """Timer entrypoint — bulletproof wrapper around one step.
+
+        Registered with bpy.app.timers. GUARANTEES the runner always
+        finalizes: if _run_one_step raises for ANY reason (a heartbeat
+        write failing on a full disk, an unexpected error in a pre-exec
+        guard, a bad context override, etc.), convert it into a clean
+        failure that still sends the tool_result and unfreezes the panel.
+        Without this, an escaping exception silently drops the timer
+        registration — _finalize_* never runs, no tool_result is sent,
+        and the panel sits on "working on the scene" until the app is
+        restarted (Bug 3a). Returns a float to reschedule, None when done.
+        """
+        try:
+            return self._run_one_step()
+        except Exception as exc:
+            self._bulletproof_finalize(exc)
+            return None
+
+    def _bulletproof_finalize(self, exc: Exception) -> None:
+        """Last-resort finalize when _run_one_step escaped. Sends a
+        tool_result no matter what so the backend loop advances and the
+        panel resets — this is the safety net behind the operational
+        requirement 'Guaranteed tool_result send' in _execute_script."""
+        import traceback
+        log.error(
+            "script_runner._tick escaped (%s) — forcing failure finalize:\n%s",
+            type(exc).__name__, traceback.format_exc(limit=4),
+        )
+        if self._done:
+            return
+        if not self.result.get("error"):
+            self.result["error"] = (
+                f"Internal error in script runner: {type(exc).__name__}: {exc}"
+            )
+        try:
+            self._finalize_failure()
+        except Exception as fin_exc:
+            # Even _finalize_failure blew up — do the one thing that must
+            # not be skipped by hand, so the panel + backend never wedge.
+            log.error("script_runner._finalize_failure also failed: %s", fin_exc)
+            self._done = True
+            try:
+                _send_tool_result(self.result)
+            except Exception:
+                pass
+
+    def _run_one_step(self):
         """Run ONE statement, redraw viewport, schedule the next tick.
 
         Returning a float schedules another tick; returning None drops
-        the registration. Any exception inside this callback aborts the
-        whole script (we don't try to recover mid-run — partial scripts
-        leave the scene in a wedged state)."""
+        the registration. Any exception that escapes is caught by the
+        _tick wrapper, which forces a clean failure finalize."""
         import traceback
 
         import bpy
@@ -1284,14 +1330,27 @@ class _ScriptRunner:
         finalize_started = _time.monotonic()
 
         self._done = True
-        self.result["output"] = (
-            str(self.namespace.get("_result", "OK"))
-            + self.capture.format_for_tool_result()
-        )
+        # Build the model-facing output defensively — a failure formatting
+        # the capture must NEVER prevent the tool_result send below (Bug 3a:
+        # any escape here previously left the panel wedged in EXECUTING).
+        try:
+            self.result["output"] = (
+                str(self.namespace.get("_result", "OK"))
+                + self.capture.format_for_tool_result()
+            )
+        except Exception as exc:
+            self.result["output"] = str(self.namespace.get("_result", "OK"))
+            log.debug("finalize.output_build_failed: %s", exc)
         log.info("execute_animora_code ok: %s (%d steps)", self.label, self.total)
 
-        script_guard.clear_heartbeat()  # v1.1 — clean finish, nothing stale to report
-        state_module.mark_exec_finished()
+        # These cleanups are non-critical — a failure in any of them must
+        # not skip the tool_result send. (clear_heartbeat / mark_exec_finished
+        # were previously unguarded on the critical path.)
+        for _cleanup in (script_guard.clear_heartbeat, state_module.mark_exec_finished):
+            try:
+                _cleanup()
+            except Exception as exc:
+                log.debug("finalize.cleanup_failed (%s): %s", _cleanup.__name__, exc)
         # Sprint 4F — counterpart to begin_exec_pause in _execute_script.
         try:
             vision.end_exec_pause()
