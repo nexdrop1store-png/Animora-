@@ -606,10 +606,32 @@ async def stream_response(
     })
     _SCENE_MIN_PARTS = 6  # absolute minimum for ANY "scene" noun
     _user_lower = user_message.lower()
-    is_hero_request = (
-        is_execution_intent
-        and any(_user_lower.lstrip().startswith(v) for v in _HERO_VERBS)
+    # Quality-recovery: this flag controls the hero hint, the scene-floor gate,
+    # the finished-by-default (light+camera) gate and the critic's
+    # require_light. It used to demand the message START WITH a verb from a
+    # 6-item list AND contain a noun from a ~60-item list — so "Can you make a
+    # chair?", "a cozy living room please", and crucially ANY request about a
+    # noun nobody thought to add ("lamp" was missing!) silently got no
+    # completeness enforcement at all. That is precisely why the floor_lamp
+    # benchmark shipped with zero lights.
+    #
+    # Now: trust the intent classifier first (it already understands the
+    # request semantically and cost us nothing extra), and keep the keyword
+    # match only as an OR-fallback for when the classifier fell back to a
+    # generic intent. Also accept the verb anywhere in the message rather than
+    # only at the start.
+    _BUILD_INTENTS = {
+        "hard_surface_model", "dense_scene", "terrain_landscape",
+        "architecture", "character_sculpt", "environment_build",
+        "product_visualization", "lighting_setup",
+    }
+    _intent_name = (getattr(intent_result, "intent", "") or "").strip().lower()
+    _keyword_hero = (
+        any(v in _user_lower for v in _HERO_VERBS)
         and any(noun in _user_lower for noun in _HERO_NOUNS)
+    )
+    is_hero_request = is_execution_intent and (
+        _intent_name in _BUILD_INTENTS or _keyword_hero
     )
     is_scene_request = (
         is_hero_request
@@ -652,6 +674,59 @@ async def stream_response(
     used_escape_hatch = False  # execute_animora_code fired this turn
     material_rescue_attempted = False
     lighting_rescue_attempted = False
+
+    # ── Quality-recovery: outcome-based gate inputs ─────────────────────
+    # The completeness gates below used to count only ATOMIC tool calls and
+    # skip themselves entirely once `used_escape_hatch` was true, on the
+    # reasoning that "we can't see inside the script". That is obsolete: the
+    # addon reports the real post-execution scene (get_live_scene_graph, wired
+    # from main.py), so we can just LOOK at what exists. The old behaviour
+    # meant every script-driven build — i.e. every complex/hero build, the
+    # ones most at risk — bypassed the material, lighting, scene-floor and
+    # critic gates completely.
+    def _live_counts() -> dict[str, int] | None:
+        """Object-type counts from the real scene, or None if unavailable."""
+        if get_live_scene_graph is None:
+            return None
+        try:
+            graph = get_live_scene_graph() or {}
+        except Exception as exc:  # never let telemetry break a turn
+            log.debug("live_counts.failed: %s", exc)
+            return None
+        objects = graph.get("objects")
+        if not isinstance(objects, list) or not objects:
+            return None
+        counts = {"mesh": 0, "light": 0, "camera": 0, "material": 0}
+        for obj in objects:
+            if not isinstance(obj, dict):
+                continue
+            otype = str(obj.get("type", "")).upper()
+            if otype == "MESH":
+                counts["mesh"] += 1
+                if obj.get("materials"):
+                    counts["material"] += 1
+            elif otype == "LIGHT":
+                counts["light"] += 1
+            elif otype == "CAMERA":
+                counts["camera"] += 1
+        return counts
+
+    def _scene_has_geometry(atomic_count: int) -> bool:
+        """True if anything was actually built — via atomic calls OR a script."""
+        if atomic_count > 0:
+            return True
+        live = _live_counts()
+        return bool(live and live["mesh"] > 0)
+
+    def _effective(kind: str, atomic_count: int) -> int:
+        """Best available count for `kind` ('light'/'camera'/'mesh'/'material').
+
+        Prefers the live scene (which sees script-created objects too) and
+        falls back to the atomic tally when the graph isn't available."""
+        live = _live_counts()
+        if live is not None:
+            return max(atomic_count, live.get(kind, 0))
+        return atomic_count
 
     # Stage 6 — First-step hardening. The brief: "the very first action
     # must establish the correct foundation (scale, proportion, layout)."
@@ -1567,11 +1642,13 @@ async def stream_response(
         # minimum part count of _SCENE_MIN_PARTS before any other
         # rescue fires. Skip when escape hatch was used (the script
         # could legitimately build dozens of parts).
+        # Quality-recovery: counts the LIVE scene instead of only atomic calls,
+        # so a script that built 3 objects is held to the same floor as 3
+        # atomic creates. Previously any script build skipped this entirely.
         if (
             is_scene_request
-            and atomic_create_count > 0
-            and atomic_create_count < _SCENE_MIN_PARTS
-            and not used_escape_hatch
+            and _scene_has_geometry(atomic_create_count)
+            and _effective("mesh", atomic_create_count) < _SCENE_MIN_PARTS
             and not scene_floor_rescue_attempted
             and iteration < _MAX_AGENT_ITERATIONS - 1
         ):
@@ -1631,10 +1708,14 @@ async def stream_response(
         #   • Single-shot per turn — material_rescue_attempted guards
         #     against infinite loop if the model keeps ignoring us.
         #   • Only fires if another iteration is available.
+        # Quality-recovery: the "skips when execute_animora_code was used"
+        # rule above is obsolete — we now read the LIVE scene, so a script's
+        # materials are visible to us and a script's UN-materialed meshes no
+        # longer escape the gate.
         elif (
-            atomic_create_count > 0
-            and atomic_material_count * 2 < atomic_create_count
-            and not used_escape_hatch
+            _scene_has_geometry(atomic_create_count)
+            and _effective("material", atomic_material_count) * 2
+                < _effective("mesh", atomic_create_count)
             and not material_rescue_attempted
             and iteration < _MAX_AGENT_ITERATIONS - 1
         ):
@@ -1678,12 +1759,16 @@ async def stream_response(
         # Gate mechanics mirror the material rescue above — fires once,
         # only on hero requests, only when atomic-only (the escape hatch
         # script might set them up inline).
+        # Quality-recovery: was `lights == 0 AND cameras == 0`, so a build that
+        # added a camera but NO light sailed through — the exact "lamp with no
+        # light" class of failure. Now either missing piece trips it.
         elif (  # elif: don't trigger both rescues in the same iteration
             is_hero_request
-            and atomic_create_count > 0
-            and atomic_light_count == 0
-            and atomic_camera_count == 0
-            and not used_escape_hatch
+            and _scene_has_geometry(atomic_create_count)
+            and (
+                _effective("light", atomic_light_count) == 0
+                or _effective("camera", atomic_camera_count) == 0
+            )
             and not lighting_rescue_attempted
             and iteration < _MAX_AGENT_ITERATIONS - 1
         ):
@@ -1728,12 +1813,17 @@ async def stream_response(
         # runtime expression of the CORE RULE's verify-then-correct
         # discipline. Bounded by _MAX_CRITIC_CORRECTIONS.
         elif (
+            # Quality-recovery: dropped `not used_escape_hatch` and the
+            # `atomic_create_count > 0` precondition. Both blocked the critic
+            # on script-driven builds — which is doubly wrong, because this
+            # gate ALREADY inspects the live scene graph and therefore sees
+            # exactly what a script produced. Hero builds (the ones that reach
+            # for scripts) were the only ones never critiqued.
             get_live_scene_graph is not None
             and is_execution_intent
-            and not used_escape_hatch
             and critic_correction_attempts < _MAX_CRITIC_CORRECTIONS
             and iteration < _MAX_AGENT_ITERATIONS - 1
-            and atomic_create_count > 0
+            and _scene_has_geometry(atomic_create_count)
         ):
             try:
                 live = get_live_scene_graph() or {}
@@ -1912,6 +2002,38 @@ async def stream_response(
         ))
         # Loop iterates naturally — model sees tool_result + revision request,
         # responds with a revised execute_blender_script tool_use.
+
+    else:
+        # ── Quality-recovery: terminal honesty ──────────────────────────
+        # `for/else` runs ONLY when the loop was never broken — i.e. the
+        # iteration budget was exhausted while the model still wanted to
+        # keep working. Every other exit path emits an agent.loop_exit
+        # event and (mostly) tells the user; this one emitted NOTHING and
+        # said NOTHING, so a half-finished build was returned as if it were
+        # complete. That silence is a large part of "it does shitty things":
+        # the user sees an unfinished scene described as finished.
+        await bus.emit("agent.loop_exit", {
+            "session_id": session_id,
+            "reason": "max_iterations",
+            "iterations": _MAX_AGENT_ITERATIONS,
+        })
+        log.warning(
+            "agent.loop_exit reason=max_iterations session=%s iterations=%d "
+            "— build may be incomplete", session_id, _MAX_AGENT_ITERATIONS,
+        )
+        truncation_notice = (
+            f"\n\n_I reached my build limit for this turn "
+            f"({_MAX_AGENT_ITERATIONS} steps) and stopped before finishing. "
+            f"The scene above is incomplete — say **continue** and I'll pick "
+            f"up where I left off._"
+        )
+        final_text_parts.append(truncation_notice)
+        # Stream it too, so it lands in the live chat rather than only in the
+        # returned string (the panel renders streamed tokens as they arrive).
+        try:
+            await send_token_cb(truncation_notice)
+        except Exception as exc:
+            log.debug("truncation_notice.send failed: %s", exc)
 
     # Loop complete — notify main.py if we ran an inline quality check
     # (so it skips its background post-turn check) and return the text.
