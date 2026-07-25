@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from typing import Any
 
@@ -62,11 +63,23 @@ log = logging.getLogger("animora.streaming")
 # iteration and got cut off, shipping grey. 5 gives the rescues room
 # to actually complete. The wall-clock cap (_MAX_AGENT_WALL_CLOCK_SEC)
 # is the real safety ceiling for runaway turns.
-_MAX_AGENT_ITERATIONS = 8  # Phase A: extra headroom for gated refinement steps
-# Bail before Anthropic rejects the request at its 200k input ceiling.
-_MAX_ACCUMULATED_INPUT_TOKENS = 150_000
+# Quality-recovery: 8 -> 20. The model was ALSO told "3 iterations" in the
+# master prompt (now corrected to match), so a hero build got ~3 script steps
+# where Claude Code + Blender MCP spends 10-30. Env-overridable so the live
+# backend can be tuned/rolled back without a redeploy.
+_MAX_AGENT_ITERATIONS = int(os.environ.get("ANIMORA_MAX_ITERATIONS", "20"))
+# NOTE: despite the old comment, this is NOT a context-size cap — streaming.py
+# ACCUMULATES `result.usage.input_tokens` across iterations, so it is a
+# per-turn input SPEND cap. At 150k it tripped around iteration 6 (silently),
+# which would have re-capped the loop right after we raised the iteration
+# budget. Raised to match a 20-iteration turn. The real per-request context
+# ceiling is enforced by Anthropic itself.
+_MAX_ACCUMULATED_INPUT_TOKENS = int(
+    os.environ.get("ANIMORA_MAX_ACCUM_INPUT_TOKENS", "1500000")
+)
 # Total wall-clock across all iterations (per-stream timeout is already 600s).
-_MAX_AGENT_WALL_CLOCK_SEC = 900
+# Raised with the iteration budget: 20 iterations cannot fit in 900s.
+_MAX_AGENT_WALL_CLOCK_SEC = int(os.environ.get("ANIMORA_MAX_WALL_CLOCK_SEC", "1800"))
 # How long to wait for the addon's tool_result(s) for one iteration.
 # Atomic ops complete in well under 100ms; the only thing that needs
 # real time here is `execute_animora_code` running a big AST-split script
@@ -91,20 +104,28 @@ def _flag(name: str, default: bool = False) -> bool:
     return raw in ("1", "true", "yes", "on")
 
 
-import os  # noqa: E402  (placed after the helper to keep its scope tight)
 # V2 Phase 5 (build-plan numbering): the taste layer ships ON. The spec
 # was kept dark for the v1 demo because of the ~18-25s of added latency;
 # V2 is the paid-quality product and the panel shows a "Planning the
 # build" phase notice during the wait. ANIMORA_ENABLE_SPEC=0 remains the
 # escape hatch if spec latency ever becomes the gating issue again.
 _ENABLE_SPEC_BUILDER = _flag("ANIMORA_ENABLE_SPEC", default=True)
-# Output-token budget for execution iter 0 with forced tool_choice. The
-# 32k default lets hero builds breathe but means Bedrock Opus 4.6
-# routinely takes 60-90s on the SDK side before the addon sees the
-# tool_call. Capping at 8k forces tighter, faster scripts — quality may
-# soften on Lamborghini-class hero assets but the cofounder feedback
-# loop is "show me anything in < 20s" right now.
-_EXECUTION_MAX_TOKENS = int(os.environ.get("ANIMORA_EXEC_MAX_TOKENS", "8192"))
+# Output-token budget for EXECUTION iterations (the ones that actually build).
+#
+# History: this was cut to 8192 for a v1 demo whose feedback loop was "show me
+# anything in < 20s", with the comment itself conceding "quality may soften on
+# Lamborghini-class hero assets". It did — and it left builds getting HALF the
+# budget of a plain Q&A turn (16384, see the non-execution branch below), which
+# is backwards. It also truncated the finishing work (lights, materials,
+# bevels, names) because that comes last in a script.
+#
+# Raised to 16384 to match the Q&A budget. Deliberately NOT higher:
+# anthropic_client._PER_REQUEST_TIMEOUT_SEC (600s) is sized precisely for
+# 16384 tokens at Opus's ~30 tok/s (~540s worst case), and
+# _MAX_TIMEOUT_RETRIES is 1 — so going past 16384 without raising that
+# timeout in the same change risks a 10-minute stall that then hard-fails the
+# turn. Raise BOTH together if more is ever needed.
+_EXECUTION_MAX_TOKENS = int(os.environ.get("ANIMORA_EXEC_MAX_TOKENS", "16384"))
 
 # Stage 1 — Loop enforcer. The training brief: "Build the loop enforcer
 # that makes blind chaining impossible." Mechanics: at most ONE
@@ -156,6 +177,14 @@ _LOOP_ENFORCER_MUTATION_TOOLS: frozenset[str] = frozenset({
 # apply_material, set_parent, AND add_modifier (a bevel/subsurf on a fresh part
 # is finishing the blockout, not an iterative edit — gating it would throttle
 # legitimate multi-part builds to one modifier per iteration).
+#
+# Quality-recovery note: execute_* DELIBERATELY stays gated. The throttle that
+# was starving hero builds was never this gate — it was the 3-iteration budget
+# (master prompt) on top of it, which left ~3 scripts per turn. With a
+# 20-iteration budget this allows up to 20 sequential scripts, each followed by
+# a real screenshot — more verified script steps than a typical Claude Code +
+# Blender MCP session uses. Un-gating it would buy nothing and would trade away
+# the look-between-state-dependent-edits discipline that is the differentiator.
 _REFINEMENT_TOOLS: frozenset[str] = frozenset({
     "set_transform", "delete_object", "set_world",
     "execute_animora_code", "execute_blender_script",

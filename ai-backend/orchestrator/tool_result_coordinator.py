@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from typing import Any
 
@@ -57,7 +58,12 @@ log = logging.getLogger("animora.coordinator")
 # working — see streaming.py's quality_notice for the user-facing symptom
 # this was causing. _HARD_CEILING_SEC is an absolute backstop independent of
 # progress pings, so a script that pings forever still can't hang a turn.
-_HARD_CEILING_SEC = 180.0
+# Quality-recovery: 180 -> 600. This is an ABSOLUTE backstop that ignores
+# progress pings, so a single legitimately-heavy script (dense subdivision,
+# booleans, particle bake) that ran past 3 minutes was killed mid-work and the
+# model was told its own build FAILED — then it rebuilt, or gave up. 10 minutes
+# still bounds a genuinely hung addon, but no longer truncates real work.
+_HARD_CEILING_SEC = float(os.environ.get("ANIMORA_TOOL_HARD_CEILING_SEC", "600"))
 _POLL_SLICE_SEC = 5.0
 
 
