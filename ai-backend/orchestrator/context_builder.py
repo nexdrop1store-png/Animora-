@@ -84,28 +84,40 @@ def build(
     """
     ctx = build_scene_context_block(scene_graph, prev_scene_graph)
 
-    # ── Layer 1+3: cached prefix (master + persona) ────────────────────
-    cached_blocks: list[dict[str, Any]] = []
+    # ── Layer 1+3: cached prefix (master + persona + composition) ──────
+    #
+    # ROOT-CAUSE FIX (see tests/test_persona_reaches_model.py): this used to
+    # inject the persona extension + composition rules by string-replacing
+    # the literal anchor "CURRENT SCENE" inside MASTER_PROMPT. Master prompt
+    # v20 deleted that heading, so the replace silently matched nothing and
+    # **no persona text or composition rule reached the model from v20
+    # onward** — the worked chair/sofa/floor-lamp examples, the "10+ named
+    # parts" hero bar, the bevel rule and "a lamp without a lit bulb is a
+    # failed build" were all dark. That single bug explains the eval
+    # failures (floor_lamp with 0 lights, sideboard with 9 parts, etc).
+    #
+    # Assemble explicit, ordered blocks instead of doing surgery on prose,
+    # so a prompt edit can never silently drop a whole layer again. Ordering
+    # (master → persona → composition → live scene) is unchanged; only the
+    # delivery mechanism is.
     base = MASTER_PROMPT.replace("{scene_context}", "{__SCENE_PLACEHOLDER__}")
+    # `live_tail` is whatever the master prompt puts AFTER the scene
+    # placeholder; it stays with the uncached live section below.
+    master_part, _, live_tail = base.partition("{__SCENE_PLACEHOLDER__}")
 
-    # Insert persona extension + shared composition rules BEFORE the
-    # scene placeholder, so they land in the cached prefix. The
-    # composition rules are constant across every call → they're
-    # cache-friendly and only invalidate the prefix once (the turn
-    # following their introduction). Persona+rules together stay
-    # cache-hit-ratio ≈ 0.99 for subsequent turns.
-    persona_block = persona.extension if persona.extension else ""
-    inserted = f"{persona_block}\n\n{COMPOSITION_RULES}\n\nCURRENT SCENE"
-    base = base.replace("CURRENT SCENE", inserted)
+    prefix_parts: list[str] = [master_part]
+    if persona.extension:
+        prefix_parts.append(persona.extension)
+    prefix_parts.append(COMPOSITION_RULES)
 
-    # Split at the scene placeholder so the cache cutoff lands JUST BEFORE
-    # the live scene context. Everything above caches; scene below doesn't.
-    cached_part, _, live_tail = base.partition("{__SCENE_PLACEHOLDER__}")
-    cached_blocks.append({
+    # One cached block: master + persona + composition rules. All three are
+    # stable across turns within a session, so the cache cutoff still lands
+    # immediately before the live scene context (hit ratio ≈0.99 on turn 2+).
+    cached_blocks: list[dict[str, Any]] = [{
         "type": "text",
-        "text": cached_part,
+        "text": "\n\n".join(p.strip("\n") for p in prefix_parts if p and p.strip()),
         "cache_control": {"type": "ephemeral"},
-    })
+    }]
 
     # ── Layer 4: session memory summary (Phase 7 — usually empty) ──────
     tail_text = ""
