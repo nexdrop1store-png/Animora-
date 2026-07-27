@@ -3266,9 +3266,20 @@ def register() -> None:
     # while a check isn't due), so this isn't the only trigger — just
     # the first one, ensuring an update banner can appear even before
     # the panel has drawn once.
+    # REPEATING, not one-shot. The status-bar notice is strictly read-only now
+    # (a draw handler must never do I/O — doing so in v1.4.1 broke sign-in), so
+    # this timer is the ONLY thing that refreshes the cache. It must keep
+    # ticking, because the first tick usually lands while the onboarding gate
+    # is up and refresh_cache_async() deliberately skips checks during sign-in.
+    # refresh_cache_async() owns the real rate limit (6h), so polling it every
+    # few minutes is free — it returns immediately unless a check is actually
+    # due and the user is past the gate.
     def _deferred_update_check():
-        updater.refresh_cache_async()
-        return None  # one-shot
+        try:
+            updater.refresh_cache_async()
+        except Exception as exc:
+            log.debug("update_check.failed: %s", exc)
+        return 300.0  # re-arm every 5 min; the 6h throttle does the gating
 
     bpy.app.timers.register(_deferred_update_check, first_interval=5.0)
 

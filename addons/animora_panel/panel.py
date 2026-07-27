@@ -814,6 +814,14 @@ class PT_AnimoraPropertiesHints(Panel):
 # invisible normally.
 
 def _draw_statusbar_update(self, context) -> None:
+    # STRICTLY READ-ONLY. v1.4.1 shipped a call to updater.refresh_cache_async()
+    # here and it broke sign-in: the status bar draws constantly AND draws over
+    # the fullscreen onboarding gate (unlike the AI panel, whose poll() hides it
+    # during the gate). With only an in-flight guard and no interval throttle,
+    # each finished check let the next redraw start another — a continuous
+    # stream of requests to the SAME Supabase project the sign-in handoff uses,
+    # from the moment the app opened. Draw handlers must never do I/O; the
+    # actual check is scheduled on a timer in updater/operators instead.
     from . import updater
     layout = self.layout
     progress = updater.get_progress()
@@ -821,7 +829,6 @@ def _draw_statusbar_update(self, context) -> None:
         layout.separator_spacer()
         layout.label(text=progress, icon="IMPORT")
         return
-    updater.refresh_cache_async()  # cheap no-op unless a check is due
     release = updater.get_cached_release()
     if not updater.update_available(release):
         return

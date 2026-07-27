@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time as _time
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
@@ -62,6 +63,11 @@ log = logging.getLogger("animora.updater")
 # semantics needed, so a bpy WindowManager property would be overkill). ──
 _cached_release: dict[str, Any] | None = None
 _check_in_flight = False
+# Monotonic timestamp of the last check we STARTED. With only an in-flight
+# guard, a repeatedly-invoked caller re-checks the instant the previous check
+# resolves; this bounds it to one check per interval no matter who calls.
+_last_check_at: float | None = None
+_CHECK_INTERVAL_SEC = 6 * 60 * 60.0  # 6 hours — an update is never urgent
 
 # v1.4.1 — update progress text shown in the STATUS BAR (bottom-right of the
 # Animora window), NOT in the AI panel/chat. Empty string = no update
@@ -106,13 +112,31 @@ def is_update_pending() -> bool:
 
 
 def refresh_cache_async() -> None:
-    """Kick off a background check-for-update if one isn't already in
-    flight, caching the result for the panel to read on its next draw.
-    Safe to call every panel redraw — the in-flight guard makes repeat
-    calls a no-op until the current check resolves."""
-    global _check_in_flight
+    """Kick off a background check-for-update, at most once per
+    _CHECK_INTERVAL_SEC and never while the user is signing in.
+
+    The in-flight guard alone is NOT enough: it only stops CONCURRENT
+    checks, so a caller invoked repeatedly (e.g. a UI draw handler) simply
+    starts a fresh check the instant the previous one resolves. v1.4.1
+    shipped exactly that from the status bar and the resulting continuous
+    request stream to Supabase broke sign-in, because the auth handoff uses
+    the same project. Hence the interval throttle AND the gate check below."""
+    global _check_in_flight, _last_check_at
     if _check_in_flight:
         return
+    now = _time.monotonic()
+    if _last_check_at is not None and (now - _last_check_at) < _CHECK_INTERVAL_SEC:
+        return
+    # Never compete with the sign-in handoff — an update check is never worth
+    # risking the one flow the user cannot proceed without.
+    try:
+        from . import onboarding
+        if onboarding.gate_active():
+            return
+    except Exception:
+        pass  # if we can't tell, fall through — the throttle still applies
+
+    _last_check_at = now
     _check_in_flight = True
 
     def _on_result(release: dict[str, Any] | None) -> None:
