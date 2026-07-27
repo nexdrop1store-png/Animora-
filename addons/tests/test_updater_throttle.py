@@ -103,16 +103,19 @@ def test_interval_is_sane():
 def test_statusbar_draw_handler_does_no_io():
     """A draw handler must never trigger network I/O — that is what broke
     sign-in. The status-bar notice must only READ the cache."""
+    # Checked across the WHOLE panel module, not just the status-bar function:
+    # v1.4.1's outage came from ONE such call, and an orphaned copy of the old
+    # in-panel banner sat in this file still containing it. Any draw code here
+    # doing update I/O is the bug, wherever it lives.
     panel_src = (_ADDON / "panel.py").read_text(encoding="utf-8")
-    start = panel_src.index("def _draw_statusbar_update")
-    body = panel_src[start:start + 1800]
-    # Ignore comments — the fix is documented in-place, so only real CODE counts.
     code = "\n".join(
-        line for line in body.splitlines() if not line.strip().startswith("#")
+        line for line in panel_src.splitlines()
+        if not line.strip().startswith("#")
     )
     assert "refresh_cache_async(" not in code, (
-        "_draw_statusbar_update must not kick off update checks; it draws "
-        "constantly and also draws over the sign-in gate."
+        "panel.py must not kick off update checks from draw code — panels and "
+        "the status bar redraw constantly, and the status bar also draws over "
+        "the sign-in gate. The timer in operators.register() owns refreshing."
     )
 
 

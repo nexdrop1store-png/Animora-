@@ -611,32 +611,11 @@ class _AnimoraMainPanelMixin:
         row.label(text="Dev tools", icon="CONSOLE")
         row.operator("animora.self_test", text="Run Self-Test", icon="PLAY")
 
-    # --- update banner ------------------------------------------------------
-
-    def _draw_update_banner(self, layout) -> None:
-        """"Update available" card — only rendered once a background
-        check (updater.refresh_cache_async, kicked off from
-        operators.register() a few seconds after launch, and re-armed
-        each redraw here) confirms a newer PUBLISHED release exists.
-        Silent no-op before the first check completes or if it failed —
-        an update check must never show a false positive or an error
-        banner for something this low-stakes."""
-        updater.refresh_cache_async()  # no-op if a check is already in flight
-        release = updater.get_cached_release()
-        if not updater.update_available(release):
-            return
-
-        box = layout.box()
-        row = box.row(align=True)
-        row.label(text=f"Update available — v{release.get('version', '?')}", icon="INFO")
-        if sys.platform == "win32":
-            row.operator("animora.update_now", text="Update Now", icon="IMPORT")
-        else:
-            # Auto-update is Windows-only today (see updater.py's module
-            # docstring) — point elsewhere rather than show a button
-            # that can't work.
-            row.operator("wm.url_open", text="Download").url = "https://animora.tech/download"
-        box.separator(factor=0.3)
+    # The in-panel update banner was REMOVED in v1.4.1 (the notice lives in
+    # the status bar now — see _draw_statusbar_update). Its body is deliberately
+    # not kept around dead: it called updater.refresh_cache_async() from a draw
+    # handler, which is precisely what broke sign-in in v1.4.1, and leaving that
+    # pattern in the file invites someone to re-wire it.
 
     # --- input area -------------------------------------------------------
 
