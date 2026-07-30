@@ -38,17 +38,17 @@ from pathlib import Path
 #     addon, so addons/animora_panel/updater.py reads it at runtime to
 #     decide whether a published release is newer. Letting it drift
 #     makes the in-app update check silently wrong.
-ANIMORA_VERSION = "1.4.2"
+ANIMORA_VERSION = "1.4.3"
 
 # The Blender release Animora is currently built against.
 # Used ONLY for the internal install version dir Blender requires
-# (e.g. `{app}/5.1/scripts/addons_core/animora_panel/`) — NOT user-facing.
-BLENDER_VERSION = "5.1"
+# (e.g. `{app}/5.2/scripts/addons_core/animora_panel/`) — NOT user-facing.
+BLENDER_VERSION = "5.2"
 
 # The patch version (third component) is allowed to drift for security
 # fixes from upstream without changing the install dir layout — Blender
 # nests scripts under MAJOR.MINOR only.
-BLENDER_FULL_VERSION = "5.1.1"
+BLENDER_FULL_VERSION = "5.2.0"
 
 # Anchor paths derived once so callers don't reinvent them.
 REPO_ROOT = Path(__file__).resolve().parent.parent

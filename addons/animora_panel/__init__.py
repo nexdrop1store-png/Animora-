@@ -16,7 +16,7 @@ bl_info = {
     # (the only one of the three actually shipped inside the installed
     # addon) to decide whether a published release is newer; letting it
     # drift makes every future update check silently wrong.
-    "version": (1, 4, 2),
+    "version": (1, 4, 3),
     "blender": (4, 0, 0),
     "location": "View3D > N-Panel > Animora",
     "description": "AI-powered assistant integrated into the 3D viewport",
@@ -127,6 +127,12 @@ def register() -> None:
         # including onto pre-existing grey userprefs. See theme.py.
         from . import theme
         theme.ensure_theme()
+
+        # Default Resolution Scale (0.85) — applied once per
+        # theme.UI_SCALE_VERSION, same migration contract as the theme
+        # above. Stock Blender's 1.0 default reads as oversized for
+        # Animora's UI density.
+        theme.ensure_default_ui_scale()
 
     # v1.1 hang mitigation — check for a stale script-execution heartbeat
     # LAST, after every module (including ui.properties, which defines

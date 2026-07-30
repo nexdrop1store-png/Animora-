@@ -162,6 +162,17 @@ class AnimoraPreferences(AddonPreferences):
         options={"HIDDEN"},
     )  # type: ignore[assignment]
 
+    # Stamp of the last Animora default-UI-scale applied to THESE
+    # preferences. Same one-time-migration pattern as theme_version above —
+    # "Load Factory Preferences" resets it (default reapplies), while normal
+    # launches never re-stomp a user's own Resolution Scale tweak. Bump
+    # theme.UI_SCALE_VERSION to roll out a new default.
+    ui_scale_version: IntProperty(
+        name="Applied Default UI Scale Version",
+        default=0,
+        options={"HIDDEN"},
+    )  # type: ignore[assignment]
+
     # ── Render ─────────────────────────────────────────────────────────
 
     def draw(self, context: bpy.types.Context) -> None:

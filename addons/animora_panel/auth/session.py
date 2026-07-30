@@ -235,6 +235,7 @@ def exchange_code(code: str, code_verifier: str) -> bool:
     _last_auth_error = ""
     device_id = compute_device_fingerprint()
     url, headers, body = supabase.build_exchange_request(code, code_verifier, device_id)
+    log.info("Exchanging sign-in code at %s (timeout=15s)", url)
     try:
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=15) as resp:

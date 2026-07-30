@@ -1,0 +1,23 @@
+# Third-party runtime dependencies the AI panel addon needs, installed into
+# Blender's BUNDLED Python by scripts/build.py (step_install_python_deps)
+# before packaging. Without this, every release build silently ships an addon
+# that can never connect to the backend or persist a signed-in session — see
+# the "websocket-client not installed" root-cause writeup in the v1.4.3
+# release notes / docs/ROADMAP-V2-notes.md.
+#
+# Each import site already degrades gracefully (try/except ImportError) so a
+# missing package never crashes Blender — it just silently breaks the
+# corresponding feature, which is what made this gap so easy to ship unnoticed.
+#
+#   keyring           - auth/session.py, credentials.py: OS-secure token
+#                        storage. Missing -> sessions never persist, users
+#                        must sign in on every single launch.
+#   websocket-client   - ws_client.py (import name: websocket): the WS
+#                        connection to the AI backend. Missing -> the AI
+#                        panel can NEVER connect, full stop.
+#   httpx              - updater.py, api_validator.py: preferred HTTP client:
+#                        falls back to stdlib urllib if absent, so this one
+#                        is lower-severity, but bundle it for parity with dev.
+keyring==25.7.0
+websocket-client==1.9.0
+httpx==0.28.1

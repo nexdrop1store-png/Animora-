@@ -25,6 +25,16 @@ log = logging.getLogger("animora.theme")
 
 THEME_VERSION = 2  # v2: chat-bubble box roundness (2026-07-05 UI polish)
 
+# Animora's default Resolution Scale — deliberately smaller than Blender's
+# own default of 1.0. Stock Blender at 1.0 reads as oversized for Animora's
+# UI density (confirmed identical to vanilla Blender's own dpi/ui_scale/
+# pixel_size on the same machine — this is a product design choice, not a
+# bug workaround). Bump UI_SCALE_VERSION to roll out a new default; never
+# touches a value the user has since changed themselves (same one-time-
+# migration contract as THEME_VERSION above).
+DEFAULT_UI_SCALE = 0.85
+UI_SCALE_VERSION = 1  # v1: 2026-07-30, default Resolution Scale introduced
+
 # ── Palette — Linear / Vercel / Tailwind indigo, no shouting ────────────
 BG0 = "#0D0E1B"      # deepest void
 BG1 = "#13141F"      # main background
@@ -387,12 +397,15 @@ def apply_refined_indigo() -> None:
 
 def _save_userpref_once() -> None:
     """One-shot timer: persist prefs outside register() (safe context).
-    Note this saves whatever else is pending in the session prefs too."""
+    Note this saves whatever else is pending in the session prefs too —
+    shared by ensure_theme() and ensure_default_ui_scale(), so it may fire
+    (and save, harmlessly redundantly) more than once on a single fresh
+    launch that needs both migrations."""
     try:
         bpy.ops.wm.save_userpref()
-        log.info("Animora theme v%d applied and saved", THEME_VERSION)
+        log.info("Animora preferences migration applied and saved")
     except Exception as exc:
-        log.warning("Theme applied but prefs not saved: %s", exc)
+        log.warning("Preferences migrated but not saved: %s", exc)
     return None
 
 
@@ -416,4 +429,32 @@ def ensure_theme() -> None:
         return
 
     prefs.theme_version = THEME_VERSION
+    bpy.app.timers.register(_save_userpref_once, first_interval=0.5)
+
+
+def ensure_default_ui_scale() -> None:
+    """Apply Animora's default Resolution Scale once per UI_SCALE_VERSION
+    (see module docstring / DEFAULT_UI_SCALE comment). Same contract as
+    ensure_theme(): a user's own later Resolution Scale change is never
+    stomped on a subsequent launch, and "Load Factory Preferences" clears
+    the stamp so the default reapplies."""
+    if bpy.app.background:
+        return
+    try:
+        from .preferences import get_prefs
+        prefs = get_prefs()
+    except Exception as exc:
+        log.warning("Default UI scale skipped — preferences unavailable: %s", exc)
+        return
+    if prefs is None or getattr(prefs, "ui_scale_version", 0) >= UI_SCALE_VERSION:
+        return
+
+    try:
+        bpy.context.preferences.view.ui_scale = DEFAULT_UI_SCALE
+    except Exception as exc:
+        log.warning("Default UI scale apply failed: %s", exc)
+        return
+
+    prefs.ui_scale_version = UI_SCALE_VERSION
+    log.info("Animora default UI scale v%d applied (%.2f)", UI_SCALE_VERSION, DEFAULT_UI_SCALE)
     bpy.app.timers.register(_save_userpref_once, first_interval=0.5)

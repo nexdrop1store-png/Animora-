@@ -115,6 +115,46 @@ def step_compile(build_dir: Path, config: str, jobs: int) -> None:
     )
 
 
+def _find_bundled_python(build_dir: Path, target_platform: str, config: str) -> Path | None:
+    """Locate Blender's bundled python executable inside the build output.
+
+    Layout differs by generator: the Windows multi-config "Visual Studio 17
+    2022" generator nests an extra <config>/ under bin/ (see
+    CMAKE_PLATFORM_FLAGS); Ninja (macOS/Linux) does not."""
+    if target_platform == "windows":
+        candidates = list((build_dir / "bin" / config).glob("*/python/bin/python.exe"))
+    else:
+        exe_name = "python3.11" if target_platform == "linux" else "python3.11"
+        candidates = list((build_dir / "bin").glob(f"*/python/bin/{exe_name}"))
+        if not candidates:
+            candidates = list((build_dir / "bin").glob("*/python/bin/python3*"))
+    return candidates[0] if candidates else None
+
+
+def step_install_python_deps(build_dir: Path, target_platform: str, config: str) -> None:
+    """Install the AI panel addon's third-party runtime deps (keyring,
+    websocket-client, httpx) into Blender's BUNDLED Python.
+
+    Without this, every release build ships an addon that silently can't
+    persist sessions or connect to the backend at all — each import site
+    degrades gracefully (try/except ImportError) instead of crashing, which
+    is exactly what let this ship unnoticed. See
+    addons/animora_panel/requirements.txt and docs/ROADMAP-V2-notes.md."""
+    log.info("--- Step 3.5: Install addon Python deps into bundled Python ---")
+    python_exe = _find_bundled_python(build_dir, target_platform, config)
+    if python_exe is None:
+        log.error(
+            "Could not find Blender's bundled python under %s — the addon "
+            "will ship WITHOUT keyring/websocket-client/httpx and will not "
+            "be able to connect to the backend at all.",
+            build_dir / "bin",
+        )
+        sys.exit(1)
+    requirements = REPO_ROOT / "addons" / "animora_panel" / "requirements.txt"
+    run([str(python_exe), "-m", "pip", "install", "--no-warn-script-location",
+         "-r", str(requirements)])
+
+
 def step_package(target_platform: str, build_dir: Path, config: str) -> None:
     log.info("--- Step 4: Package ---")
     DIST_DIR.mkdir(parents=True, exist_ok=True)
@@ -300,6 +340,7 @@ def main() -> None:
     if not args.skip_compile:
         step_cmake_configure(args.platform, args.config, build_dir)
         step_compile(build_dir, args.config, args.jobs)
+        step_install_python_deps(build_dir, args.platform, args.config)
 
     if not args.skip_package:
         step_package(args.platform, build_dir, args.config)

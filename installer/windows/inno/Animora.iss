@@ -15,11 +15,11 @@
 #define MyAppName        "Animora"
 ; BlenderVersion: the INTERNAL Blender base — used ONLY for the {app}\<ver>\
 ; install dir Blender requires. Never shown to users.
-#define BlenderVersion   "5.1"
+#define BlenderVersion   "5.2"
 ; MyAppVersion: Animora's PRODUCT version — what users see in the installer,
 ; Programs list, and About. Keep in sync with ANIMORA_VERSION in
 ; scripts/animora_config.py. (V1 = 1.x; intentionally NOT the Blender 5.1.)
-#define MyAppVersion     "1.4.2"
+#define MyAppVersion     "1.4.3"
 #define MyAppPublisher   "Animora Technologies"
 #define MyAppURL         "https://animora.tech"
 #define MyAppExeName     "Animora.exe"

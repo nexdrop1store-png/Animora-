@@ -44,6 +44,8 @@ Animora/
 │                            Desktop auth lives in addons/animora_panel/auth/
 │                            (loopback PKCE against Supabase — see below)
 ├── docs/                    AI_ARCHITECTURE.md (~30 KB plan) + RUN_LOCAL.md + V2_PHASE0_AUDIT.md
+│                            + ROADMAP-V2-notes.md (forward notes not yet built — ghost
+│                            cursor presentation layer, AI quality upgrade priority order)
 ├── supabase/                Import plan + inventory for server-side auth (SQL RPC + edge
 │                            functions live in the Supabase project — see supabase/README.md)
 ├── .claude/skills/          12 project skills — the team's procedural knowledge base

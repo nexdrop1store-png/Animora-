@@ -144,6 +144,7 @@ def cancel_sign_in() -> None:
     attempt, _attempt = _attempt, None
     if attempt is not None:
         attempt.server.cancel()
+    _disarm_signin_connect_watchdog()
 
 
 def _tick() -> float | None:
@@ -178,7 +179,7 @@ def _complete_attempt(attempt: _Attempt, code: str) -> None:
 
     def _exchange() -> None:
         if session.exchange_code(code, attempt.verifier):
-            _run_on_main_thread(connect_ws)
+            _run_on_main_thread(_connect_after_signin)
         else:
             session.sign_out()
             message = session.last_auth_error() or "Sign-in failed. Please try again."
@@ -187,6 +188,82 @@ def _complete_attempt(attempt: _Attempt, code: str) -> None:
             )
 
     threading.Thread(target=_exchange, daemon=True, name="animora-auth-exchange").start()
+
+
+# ---------------------------------------------------------------------------
+# Post-sign-in connect watchdog (v1.4.3 hotfix)
+#
+# SYMPTOM: user signs in in the browser, the app comes to the foreground, and
+# sits on "Connecting to Animora" forever — no error, no way out. The Sign In
+# button stays disabled the whole time because state.AuthS.CONNECTING is in
+# onboarding.py's `in_flight` set.
+#
+# ROOT CAUSE: ws_client.AnimoraWSClient._run_loop() retries a failed WS
+# connect indefinitely with exponential backoff. Every failed attempt calls
+# back through _on_ws_transport_disconnected(), which re-sets the SAME
+# (CONNECTING, "Connecting to Animora") pair state.py already dedupes as a
+# no-op — so nothing about the UI ever changes, no matter how long the
+# backend stays unreachable (down, a cold HuggingFace Space, or any
+# non-401/403 status falling through _connect_and_serve()'s generic retry
+# branch). There was no bound anywhere on this window.
+#
+# FIX: bound ONLY the window from a fresh, foreground sign-in's successful
+# code exchange through to AuthS.CONNECTED. If the WS hasn't connected within
+# SIGNIN_CONNECT_TIMEOUT_SEC, stop the retry loop and surface AuthS.FAILED —
+# onboarding.py already renders FAILED with the error text and a live Sign In
+# button (in_flight excludes FAILED), so this needs no new UI.
+#
+# SCOPE NOTE: deliberately NOT applied to the app-launch restore path
+# (register()) or the WS-auth-rejection retry path — both call connect_ws()
+# too, but touching them is out of scope for this hotfix (see
+# docs/ROADMAP-V2-notes.md, "sign-in hang — related but out of scope").
+# Also NOT applied to _on_restore_invalid's quiet background retry, which
+# uses a different, deliberately-indefinite message and never calls
+# connect_ws() until a refresh actually succeeds.
+# ---------------------------------------------------------------------------
+SIGNIN_CONNECT_TIMEOUT_SEC = 45.0
+_signin_connect_deadline_at: float = 0.0
+
+
+def _connect_after_signin() -> None:
+    """Only call site: the fresh sign-in success path. connect_ws() must run
+    BEFORE the watchdog is armed — auth_status must already be CONNECTING by
+    the time the first tick can possibly fire (test doubles for bpy.app.timers
+    may run the callback synchronously on register(), unlike real Blender)."""
+    global _signin_connect_deadline_at
+    connect_ws()
+    _signin_connect_deadline_at = time.monotonic() + SIGNIN_CONNECT_TIMEOUT_SEC
+    if not bpy.app.timers.is_registered(_signin_connect_watchdog_tick):
+        bpy.app.timers.register(_signin_connect_watchdog_tick, first_interval=1.0)
+
+
+def _disarm_signin_connect_watchdog() -> None:
+    global _signin_connect_deadline_at
+    _signin_connect_deadline_at = 0.0
+
+
+def _signin_connect_watchdog_tick() -> float | None:
+    if _signin_connect_deadline_at == 0.0:
+        return None  # unregister — resolved (connected) or cancelled already
+    if state.state.auth_status != state.AuthS.CONNECTING:
+        # Reached CONNECTED, or failed for some other reason in the
+        # meantime (e.g. a WS auth rejection) — nothing left to watch.
+        _disarm_signin_connect_watchdog()
+        return None
+    if time.monotonic() >= _signin_connect_deadline_at:
+        log.warning(
+            "Post-sign-in WS connect did not complete within %.0fs — giving up "
+            "and surfacing a visible failure instead of retrying forever",
+            SIGNIN_CONNECT_TIMEOUT_SEC,
+        )
+        _disarm_signin_connect_watchdog()
+        ws_client.client.disconnect()
+        state.set_auth_status(
+            state.AuthS.FAILED,
+            "Couldn't connect to Animora — check your connection and try again.",
+        )
+        return None
+    return 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +433,6 @@ def register() -> None:
 def unregister() -> None:
     cancel_sign_in()
     session.stop_refresh_thread()
-    for timer in (_tick, _restore_retry_tick):
+    for timer in (_tick, _restore_retry_tick, _signin_connect_watchdog_tick):
         if bpy.app.timers.is_registered(timer):
             bpy.app.timers.unregister(timer)

@@ -229,3 +229,69 @@ def test_rejection_ignored_while_attempt_pending(env):
     env.controller._on_ws_auth_rejected("stale socket rejection")
     assert env.state.state.auth_status == before  # untouched
     assert env.onboarding.gate_opens == []
+
+
+# ── Post-sign-in connect watchdog (v1.4.3 hotfix) ───────────────────────
+#
+# Regression coverage for: user signs in, the browser callback and code
+# exchange both succeed, but the WS never connects (backend down, a cold
+# HuggingFace Space, etc.) — the app must not sit on "Connecting to
+# Animora" forever with no error and a disabled Sign In button.
+
+def _complete_a_signin(env, monkeypatch):
+    """Drive begin_sign_in() through a successful browser callback + code
+    exchange. Leaves auth_status at CONNECTING with the WS stub having
+    recorded a `connect` call but never having invoked any callback —
+    exactly what a WS connect that never resolves looks like."""
+    monkeypatch.setattr(env.controller.session, "exchange_code", lambda c, v: True)
+    from animora_panel.auth import session as session_mod
+    session_mod.session.user_id = "user-1"
+    session_mod.session.access_token = "tok"
+
+    env.controller.begin_sign_in()
+    attempt = env.controller._attempt
+    urllib.request.urlopen(
+        f"{attempt.server.redirect_uri}?code=the-code&state={attempt.state}", timeout=5
+    )
+    # The test timer stub doesn't re-invoke registered callbacks on its own
+    # (unlike real bpy.app.timers) — poll _tick() manually, same as
+    # test_callback_completes_exchange_and_connects above.
+    assert _wait_for(lambda: env.controller._tick() is None or env.controller._attempt is None)
+    assert _wait_for(
+        lambda: env.state.state.auth_status == env.state.AuthS.CONNECTING, timeout=3.0
+    ), env.state.history
+
+
+def test_signin_connect_watchdog_fails_after_timeout(env, monkeypatch):
+    _complete_a_signin(env, monkeypatch)
+    assert any(c[0] == "connect" for c in env.ws.calls)
+
+    # Force the deadline into the past instead of sleeping
+    # SIGNIN_CONNECT_TIMEOUT_SEC (45s) for real.
+    env.controller._signin_connect_deadline_at = time.monotonic() - 1.0
+    assert env.controller._signin_connect_watchdog_tick() is None  # unregisters itself
+
+    assert env.state.state.auth_status == env.state.AuthS.FAILED
+    assert "connect" in env.state.state.auth_message.lower()
+    assert any(c[0] == "disconnect" for c in env.ws.calls)
+    # Fully disarmed — a stray late tick must never re-fire or re-fail.
+    assert env.controller._signin_connect_deadline_at == 0.0
+
+
+def test_signin_connect_watchdog_disarms_on_success(env, monkeypatch):
+    _complete_a_signin(env, monkeypatch)
+
+    # Simulate the WS actually connecting before the deadline.
+    env.controller._on_ws_connected()
+    assert env.state.state.auth_status == env.state.AuthS.CONNECTED
+
+    assert env.controller._signin_connect_watchdog_tick() is None
+    assert env.controller._signin_connect_deadline_at == 0.0
+    # Must NOT have been flipped to FAILED behind CONNECTED's back.
+    assert env.state.state.auth_status == env.state.AuthS.CONNECTED
+
+
+def test_signin_connect_watchdog_still_ticking_before_deadline(env, monkeypatch):
+    _complete_a_signin(env, monkeypatch)
+    assert env.controller._signin_connect_watchdog_tick() == 1.0
+    assert env.state.state.auth_status == env.state.AuthS.CONNECTING
