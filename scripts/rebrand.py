@@ -165,6 +165,50 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
      '"Animora\'s extension repository must be enabled to install extensions!"'),
     ('"Blender\'s extension repository must be refreshed!"',
      '"Animora\'s extension repository must be refreshed!"'),
+    # 2026-07 Blender 5.2.0 upgrade — found by the post-rebrand grep sweep
+    # (docs/UPGRADE_BLENDER.md step 4) against the new fork. All plain CLI
+    # --help / --version text (source/creator/creator_args.cc) and the two
+    # UI-python spots the generic table didn't already cover.
+    ("Print Blender version and exit.", "Print Animora version and exit."),
+    ("Usage: blender [args ...] [file] [args ...]\\n",
+     "Usage: animora [args ...] [file] [args ...]\\n"),
+    ("# blender -b file.blend -f 20 -- --cycles-device OPTIX",
+     "# animora -b file.blend -f 20 -- --cycles-device OPTIX"),
+    ("# blender -ba test.blend", "# animora -ba test.blend"),
+    ("# blender --background test.blend --render-frame 1 --render-output",
+     "# animora --background test.blend --render-frame 1 --render-output"),
+    ("# blender --background --render-output /tmp test.blend --render-frame 1",
+     "# animora --background --render-output /tmp test.blend --render-frame 1"),
+    ("# blender --background test.blend --render-output /tmp --render-frame 1",
+     "# animora --background test.blend --render-output /tmp --render-frame 1"),
+    ("# blender -b animation.blend -o //render_ -F PNG -x 1 -a",
+     "# animora -b animation.blend -o //render_ -F PNG -x 1 -a"),
+    ("Blender falls back to the saved GPU", "Animora falls back to the saved GPU"),
+    ("Blender GPU Device Listing (Vulkan):", "Animora GPU Device Listing (Vulkan):"),
+    ("Blender's user interface, this runs Blender as an animation player,",
+     "Animora's user interface, this runs Animora as an animation player,"),
+    ("rendered in Blender (ignored if '-b' is set).",
+     "rendered in Animora (ignored if '-b' is set)."),
+    ("Schedules Blender threads exclusively to efficiency cores.",
+     "Schedules Animora threads exclusively to efficiency cores."),
+    ("See Blender's documentation on path templates for more details.",
+     "See the path template documentation for more details."),
+    ("Blender Engine Listing:", "Animora Engine Listing:"),
+    ("Formats that can be compiled into Blender, not available on all systems:",
+     "Formats that can be compiled into Animora, not available on all systems:"),
+    ("This Blender was built without Python support", "This Animora was built without Python support"),
+    ("This Blender was built without python support", "This Animora was built without python support"),
+    ("Run Blender with an interactive console.", "Run Animora with an interactive console."),
+    # wm.py: fallback theme-preset label. No Blender_Dark.xml preset ships in
+    # this fork (checked — scripts/presets/interface_theme/ doesn't exist),
+    # so this fallback is what users actually see, not a desync risk.
+    ('"Blender Dark"', '"Default"'),
+    # userpref.py: theme-install operator tooltip (its __doc__ IS the bl_description).
+    ("a Blender XML theme file", "an Animora XML theme file"),
+    # bl_extension_ui.py: reworded rather than substituted 1:1 — "shipped with
+    # Animora" would misstate history (these add-ons shipped with Blender).
+    ('"Add-ons previously shipped with Blender are now available from extensions.animora.tech."',
+     '"Add-ons previously bundled by default are now available from extensions.animora.tech."'),
     # NOTE: the generic "blender.org" -> "animora.tech" rule above ALSO fires on
     # bl_extension_ui.py's "...now available from extensions.blender.org", turning
     # it into "extensions.animora.tech" — correctly worded, but Animora almost
@@ -177,12 +221,21 @@ STRING_REPLACEMENTS: list[tuple[str, str]] = [
     #     version {:d}.{:d}.{:d}..." — genuine addon-compatibility metadata
     #     (bl_info["blender"]) about a THIRD-PARTY ADDON's declared target
     #     Blender version, not our branding. Renaming would be factually wrong.
-    #   bl_operators/wm.py:3380 "Blender Dark" — matches the real theme
-    #     preset filename Blender_Dark.xml (scripts/presets/interface_theme/).
-    #     Renaming only this fallback label would desync from the preset's
-    #     own file-derived display name the moment it's actually selected.
-    #     Fixing this properly means renaming the .xml presets themselves
-    #     (Blender_Dark.xml/Blender_Light.xml) — separate task, not done here.
+    #   creator_args.cc's $BLENDER_USER_*/$BLENDER_SYSTEM_* --help text and the
+    #     BLENDER_STARTUP_FILE/BLENDER_SYSTEM_*/BLENDER_MAX_THREADS macros behind
+    #     them, plus the BLENDER_EEVEE/BLENDER_EEVEE_NEXT/BLENDER_WORKBENCH engine
+    #     IDs — these are real environment-variable names and RNA enum identifiers
+    #     the binary actually reads/matches (BKE_appdir.cc et al.), not display
+    #     text. Renaming them is a functional infra decision (new env var scheme,
+    #     coordinated rename across every reader), not a string-substitution
+    #     bug — flagging, not deciding, here.
+    #
+    # PREVIOUSLY not renamed, fixed in the 2026-07 5.2.0 upgrade sweep above:
+    #   bl_operators/wm.py:3380 "Blender Dark" fallback theme-preset label — the
+    #     original concern was desyncing from a real Blender_Dark.xml preset
+    #     file, but no such file ships in this fork at all (checked —
+    #     scripts/presets/interface_theme/ doesn't exist), so there was nothing
+    #     to desync from and the fallback is what users always saw here.
 ]
 
 # Source file globs whose string content we patch

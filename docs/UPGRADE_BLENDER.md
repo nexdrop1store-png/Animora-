@@ -1,6 +1,6 @@
 # Upgrading the Blender base
 
-Animora is built on top of a forked Blender (currently 5.1.1). When a
+Animora is built on top of a forked Blender (currently 5.2.0). When a
 new Blender minor or major release ships, this is the procedure for
 moving Animora onto it.
 

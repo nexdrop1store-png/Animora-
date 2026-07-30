@@ -1,8 +1,8 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 354bfcff..0a2bbe78 100644
+﻿diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 141fdaf9..fd03ad69 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -113,7 +113,7 @@ include(build_files/cmake/macros.cmake)
+@@ -78,7 +78,7 @@ include(build_files/cmake/macros.cmake)
  
  blender_project_hack_pre()
  
@@ -11,7 +11,7 @@ index 354bfcff..0a2bbe78 100644
  
  blender_project_hack_post()
  
-@@ -205,9 +205,9 @@ if(WIN32)
+@@ -170,9 +170,9 @@ if(WIN32)
    add_definitions(
      # This is the app ID used for file registration, given it's used from several modules
      # there really is no nice way to get this information consistent without a global define.
@@ -37,10 +37,10 @@ index b5baec04..ea2e4671 100644
  
  #include <iostream>
 diff --git a/intern/ghost/intern/GHOST_ContextVK.cc b/intern/ghost/intern/GHOST_ContextVK.cc
-index f40af8b8..f0e7de57 100644
+index 7ccfafac..5c98b761 100644
 --- a/intern/ghost/intern/GHOST_ContextVK.cc
 +++ b/intern/ghost/intern/GHOST_ContextVK.cc
-@@ -360,9 +360,9 @@ struct GHOST_InstanceVK {
+@@ -362,9 +362,9 @@ struct GHOST_InstanceVK {
    {
      VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                               nullptr,
@@ -77,7 +77,7 @@ index 71d6d45a..01db4856 100644
      user_dir = knownpath;
    }
 diff --git a/intern/ghost/intern/GHOST_SystemWin32.cc b/intern/ghost/intern/GHOST_SystemWin32.cc
-index daae2140..085ae683 100644
+index 675ebe35..13c20abc 100644
 --- a/intern/ghost/intern/GHOST_SystemWin32.cc
 +++ b/intern/ghost/intern/GHOST_SystemWin32.cc
 @@ -642,7 +642,7 @@ GHOST_TSuccess GHOST_SystemWin32::init()
@@ -98,7 +98,7 @@ index daae2140..085ae683 100644
    return success;
  }
  
-@@ -2854,7 +2854,7 @@ GHOST_TSuccess GHOST_SystemWin32::showMessageBox(const char *title,
+@@ -2870,7 +2870,7 @@ GHOST_TSuccess GHOST_SystemWin32::showMessageBox(const char *title,
    config.pszMainIcon = (dialog_options & GHOST_DialogError   ? TD_ERROR_ICON :
                          dialog_options & GHOST_DialogWarning ? TD_WARNING_ICON :
                                                                 TD_INFORMATION_ICON);
@@ -108,7 +108,7 @@ index daae2140..085ae683 100644
    config.pszContent = message_16;
    const bool has_link = link && strlen(link);
 diff --git a/intern/ghost/intern/GHOST_WindowWin32.cc b/intern/ghost/intern/GHOST_WindowWin32.cc
-index 6269c384..f08ff2cd 100644
+index 85718b39..192b0e8f 100644
 --- a/intern/ghost/intern/GHOST_WindowWin32.cc
 +++ b/intern/ghost/intern/GHOST_WindowWin32.cc
 @@ -43,7 +43,7 @@
@@ -120,42 +120,42 @@ index 6269c384..f08ff2cd 100644
  const int GHOST_WindowWin32::s_maxTitleLength = 128;
  
  /* force NVidia OPTIMUS to used dedicated graphics */
-@@ -130,7 +130,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
-   h_DC_ = ::GetDC(h_wnd_);
+@@ -131,7 +131,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
  
    if (!setDrawingContextType(type)) {
--    const char *title = "Blender - Unsupported Graphics Card Configuration";
-+    const char *title = "Animora - Unsupported Graphics Card Configuration";
-     const char *text = "";
+     if (type == GHOST_kDrawingContextTypeOpenGL) {
+-      const char *title = "Blender - Unsupported Graphics Card Configuration";
++      const char *title = "Animora - Unsupported Graphics Card Configuration";
+       const char *text = "";
  #if defined(WIN32)
-     if (strncmp(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
-@@ -141,7 +141,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
-           "Qualcomm devices require the \"OpenCL™, OpenGL®, and Vulkan® Compatibility Pack\" "
-           "from the Microsoft Store.\n\n"
-           "Devices using processors older than a Qualcomm Snapdragon 8cx Gen3 are incompatible, "
--          "but may be able to run an emulated x64 copy of Blender, such as a 3.x LTS release.";
+       if (strncmp(blender::BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
+@@ -142,7 +142,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
+             "Qualcomm devices require the \"OpenCL™, OpenGL®, and Vulkan® Compatibility Pack\" "
+             "from the Microsoft Store.\n\n"
+             "Devices using processors older than a Qualcomm Snapdragon 8cx Gen3 are incompatible, "
+-            "but may be able to run an emulated x64 copy of Blender, such as a 3.x LTS release.";
 +          "but may be able to run an emulated x64 copy of Animora, such as a 3.x LTS release.";
-     }
-     else
+       }
+       else
  #endif
 diff --git a/intern/ghost/intern/GHOST_WindowX11.cc b/intern/ghost/intern/GHOST_WindowX11.cc
-index 7cea7993..83391baf 100644
+index 578eb320..a853c5c5 100644
 --- a/intern/ghost/intern/GHOST_WindowX11.cc
 +++ b/intern/ghost/intern/GHOST_WindowX11.cc
-@@ -357,7 +357,7 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
-         "A graphics card and driver with support for OpenGL 4.3 or higher is "
-         "required.\n\nInstalling the latest driver for your graphics card might resolve the "
-         "issue.";
--    const char *help = "https://www.blender.org/download/requirements/";
-+    const char *help = "https://animora.tech/download/requirements/";
-     system->showMessageBox(
-         "Unsupported hardware", text, "Learn More", "Close", help, GHOST_DialogError);
-     exit(0);
+@@ -367,7 +367,7 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
+           "A graphics card and driver with support for OpenGL 4.3 or higher is "
+           "required.\n\nInstalling the latest driver for your graphics card might resolve the "
+           "issue.";
+-      const char *help = "https://www.blender.org/download/requirements/";
++      const char *help = "https://animora.tech/download/requirements/";
+       system->showMessageBox(
+           "Unsupported hardware", text, "Learn More", "Close", help, GHOST_DialogError);
+     }
 diff --git a/intern/ghost/intern/GHOST_XrContext.cc b/intern/ghost/intern/GHOST_XrContext.cc
-index 6fc86880..924103b2 100644
+index 5ea1d073..5f9330cf 100644
 --- a/intern/ghost/intern/GHOST_XrContext.cc
 +++ b/intern/ghost/intern/GHOST_XrContext.cc
-@@ -105,7 +105,7 @@ void GHOST_XrContext::createOpenXRInstance(
+@@ -101,7 +101,7 @@ void GHOST_XrContext::createOpenXRInstance(
  {
    XrInstanceCreateInfo create_info = {XR_TYPE_INSTANCE_CREATE_INFO};
  
@@ -165,10 +165,10 @@ index 6fc86880..924103b2 100644
    /* Explicitly target OpenXR API version 1.0. Note that the API_VERSION_1_0 macro is only
     * available in 1.1+ SDKs. For 1.0 SDKs, target the current SDK version. */
 diff --git a/intern/ghost/intern/GHOST_XrGraphicsBindingVulkan.cc b/intern/ghost/intern/GHOST_XrGraphicsBindingVulkan.cc
-index 81e532cd..655847ed 100644
+index fc78d9d4..0e20fb45 100644
 --- a/intern/ghost/intern/GHOST_XrGraphicsBindingVulkan.cc
 +++ b/intern/ghost/intern/GHOST_XrGraphicsBindingVulkan.cc
-@@ -217,7 +217,7 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
+@@ -213,7 +213,7 @@ void GHOST_XrGraphicsBindingVulkan::initFromGhostContext(GHOST_Context &ghost_ct
    /* Create a new VkInstance that is compatible with OpenXR */
    VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                             nullptr,
@@ -4270,11 +4270,58 @@ zfiQ`@&&}@BoB0g$9Cj3}CF<wrM+F83BK;i+bJB15hxtC<rEMQKZrnIcUgY*2`bYky
 z!$7=v-__OCp1fO^GvcCap5+H=E{d1ey9fehlC%6Gp93q%%Pq|;FDa)1LUT>>jsjs-
 Hrvd*5ZVhC0
 
+diff --git a/scripts/addons_core/bl_pkg/bl_extension_ui.py b/scripts/addons_core/bl_pkg/bl_extension_ui.py
+index b51b0f49..ccc8b8d7 100644
+--- a/scripts/addons_core/bl_pkg/bl_extension_ui.py
++++ b/scripts/addons_core/bl_pkg/bl_extension_ui.py
+@@ -1,4 +1,4 @@
+-# SPDX-FileCopyrightText: 2023 Blender Foundation
++# SPDX-FileCopyrightText: 2023 Animora Technologies
+ #
+ # SPDX-License-Identifier: GPL-2.0-or-later
+ 
+@@ -336,15 +336,15 @@ def addons_panel_draw_missing_with_extension_impl(
+             break
+ 
+     box = layout_panel.box()
+-    box.label(text="Add-ons previously shipped with Blender are now available from extensions.blender.org.")
++    box.label(text="Add-ons previously bundled by default are now available from extensions.animora.tech.")
+ 
+     pkg_manifest_remote = {}
+ 
+     if repo is None:
+         # Most likely the user manually removed this.
+-        box.label(text="Blender's extension repository not found!", icon='ERROR')
++        box.label(text="Animora's extension repository not found!", icon='ERROR')
+     elif not repo.enabled:
+-        box.label(text="Blender's extension repository must be enabled to install extensions!", icon='ERROR')
++        box.label(text="Animora's extension repository must be enabled to install extensions!", icon='ERROR')
+         repo_index = -1
+     else:
+         # Ensure the remote data is available from which to install the extensions.
+@@ -354,7 +354,7 @@ def addons_panel_draw_missing_with_extension_impl(
+         pkg_manifest_remote = repo_cache_store.refresh_remote_from_directory(directory=repo.directory, error_fn=print)
+         if pkg_manifest_remote is None:
+             row = box.row()
+-            row.label(text="Blender's extension repository must be refreshed!", icon='ERROR')
++            row.label(text="Animora's extension repository must be refreshed!", icon='ERROR')
+             # Ideally this would only sync one repository, but there is no operator to do this
+             # and this one corner-case doesn't justify adding a new operator.
+             rowsub = row.row()
+@@ -1241,7 +1241,7 @@ def extensions_panel_draw_online_extensions_request_impl(
+         icon='URL',
+         emboss=False,
+     ).url = (
+-        "https://docs.blender.org/manual/"
++        "https://docs.animora.tech/manual/"
+         "{:s}/{:d}.{:d}/editors/preferences/extensions.html#installing-extensions"
+     ).format(
+         bpy.utils.manual_language_code(),
 diff --git a/scripts/startup/bl_operators/assets.py b/scripts/startup/bl_operators/assets.py
-index a5c8d323..04474ead 100644
+index f40d8ac8..496a67ea 100644
 --- a/scripts/startup/bl_operators/assets.py
 +++ b/scripts/startup/bl_operators/assets.py
-@@ -131,7 +131,7 @@ class ASSET_OT_open_containing_blend_file(Operator):
+@@ -139,7 +139,7 @@ class ASSET_OT_open_containing_blend_file(Operator):
              return {'RUNNING_MODAL'}
  
          if returncode:
@@ -4297,7 +4344,7 @@ index 8e4ece11..bc803b7d 100644
      filter_folder: BoolProperty(
          default=True,
 diff --git a/scripts/startup/bl_operators/image.py b/scripts/startup/bl_operators/image.py
-index 2df66975..ddfab716 100644
+index a807eb76..787b4b93 100644
 --- a/scripts/startup/bl_operators/image.py
 +++ b/scripts/startup/bl_operators/image.py
 @@ -78,7 +78,7 @@ class EditExternally(Operator):
@@ -4310,7 +4357,7 @@ index 2df66975..ddfab716 100644
  
              return {'CANCELLED'}
 diff --git a/scripts/startup/bl_operators/image_as_planes.py b/scripts/startup/bl_operators/image_as_planes.py
-index fd0cf27a..02697ca8 100644
+index 6f0c329e..ad48b332 100644
 --- a/scripts/startup/bl_operators/image_as_planes.py
 +++ b/scripts/startup/bl_operators/image_as_planes.py
 @@ -648,7 +648,7 @@ class IMAGE_OT_import_as_mesh_planes(
@@ -4341,7 +4388,7 @@ index fd0cf27a..02697ca8 100644
  
      # -------
 diff --git a/scripts/startup/bl_operators/userpref.py b/scripts/startup/bl_operators/userpref.py
-index f32dfd73..efb1b226 100644
+index f32dfd73..71c361a5 100644
 --- a/scripts/startup/bl_operators/userpref.py
 +++ b/scripts/startup/bl_operators/userpref.py
 @@ -234,7 +234,7 @@ class PREFERENCES_OT_keyconfig_import(Operator):
@@ -4353,11 +4400,20 @@ index f32dfd73..efb1b226 100644
      # so those entries can be properly removed (built-in ones can't be removed).
      # See #118035.
      @classmethod
+@@ -573,7 +573,7 @@ class PREFERENCES_OT_addon_disable(Operator):
+ 
+ 
+ class PREFERENCES_OT_theme_install(Operator):
+-    """Load and apply a Blender XML theme file"""
++    """Load and apply an Animora XML theme file"""
+     bl_idname = "preferences.theme_install"
+     bl_label = "Install Theme..."
+ 
 diff --git a/scripts/startup/bl_operators/wm.py b/scripts/startup/bl_operators/wm.py
-index db45df84..f9118a4b 100644
+index 1402dd67..df816f47 100644
 --- a/scripts/startup/bl_operators/wm.py
 +++ b/scripts/startup/bl_operators/wm.py
-@@ -1049,9 +1049,9 @@ class WM_OT_url_open(Operator):
+@@ -1060,9 +1060,9 @@ class WM_OT_url_open(Operator):
              url = "https://" + url
          parsed_url = urllib.parse.urlparse(url)
  
@@ -4369,7 +4425,7 @@ index db45df84..f9118a4b 100644
              return url
  
          # Parse the query parameters and add or update the utm_source parameter.
-@@ -1069,7 +1069,7 @@ class WM_OT_url_open(Operator):
+@@ -1080,7 +1080,7 @@ class WM_OT_url_open(Operator):
      @staticmethod
      def _get_utm_source():
          version = bpy.app.version_string
@@ -4378,26 +4434,28 @@ index db45df84..f9118a4b 100644
  
      def execute(self, _context):
          import webbrowser
-@@ -1099,15 +1099,15 @@ class WM_OT_url_open_preset(Operator):
-         return url_from_blender()
+@@ -1112,17 +1112,17 @@ class WM_OT_url_open_preset(Operator):
  
-     def _url_from_release_notes(self, _context):
+     @staticmethod
+     def _url_from_release_notes():
 -        return "https://www.blender.org/download/releases/{:d}-{:d}/".format(*bpy.app.version[:2])
 +        return "https://animora.tech/download/releases/{:d}-{:d}/".format(*bpy.app.version[:2])
  
-     def _url_from_manual(self, _context):
+     @staticmethod
+     def _url_from_manual():
 -        return "https://docs.blender.org/manual/{:s}/{:d}.{:d}/".format(
 +        return "https://docs.animora.tech/manual/{:s}/{:d}.{:d}/".format(
              bpy.utils.manual_language_code(), *bpy.app.version[:2],
          )
  
-     def _url_from_api(self, _context):
+     @staticmethod
+     def _url_from_api():
 -        return "https://docs.blender.org/api/{:d}.{:d}/".format(*bpy.app.version[:2])
 +        return "https://docs.animora.tech/api/{:d}.{:d}/".format(*bpy.app.version[:2])
  
      # This list is: (enum_item, url) pairs.
      # Allow dynamically extending.
-@@ -1117,28 +1117,28 @@ class WM_OT_url_open_preset(Operator):
+@@ -1132,28 +1132,28 @@ class WM_OT_url_open_preset(Operator):
            tip_("Report a bug with pre-filled version information")),
           _url_from_bug),
          (('RELEASE_NOTES', iface_("Release Notes"),
@@ -4435,8 +4493,8 @@ index db45df84..f9118a4b 100644
 +         "https://extensions.animora.tech/"),
      ]
  
-     def execute(self, context):
-@@ -1356,7 +1356,7 @@ class WM_OT_doc_view(Operator):
+     @staticmethod
+@@ -1374,7 +1374,7 @@ class WM_OT_doc_view(Operator):
      bl_label = "View Documentation"
  
      doc_id: doc_id
@@ -4445,7 +4503,7 @@ index db45df84..f9118a4b 100644
  
      def execute(self, _context):
          url = _wm_doc_get_id(self.doc_id, do_url=True, url_prefix=self._prefix, report=self.report)
-@@ -3350,7 +3350,7 @@ class WM_MT_splash_quick_setup(Menu):
+@@ -3368,7 +3368,7 @@ class WM_MT_splash_quick_setup(Menu):
              col = split.column()
              col.operator(
                  "preferences.copy_prev",
@@ -4454,7 +4512,16 @@ index db45df84..f9118a4b 100644
                  icon='NONE',
                  translate=False,
              )
-@@ -3389,7 +3389,7 @@ class WM_MT_splash_quick_setup(Menu):
+@@ -3395,7 +3395,7 @@ class WM_MT_splash_quick_setup(Menu):
+         sub = col.column(heading="Theme")
+         label = bpy.types.USERPREF_MT_interface_theme_presets.bl_label
+         if label == "Presets":
+-            label = "Blender Dark"
++            label = "Default"
+         sub.menu("USERPREF_MT_interface_theme_presets", text=label)
+ 
+         col.separator()
+@@ -3407,7 +3407,7 @@ class WM_MT_splash_quick_setup(Menu):
          sub = col.column(heading="Keymap")
          text = bpy.path.display_name(kc.name)
          if not text:
@@ -4463,7 +4530,7 @@ index db45df84..f9118a4b 100644
          sub.menu("USERPREF_MT_keyconfigs", text=text)
  
          if hasattr(kc_prefs, "select_mouse"):
-@@ -3444,10 +3444,10 @@ class WM_MT_splash(Menu):
+@@ -3462,10 +3462,10 @@ class WM_MT_splash(Menu):
              col2_title.label(text="Getting Started")
  
              col2.operator("wm.url_open_preset", text="Manual", icon='URL').type = 'MANUAL'
@@ -4478,7 +4545,7 @@ index db45df84..f9118a4b 100644
  
          col_sep = layout.column()
          col_sep.separator()
-@@ -3464,8 +3464,8 @@ class WM_MT_splash(Menu):
+@@ -3482,8 +3482,8 @@ class WM_MT_splash(Menu):
  
          col2 = split.column()
  
@@ -4489,16 +4556,16 @@ index db45df84..f9118a4b 100644
  
          layout.separator()
  
-@@ -3487,7 +3487,7 @@ class WM_MT_splash_about(Menu):
+@@ -3505,7 +3505,7 @@ class WM_MT_splash_about(Menu):
  
          col = split.column(align=True)
          col.scale_y = 0.8
 -        col.label(text=iface_("Version: {:s}").format(bpy.app.version_string), translate=False)
-+        col.label(text="Version 1.0", translate=False)
++        col.label(text="Version 1.4.3", translate=False)
          col.separator(factor=2.5)
          col.label(text=iface_("Date: {:s} {:s}").format(
              bpy.app.build_commit_date.decode("utf-8", "replace"),
-@@ -3506,18 +3506,18 @@ class WM_MT_splash_about(Menu):
+@@ -3524,18 +3524,18 @@ class WM_MT_splash_about(Menu):
          del _ghost_backend, ghost_backend
  
          col.separator(factor=2.0)
@@ -4524,7 +4591,7 @@ index db45df84..f9118a4b 100644
  
  class WM_MT_region_toggle_pie(Menu):
 diff --git a/scripts/startup/bl_ui/space_filebrowser.py b/scripts/startup/bl_ui/space_filebrowser.py
-index be447d62..58c07f14 100644
+index 0ad55904..3031326f 100644
 --- a/scripts/startup/bl_ui/space_filebrowser.py
 +++ b/scripts/startup/bl_ui/space_filebrowser.py
 @@ -173,7 +173,7 @@ class FILEBROWSER_PT_filter(FileBrowserPanel, Panel):
@@ -4536,7 +4603,7 @@ index be447d62..58c07f14 100644
              if params.use_filter_blendid:
                  row = col.row()
                  row.label(icon='BLANK1')  # Indentation
-@@ -938,7 +938,7 @@ def register_props():
+@@ -1004,7 +1004,7 @@ def register_props():
      # UILayout.prop().
      WindowManager.asset_path_dummy = StringProperty(
          name="Asset Blend Path",
@@ -4546,7 +4613,7 @@ index be447d62..58c07f14 100644
      )
  
 diff --git a/scripts/startup/bl_ui/space_topbar.py b/scripts/startup/bl_ui/space_topbar.py
-index 07e431c4..aaf88bb2 100644
+index 9be93c38..3463bb8a 100644
 --- a/scripts/startup/bl_ui/space_topbar.py
 +++ b/scripts/startup/bl_ui/space_topbar.py
 @@ -112,9 +112,9 @@ class TOPBAR_MT_editor_menus(Menu):
@@ -4570,7 +4637,7 @@ index 07e431c4..aaf88bb2 100644
  
      def draw(self, _context):
          layout = self.layout
-@@ -316,7 +316,7 @@ class TOPBAR_MT_file_defaults(Menu):
+@@ -320,7 +320,7 @@ class TOPBAR_MT_file_defaults(Menu):
          layout.operator("wm.save_homefile")
          if app_template:
              display_name = bpy.path.display_name(iface_(app_template))
@@ -4579,7 +4646,7 @@ index 07e431c4..aaf88bb2 100644
              props.app_template = app_template
              props = layout.operator(
                  "wm.read_factory_settings",
-@@ -602,9 +602,9 @@ class TOPBAR_MT_help(Menu):
+@@ -606,9 +606,9 @@ class TOPBAR_MT_help(Menu):
          show_developer = context.preferences.view.show_developer_ui
  
          layout.operator("wm.url_open_preset", text="Manual", icon='URL').type = 'MANUAL'
@@ -4592,7 +4659,7 @@ index 07e431c4..aaf88bb2 100644
          layout.operator("wm.url_open_preset", text="Release Notes").type = 'RELEASE_NOTES'
  
          layout.separator()
-@@ -614,8 +614,8 @@ class TOPBAR_MT_help(Menu):
+@@ -618,8 +618,8 @@ class TOPBAR_MT_help(Menu):
                  "wm.url_open",
                  text="Developer Documentation",
                  icon='URL',
@@ -4604,7 +4671,7 @@ index 07e431c4..aaf88bb2 100644
              layout.operator("wm.operator_cheat_sheet", icon='TEXT')
  
 diff --git a/scripts/startup/bl_ui/space_userpref.py b/scripts/startup/bl_ui/space_userpref.py
-index beddb19d..3172a8be 100644
+index d7959f00..6283864f 100644
 --- a/scripts/startup/bl_ui/space_userpref.py
 +++ b/scripts/startup/bl_ui/space_userpref.py
 @@ -140,7 +140,7 @@ class USERPREF_MT_save_load(Menu):
@@ -4616,7 +4683,7 @@ index beddb19d..3172a8be 100644
              props = layout.operator(
                  "wm.read_factory_userpref",
                  text=iface_("Load Factory {:s} Preferences").format(display_name),
-@@ -356,7 +356,7 @@ class USERPREF_PT_interface_statusbar(InterfacePanel, CenterAlignMixIn, Panel):
+@@ -359,7 +359,7 @@ class USERPREF_PT_interface_statusbar(InterfacePanel, CenterAlignMixIn, Panel):
          col.prop(view, "show_statusbar_memory", text="System Memory")
          col.prop(view, "show_statusbar_vram", text="Video Memory")
          col.prop(view, "show_extensions_updates", text="Extensions Updates")
@@ -4625,7 +4692,7 @@ index beddb19d..3172a8be 100644
  
  
  class USERPREF_PT_interface_menus(InterfacePanel, CenterAlignMixIn, Panel):
-@@ -740,7 +740,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
+@@ -756,7 +756,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
              col.prop(system, "gpu_preferred_device")
  
          if system.gpu_backend != gpu.platform.backend_type_get():
@@ -4634,7 +4701,7 @@ index beddb19d..3172a8be 100644
  
          if system.gpu_backend == 'VULKAN':
              if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
-@@ -785,7 +785,7 @@ class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
+@@ -801,7 +801,7 @@ class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
  
      def draw_centered(self, context, layout):
          if self._draw_associate_supported_or_label(context, layout):
@@ -4643,7 +4710,16 @@ index beddb19d..3172a8be 100644
              split = layout.split(factor=0.5)
              split.alignment = 'LEFT'
              split.operator("preferences.associate_blend", text="Register")
-@@ -2873,7 +2873,7 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
+@@ -2749,7 +2749,7 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
+         #     icon='URL',
+         #     emboss=False,
+         # ).url = (
+-        #     "https://docs.blender.org/manual/"
++        #     "https://docs.animora.tech/manual/"
+         #     "{:s}/{:d}.{:d}/editors/preferences/extensions.html#installing-extensions"
+         # ).format(
+         #     bpy.utils.manual_language_code(),
+@@ -2902,7 +2902,7 @@ class USERPREF_PT_studiolight_light_editor(StudioLightPanel, Panel):
  # Experimental Panels
  
  # Also used for "Developer Tools" which are stored in `preferences.experimental` too.
@@ -4672,7 +4748,7 @@ index 5dfd416b..de48b6c3 100644
      END
    END
 diff --git a/source/blender/blenfont/BLF_api.hh b/source/blender/blenfont/BLF_api.hh
-index 967fd2c4..60c19f92 100644
+index f5ad7a0f..c9c9745f 100644
 --- a/source/blender/blenfont/BLF_api.hh
 +++ b/source/blender/blenfont/BLF_api.hh
 @@ -26,7 +26,7 @@ namespace blender {
@@ -4685,10 +4761,10 @@ index 967fd2c4..60c19f92 100644
  /** File name of the default fixed-pitch font. */
  #define BLF_DEFAULT_MONOSPACED_FONT "DejaVuSansMono.woff2"
 diff --git a/source/blender/blenkernel/intern/appdir.cc b/source/blender/blenkernel/intern/appdir.cc
-index b6e04957..fffa873f 100644
+index a2c90560..f3f0b3e3 100644
 --- a/source/blender/blenkernel/intern/appdir.cc
 +++ b/source/blender/blenkernel/intern/appdir.cc
-@@ -221,14 +221,14 @@ bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
+@@ -220,14 +220,14 @@ void BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
    BLI_path_join(path,
                  path_maxncpy,
                  caches_root_path->c_str(),
@@ -4705,10 +4781,10 @@ index b6e04957..fffa873f 100644
 -  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "blender", SEP_STR);
 +  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "animora", SEP_STR);
  #endif
+ }
  
-   return true;
 diff --git a/source/blender/blenkernel/intern/blendfile.cc b/source/blender/blenkernel/intern/blendfile.cc
-index e6f13834..c89fa8d6 100644
+index ab8fb8f0..275b2b82 100644
 --- a/source/blender/blenkernel/intern/blendfile.cc
 +++ b/source/blender/blenkernel/intern/blendfile.cc
 @@ -87,7 +87,8 @@ using namespace bke;
@@ -4721,7 +4797,7 @@ index e6f13834..c89fa8d6 100644
    return BLI_path_extension_check_array(str, ext_test);
  }
  
-@@ -1530,6 +1531,11 @@ UserDef *BKE_blendfile_userdef_from_defaults()
+@@ -1534,6 +1535,11 @@ UserDef *BKE_blendfile_userdef_from_defaults()
          "cycles",
          "pose_library",
          "bl_pkg",
@@ -4734,19 +4810,22 @@ index e6f13834..c89fa8d6 100644
      for (int i = 0; i < ARRAY_SIZE(addons); i++) {
        bAddon *addon = BKE_addon_new();
 diff --git a/source/blender/blenkernel/intern/preferences.cc b/source/blender/blenkernel/intern/preferences.cc
-index 636811b2..9db212ba 100644
+index e61ee222..1344680d 100644
 --- a/source/blender/blenkernel/intern/preferences.cc
 +++ b/source/blender/blenkernel/intern/preferences.cc
-@@ -146,7 +146,7 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
+@@ -185,9 +185,9 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
+   bUserAssetLibrary *library = BKE_preferences_asset_library_add(
+       userdef, DATA_(BKE_PREFS_ASSET_LIBRARY_DEFAULT_NAME), nullptr);
  
-   /* Add new "Default" library under '[doc_path]/Blender/Assets'. */
+-  /* Add new "Default" library under '[doc_path]/Blender/Assets'. */
++  /* Add new "Default" library under '[doc_path]/Animora/Assets'. */
    BLI_path_join(
 -      library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
 +      library->dirpath, sizeof(library->dirpath), documents_path, N_("Animora"), N_("Assets"));
  }
  
- /** \} */
-@@ -225,9 +225,9 @@ void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo
+ bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
+@@ -324,9 +324,9 @@ void BKE_preferences_extension_repo_remove(UserDef *userdef, bUserExtensionRepo
  bUserExtensionRepo *BKE_preferences_extension_repo_add_default_remote(UserDef *userdef)
  {
    bUserExtensionRepo *repo = BKE_preferences_extension_repo_add(
@@ -4759,10 +4838,10 @@ index 636811b2..9db212ba 100644
     * the option to enable this. */
    repo->flag |= USER_EXTENSION_REPO_FLAG_USE_REMOTE_URL | USER_EXTENSION_REPO_FLAG_SYNC_ON_STARTUP;
 diff --git a/source/blender/blenkernel/intern/sound.cc b/source/blender/blenkernel/intern/sound.cc
-index 12980154..b1f710c7 100644
+index b2f245b7..967b8b92 100644
 --- a/source/blender/blenkernel/intern/sound.cc
 +++ b/source/blender/blenkernel/intern/sound.cc
-@@ -431,10 +431,10 @@ static void sound_device_open_no_lock(const aud::DeviceSpecs &requested_specs)
+@@ -445,10 +445,10 @@ static void sound_device_open_no_lock(const aud::DeviceSpecs &requested_specs)
    CLOG_DEBUG(&LOG, "Opening audio device name:%s", g_state.device_name);
  
    g_state.sound_device = bke::sound_device_init(
@@ -4776,10 +4855,10 @@ index 12980154..b1f710c7 100644
  
    g_state.initialized_specs = g_state.sound_device->getSpecs();
 diff --git a/source/blender/blenlib/intern/system_win32.cc b/source/blender/blenlib/intern/system_win32.cc
-index b06d914e..a70e5d89 100644
+index 849f95e4..3426cd4d 100644
 --- a/source/blender/blenlib/intern/system_win32.cc
 +++ b/source/blender/blenlib/intern/system_win32.cc
-@@ -467,50 +467,6 @@ void BLI_windows_exception_print_message(const void *os_info)
+@@ -479,50 +479,6 @@ void BLI_windows_exception_print_message(const void *os_info)
  /** \name bli_show_message_box
   * \{ */
  
@@ -4830,7 +4909,7 @@ index b06d914e..a70e5d89 100644
  /**
   * Retrieve the path to "blender-launcher.exe" if it exists; otherwise, return the current
   * executable path.
-@@ -563,25 +519,6 @@ static bool bli_executable_path_get(LPWSTR path, DWORD size)
+@@ -575,25 +531,6 @@ static bool bli_executable_path_get(LPWSTR path, DWORD size)
    return true;
  }
  
@@ -4856,7 +4935,7 @@ index b06d914e..a70e5d89 100644
  void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
                                         const char *filepath_relaunch,
                                         const char *gpu_name,
-@@ -619,8 +556,8 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
+@@ -631,8 +568,8 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
    config.hInstance = 0;
    config.dwCommonButtons = 0;
    config.pszMainIcon = TD_ERROR_ICON;
@@ -4867,7 +4946,7 @@ index b06d914e..a70e5d89 100644
    config.pszContent = full_message_16.c_str();
    config.pButtons = buttons;
    config.cButtons = ARRAY_SIZE(buttons);
-@@ -671,20 +608,15 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
+@@ -683,20 +620,15 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
          ShellExecuteW(
              nullptr, L"open", data_ptr->filepath_crashlog_utf16, nullptr, nullptr, SW_SHOWNORMAL);
          return S_FALSE;
@@ -4897,10 +4976,10 @@ index b06d914e..a70e5d89 100644
          return S_FALSE;
      }
 diff --git a/source/blender/blenlib/intern/winstuff.cc b/source/blender/blenlib/intern/winstuff.cc
-index 892996d4..cad15596 100644
+index 66d00283..593b7f33 100644
 --- a/source/blender/blenlib/intern/winstuff.cc
 +++ b/source/blender/blenlib/intern/winstuff.cc
-@@ -199,12 +199,19 @@ bool BLI_windows_register_blend_extension(const bool all_users)
+@@ -201,12 +201,19 @@ bool BLI_windows_register_blend_extension(const bool all_users)
      return false;
    }
  
@@ -4923,7 +5002,7 @@ index 892996d4..cad15596 100644
  
    if (!open_registry_hive(all_users, &root)) {
      return false;
-@@ -252,6 +259,29 @@ bool BLI_windows_register_blend_extension(const bool all_users)
+@@ -254,6 +261,29 @@ bool BLI_windows_register_blend_extension(const bool all_users)
      return false;
    }
  
@@ -4954,10 +5033,10 @@ index 892996d4..cad15596 100644
      fprintf(stderr, "Update of pinned launcher failed.");
      return false;
 diff --git a/source/blender/blenloader/intern/versioning_defaults.cc b/source/blender/blenloader/intern/versioning_defaults.cc
-index 99aa6f4e..017fd858 100644
+index 894e8d65..5d988081 100644
 --- a/source/blender/blenloader/intern/versioning_defaults.cc
 +++ b/source/blender/blenloader/intern/versioning_defaults.cc
-@@ -683,6 +683,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
+@@ -695,6 +695,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
        for (WorkSpace &workspace : bmain->workspaces) {
          WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(win.workspace_hook,
                                                                                  &workspace);
@@ -4970,10 +5049,10 @@ index 99aa6f4e..017fd858 100644
          /* Default only has one window. */
          if (layout->screen) {
 diff --git a/source/blender/blenloader/intern/versioning_userdef.cc b/source/blender/blenloader/intern/versioning_userdef.cc
-index aab5b373..8df337ab 100644
+index 17d7e512..088e4618 100644
 --- a/source/blender/blenloader/intern/versioning_userdef.cc
 +++ b/source/blender/blenloader/intern/versioning_userdef.cc
-@@ -833,6 +833,30 @@ void blo_do_versions_userdef(UserDef *userdef)
+@@ -845,6 +845,30 @@ void blo_do_versions_userdef(UserDef *userdef)
      userdef->pad_rot_angle = 15.0f;
    }
  
@@ -5004,7 +5083,7 @@ index aab5b373..8df337ab 100644
    /* If the userdef was created on a different platform, it may have an
     * unsupported GPU backend selected.  If so, pick a supported default. */
  #ifdef __APPLE__
-@@ -1312,7 +1336,7 @@ void blo_do_versions_userdef(UserDef *userdef)
+@@ -1320,7 +1344,7 @@ void blo_do_versions_userdef(UserDef *userdef)
    if (!USER_VERSION_ATLEAST(293, 1)) {
      /* This rename was made after 2.93.0, harmless to run when it's not needed. */
      const char *replace_table[][2] = {
@@ -5026,7 +5105,7 @@ index 83b8d7d5..89899fc3 100644
    add_subdirectory(space_buttons)
    add_subdirectory(space_clip)
 diff --git a/source/blender/editors/include/ED_space_api.hh b/source/blender/editors/include/ED_space_api.hh
-index 67bbbcac..b6ae92ed 100644
+index 93d62bd7..3f6e30ff 100644
 --- a/source/blender/editors/include/ED_space_api.hh
 +++ b/source/blender/editors/include/ED_space_api.hh
 @@ -43,6 +43,7 @@ void ED_spacetype_userpref();
@@ -5038,23 +5117,23 @@ index 67bbbcac..b6ae92ed 100644
  namespace ed::vse {
  void ED_spacetype_sequencer();
 diff --git a/source/blender/editors/interface/interface_intern.hh b/source/blender/editors/interface/interface_intern.hh
-index 44931b89..d3e547c8 100644
+index 7f82e3bc..90833f09 100644
 --- a/source/blender/editors/interface/interface_intern.hh
 +++ b/source/blender/editors/interface/interface_intern.hh
-@@ -64,7 +64,7 @@ namespace ui {
- #define RNA_NO_INDEX -1
+@@ -64,7 +64,7 @@ struct UndoStack_Text;
+ 
  #define RNA_ENUM_VALUE -2
  
--#define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
-+#define UI_MENU_PADDING (int)(0.4f * UI_UNIT_Y)
+-#define UI_MENU_PADDING int(0.2f * UI_UNIT_Y)
++#define UI_MENU_PADDING int(0.4f * UI_UNIT_Y)
  
  #define UI_MENU_WIDTH_MIN (UI_UNIT_Y * 9)
  /** Some extra padding added to menus containing sub-menu icons. */
 diff --git a/source/blender/editors/interface/interface_layout.cc b/source/blender/editors/interface/interface_layout.cc
-index 5619d63c..c2508c5b 100644
+index 36846b20..3d246d8e 100644
 --- a/source/blender/editors/interface/interface_layout.cc
 +++ b/source/blender/editors/interface/interface_layout.cc
-@@ -4796,7 +4796,7 @@ Layout &Layout::row(bool align)
+@@ -4963,7 +4963,7 @@ Layout &Layout::row(bool align)
    Layout *litem = MEM_new<LayoutRow>(__func__, nullptr);
    LayoutInternal::init_from_parent(litem, this, align);
  
@@ -5063,7 +5142,7 @@ index 5619d63c..c2508c5b 100644
  
    block_layout_set_current(this->block(), litem);
  
-@@ -4943,7 +4943,7 @@ Layout &Layout::column(bool align)
+@@ -5110,7 +5110,7 @@ Layout &Layout::column(bool align)
    Layout *litem = MEM_new<LayoutColumn>(__func__, nullptr);
    LayoutInternal::init_from_parent(litem, this, align);
  
@@ -5073,10 +5152,10 @@ index 5619d63c..c2508c5b 100644
    block_layout_set_current(this->block(), litem);
  
 diff --git a/source/blender/editors/interface/interface_style.cc b/source/blender/editors/interface/interface_style.cc
-index 914cb782..f8c5f4c6 100644
+index 7d51128b..ae2b0f8c 100644
 --- a/source/blender/editors/interface/interface_style.cc
 +++ b/source/blender/editors/interface/interface_style.cc
-@@ -103,13 +103,13 @@ static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short
+@@ -103,13 +103,13 @@ static uiStyle *style_new(ListBaseT<uiStyle> *styles, const char *name, short ui
    style->tooltip.shadowalpha = 0.5f;
    style->tooltip.shadowcolor = 0.0f;
  
@@ -5098,10 +5177,10 @@ index 914cb782..f8c5f4c6 100644
    return style;
  }
 diff --git a/source/blender/editors/interface/interface_widgets.cc b/source/blender/editors/interface/interface_widgets.cc
-index a4c67cbb..10f42d86 100644
+index 89436aa5..aab76330 100644
 --- a/source/blender/editors/interface/interface_widgets.cc
 +++ b/source/blender/editors/interface/interface_widgets.cc
-@@ -2905,9 +2905,9 @@ static void widget_state_menu_item(WidgetType *wt,
+@@ -3359,9 +3359,9 @@ static void widget_state_menu_item(WidgetType *wt,
      copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
    }
    else if (state->but_flag & UI_HOVER) {
@@ -5115,12 +5194,12 @@ index a4c67cbb..10f42d86 100644
      wt->wcol.inner[3] = 255;
      wt->wcol.text[3] = 255;
 diff --git a/source/blender/editors/io/io_usd.cc b/source/blender/editors/io/io_usd.cc
-index c464eeb5..12c324f3 100644
+index aee08127..c1be55a2 100644
 --- a/source/blender/editors/io/io_usd.cc
 +++ b/source/blender/editors/io/io_usd.cc
-@@ -396,7 +396,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
+@@ -400,7 +400,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
+       sub->prop(ptr, "incremental_frames", UI_ITEM_NONE, std::nullopt, ICON_NONE);
      }
-     sub->prop(ptr, "export_animation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
  
 -    sub = &col->column(true, IFACE_("Blender Data"));
 +    sub = &col->column(true, IFACE_("Animora Data"));
@@ -5128,7 +5207,7 @@ index c464eeb5..12c324f3 100644
      ui::Layout *props_col = &sub->column(true);
      props_col->prop(ptr, "custom_properties_namespace", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 diff --git a/source/blender/editors/render/render_view.cc b/source/blender/editors/render/render_view.cc
-index aeb5ea66..0abaadef 100644
+index 83d0e379..55061bf0 100644
 --- a/source/blender/editors/render/render_view.cc
 +++ b/source/blender/editors/render/render_view.cc
 @@ -171,7 +171,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
@@ -5141,10 +5220,10 @@ index aeb5ea66..0abaadef 100644
                         SPACE_IMAGE,
                         true,
 diff --git a/source/blender/editors/screen/screen_ops.cc b/source/blender/editors/screen/screen_ops.cc
-index b6a448f4..b58c0228 100644
+index 1546383b..58653cbd 100644
 --- a/source/blender/editors/screen/screen_ops.cc
 +++ b/source/blender/editors/screen/screen_ops.cc
-@@ -5839,7 +5839,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
+@@ -6167,7 +6167,7 @@ static void ed_screens_statusbar_menu_create(ui::Layout &layout, void * /*arg*/)
    }
    layout.prop(
        &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
@@ -5153,7 +5232,7 @@ index b6a448f4..b58c0228 100644
  }
  
  static wmOperatorStatus screen_context_menu_invoke(bContext *C,
-@@ -6779,7 +6779,7 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
+@@ -7219,7 +7219,7 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
    ui::Button *but = ui::context_active_but_prop_get(C, &ptr, &prop, &index);
  
    /* changes context! */
@@ -5162,7 +5241,7 @@ index b6a448f4..b58c0228 100644
      ED_drivers_editor_init(C, CTX_wm_area(C));
  
      /* activate driver F-Curve for the property under the cursor */
-@@ -6836,7 +6836,7 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
+@@ -7276,7 +7276,7 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
  static wmOperatorStatus info_log_show_exec(bContext *C, wmOperator *op)
  {
    /* changes context! */
@@ -5172,10 +5251,10 @@ index b6a448f4..b58c0228 100644
    }
    BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
 diff --git a/source/blender/editors/screen/screendump.cc b/source/blender/editors/screen/screendump.cc
-index 4a6031c5..965d0e4e 100644
+index c15376a1..38606738 100644
 --- a/source/blender/editors/screen/screendump.cc
 +++ b/source/blender/editors/screen/screendump.cc
-@@ -263,7 +263,7 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
+@@ -261,7 +261,7 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
  {
    ot->name = "Save Screenshot";
    ot->idname = "SCREEN_OT_screenshot";
@@ -5197,7 +5276,7 @@ index 8b45bbc7..c5de7cd1 100644
    bf_editor_space_clip
    bf_editor_space_console
 diff --git a/source/blender/editors/space_api/spacetypes.cc b/source/blender/editors/space_api/spacetypes.cc
-index 32593fb8..7cd14c33 100644
+index ad21b369..92d2d43a 100644
 --- a/source/blender/editors/space_api/spacetypes.cc
 +++ b/source/blender/editors/space_api/spacetypes.cc
 @@ -86,6 +86,7 @@ void ED_spacetypes_init()
@@ -5209,10 +5288,10 @@ index 32593fb8..7cd14c33 100644
    /* Register operator types for screen and all spaces. */
    ED_operatortypes_userpref();
 diff --git a/source/blender/editors/space_userpref/userpref_ops.cc b/source/blender/editors/space_userpref/userpref_ops.cc
-index b842a4a4..bd875578 100644
+index 3d35aa09..6d9c7a36 100644
 --- a/source/blender/editors/space_userpref/userpref_ops.cc
 +++ b/source/blender/editors/space_userpref/userpref_ops.cc
-@@ -872,7 +872,7 @@ static bool associate_blend(bool do_register, bool all_users, char **r_error_msg
+@@ -1035,7 +1035,7 @@ static bool associate_blend(bool do_register, bool all_users, char **r_error_msg
    {
      const char *msg = do_register ? "Unable to register file association" :
                                      "Unable to unregister file association";
@@ -5221,28 +5300,11 @@ index b842a4a4..bd875578 100644
    }
  #  endif /* !WIN32 */
    return result;
-diff --git a/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc b/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
-index 5b6f88b1..c6d91c5a 100644
---- a/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
-+++ b/source/blender/editors/space_view3d/view3d_gizmo_navigate.cc
-@@ -197,8 +197,10 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
-         gz->color[3] = 0.5f;
-         gz->color_hi[3] = 0.75f;
-       }
--      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint, gz->color);
--      ui::theme::get_color_shade_3fv(TH_HEADER, color_tint_hi, gz->color_hi);
-+      /* Animora: TH_HEADER is near-black in our theme — gizmos would be invisible.
-+       * Use TH_TEXT_HI (white) so they render clearly against the dark viewport. */
-+      ui::theme::get_color_shade_3fv(TH_TEXT_HI, 0, gz->color);
-+      ui::theme::get_color_shade_3fv(TH_TEXT_HI, 20, gz->color_hi);
-     }
- 
-     /* may be overwritten later */
 diff --git a/source/blender/gpu/vulkan/vk_backend.cc b/source/blender/gpu/vulkan/vk_backend.cc
-index 0a69501f..6b56dfa4 100644
+index 3a066b70..aa659b9e 100644
 --- a/source/blender/gpu/vulkan/vk_backend.cc
 +++ b/source/blender/gpu/vulkan/vk_backend.cc
-@@ -243,9 +243,9 @@ bool VKBackend::is_supported()
+@@ -253,9 +253,9 @@ static bool vk_instance_create_for_platform_checks(VkInstance *r_instance)
  
    /* Initialize an vulkan 1.2 instance. */
    VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -5255,10 +5317,10 @@ index 0a69501f..6b56dfa4 100644
    vk_application_info.apiVersion = VK_API_VERSION_1_2;
  
 diff --git a/source/blender/imbuf/intern/cineon/cineon_dpx.cc b/source/blender/imbuf/intern/cineon/cineon_dpx.cc
-index 42969537..e8d4b9b2 100644
+index 9fa666a8..d60d2af1 100644
 --- a/source/blender/imbuf/intern/cineon/cineon_dpx.cc
 +++ b/source/blender/imbuf/intern/cineon/cineon_dpx.cc
-@@ -116,7 +116,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
+@@ -114,7 +114,7 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filepath, int use_cineon
                              -1,
                              -1,
                              -1,
@@ -5268,11 +5330,11 @@ index 42969537..e8d4b9b2 100644
    if (logImage == nullptr) {
      printf("DPX/Cineon: error creating file.\n");
 diff --git a/source/blender/imbuf/intern/thumbs.cc b/source/blender/imbuf/intern/thumbs.cc
-index 4ed6dd17..0dbe24c0 100644
+index ab6f3575..f6040fb4 100644
 --- a/source/blender/imbuf/intern/thumbs.cc
 +++ b/source/blender/imbuf/intern/thumbs.cc
-@@ -439,7 +439,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
-     }
+@@ -461,7 +461,7 @@ static ImBuf *thumb_create_ex(const char *file_path,
+ 
      SNPRINTF_UTF8(desc, "Thumbnail for %s", uri);
      IMB_metadata_ensure(&img->metadata);
 -    IMB_metadata_set_field(img->metadata, "Software", "Blender");
@@ -5281,7 +5343,7 @@ index 4ed6dd17..0dbe24c0 100644
      IMB_metadata_set_field(img->metadata, "Description", desc);
      IMB_metadata_set_field(img->metadata, "Thumb::MTime", mtime);
 diff --git a/source/blender/io/alembic/exporter/abc_archive.cc b/source/blender/io/alembic/exporter/abc_archive.cc
-index c089e670..3b7d2713 100644
+index 699bbcd5..ed300a49 100644
 --- a/source/blender/io/alembic/exporter/abc_archive.cc
 +++ b/source/blender/io/alembic/exporter/abc_archive.cc
 @@ -45,7 +45,7 @@ static MetaData create_abc_metadata(const Main *bmain, double scene_fps)
@@ -5294,10 +5356,10 @@ index c089e670..3b7d2713 100644
    abc_metadata.set("blender_version", std::string("v") + BKE_blender_version_string());
    abc_metadata.set("FramesPerTimeUnit", std::to_string(scene_fps));
 diff --git a/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc b/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
-index 4145c78b..698b3254 100644
+index c9d9b970..a89ec621 100644
 --- a/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
 +++ b/source/blender/io/wavefront_obj/exporter/obj_export_file_writer.cc
-@@ -193,8 +193,8 @@ void OBJWriter::write_header() const
+@@ -194,8 +194,8 @@ void OBJWriter::write_header() const
  {
    using namespace std::string_literals;
    FormatHandler fh;
@@ -5308,7 +5370,7 @@ index 4145c78b..698b3254 100644
    fh.write_to_file(outfile_);
  }
  
-@@ -625,9 +625,9 @@ void MTLWriter::write_header(const char *blen_filepath)
+@@ -619,9 +619,9 @@ void MTLWriter::write_header(const char *blen_filepath)
    const char *blen_basename = (blen_filepath && blen_filepath[0] != '\0') ?
                                    BLI_path_basename(blen_filepath) :
                                    "None";
@@ -5321,10 +5383,10 @@ index 4145c78b..698b3254 100644
  
  StringRefNull MTLWriter::mtl_file_path() const
 diff --git a/source/blender/makesdna/DNA_space_enums.h b/source/blender/makesdna/DNA_space_enums.h
-index e694ee02..27d19bb0 100644
+index bb3995cb..b3abe310 100644
 --- a/source/blender/makesdna/DNA_space_enums.h
 +++ b/source/blender/makesdna/DNA_space_enums.h
-@@ -1121,9 +1121,11 @@ enum eSpace_Type {
+@@ -1179,9 +1179,11 @@ enum eSpace_Type : char {
    SPACE_CLIP = 20,
    SPACE_TOPBAR = 21,
    SPACE_STATUSBAR = 22,
@@ -5339,7 +5401,7 @@ index e694ee02..27d19bb0 100644
  
  /* use for function args */
 diff --git a/source/blender/makesdna/DNA_space_types.h b/source/blender/makesdna/DNA_space_types.h
-index 511341e9..bb714e9c 100644
+index 005251b9..6794645d 100644
 --- a/source/blender/makesdna/DNA_space_types.h
 +++ b/source/blender/makesdna/DNA_space_types.h
 @@ -123,6 +123,28 @@ struct SpaceInfo {
@@ -5372,23 +5434,23 @@ index 511341e9..bb714e9c 100644
  /** \name Properties Editor
   * \{ */
 diff --git a/source/blender/makesdna/DNA_userdef_types.h b/source/blender/makesdna/DNA_userdef_types.h
-index e46262f2..8fd738c6 100644
+index 4b5257e8..515d308f 100644
 --- a/source/blender/makesdna/DNA_userdef_types.h
 +++ b/source/blender/makesdna/DNA_userdef_types.h
-@@ -1002,7 +1002,7 @@ struct UserDef {
+@@ -1060,7 +1060,7 @@ struct UserDef {
    ListBaseT<bUserExtensionRepo> extension_repos = {nullptr, nullptr};
    ListBaseT<bUserAssetShelfSettings> asset_shelves_settings = {nullptr, nullptr};
  
 -  char keyconfigstr[64] = "Blender";
 +  char keyconfigstr[64] = "Animora";
  
-   /** Index of the asset library being edited in the Preferences UI. */
-   short active_asset_library = 0;
+   /** Index of the extension repo in the Preferences UI. */
+   short active_extension_repo = 0;
 diff --git a/source/blender/makesdna/DNA_windowmanager_types.h b/source/blender/makesdna/DNA_windowmanager_types.h
-index 5ec792fb..5e45a591 100644
+index fb6a0d83..9f234484 100644
 --- a/source/blender/makesdna/DNA_windowmanager_types.h
 +++ b/source/blender/makesdna/DNA_windowmanager_types.h
-@@ -147,7 +147,7 @@ struct wmWindowManager {
+@@ -151,7 +151,7 @@ struct wmWindowManager {
  #define WM_KEYCONFIG_ARRAY_P(wm) \
    &(wm)->runtime->defaultconf, &(wm)->runtime->addonconf, &(wm)->runtime->userconf
  
@@ -5398,10 +5460,10 @@ index 5ec792fb..5e45a591 100644
  /* IME is win32 and apple only! */
  #if !(defined(WIN32) || defined(__APPLE__)) && !defined(DNA_DEPRECATED)
 diff --git a/source/blender/makesrna/intern/rna_space.cc b/source/blender/makesrna/intern/rna_space.cc
-index b42bcc54..fbc9437e 100644
+index ef6c3a80..b43f8a0e 100644
 --- a/source/blender/makesrna/intern/rna_space.cc
 +++ b/source/blender/makesrna/intern/rna_space.cc
-@@ -172,6 +172,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
+@@ -178,6 +178,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
       ICON_SPREADSHEET,
       "Spreadsheet",
       "Explore geometry data in a table"},
@@ -5413,7 +5475,7 @@ index b42bcc54..fbc9437e 100644
      {SPACE_USERPREF,
       "PREFERENCES",
       ICON_PREFERENCES,
-@@ -753,6 +758,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
+@@ -793,6 +798,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
        return RNA_SpaceClipEditor;
      case SPACE_SPREADSHEET:
        return RNA_SpaceSpreadsheet;
@@ -5422,7 +5484,7 @@ index b42bcc54..fbc9437e 100644
  
        /* Currently no type info. */
      case SPACE_SCRIPT:
-@@ -8040,6 +8047,16 @@ static void rna_def_space_info(BlenderRNA *brna)
+@@ -8247,6 +8254,16 @@ static void rna_def_space_info(BlenderRNA *brna)
    RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO_REPORT, nullptr);
  }
  
@@ -5439,7 +5501,7 @@ index b42bcc54..fbc9437e 100644
  static void rna_def_space_userpref(BlenderRNA *brna)
  {
    static const EnumPropertyItem filter_type_items[] = {
-@@ -9318,6 +9335,7 @@ void RNA_def_space(BlenderRNA *brna)
+@@ -9543,6 +9560,7 @@ void RNA_def_space(BlenderRNA *brna)
    rna_def_space_console(brna);
    rna_def_console_line(brna);
    rna_def_space_info(brna);
@@ -5458,7 +5520,7 @@ index 7d92d3ab..0b1ea77b 100644
   * SPDX-License-Identifier: Apache-2.0 */
  
 diff --git a/source/blender/windowmanager/intern/wm_event_system.cc b/source/blender/windowmanager/intern/wm_event_system.cc
-index bb241dd1..5e0d3e9a 100644
+index 3f6253d7..3a82515f 100644
 --- a/source/blender/windowmanager/intern/wm_event_system.cc
 +++ b/source/blender/windowmanager/intern/wm_event_system.cc
 @@ -1,4 +1,4 @@
@@ -5467,7 +5529,7 @@ index bb241dd1..5e0d3e9a 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -2842,7 +2842,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
+@@ -2872,7 +2872,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
    switch (val) {
      case EVT_FILESELECT_FULL_OPEN: {
        ScrArea *area = ED_screen_temp_space_open(
@@ -5477,7 +5539,7 @@ index bb241dd1..5e0d3e9a 100644
          BKE_report(&wm->runtime->reports, RPT_ERROR, "Failed to open file browser!");
          return WM_HANDLER_BREAK;
 diff --git a/source/blender/windowmanager/intern/wm_files.cc b/source/blender/windowmanager/intern/wm_files.cc
-index 29ce02ef..cc7a1ca4 100644
+index aee1042f..976448af 100644
 --- a/source/blender/windowmanager/intern/wm_files.cc
 +++ b/source/blender/windowmanager/intern/wm_files.cc
 @@ -1,4 +1,4 @@
@@ -5486,7 +5548,7 @@ index 29ce02ef..cc7a1ca4 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -2278,10 +2278,10 @@ static void wm_autosave_location(char filepath[FILE_MAX])
+@@ -2284,10 +2284,10 @@ static void wm_autosave_location(char filepath[FILE_MAX])
    if (blendfile_path && (blendfile_path[0] != '\0')) {
      const char *basename = BLI_path_basename(blendfile_path);
      int len = strlen(basename) - 6;
@@ -5499,7 +5561,7 @@ index 29ce02ef..cc7a1ca4 100644
    }
  
    const char *tempdir_base = BKE_tempdir_base();
-@@ -2547,7 +2547,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
+@@ -2576,7 +2576,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext *C,
      return WM_operator_confirm_ex(C,
                                    op,
                                    IFACE_("Overwrite Startup File"),
@@ -5508,7 +5570,7 @@ index 29ce02ef..cc7a1ca4 100644
                                    IFACE_("Overwrite"),
                                    ui::AlertIcon::Question,
                                    false);
-@@ -2763,7 +2763,7 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
+@@ -2801,7 +2801,7 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext *C,
                          IFACE_(display_name));
    }
    else {
@@ -5517,7 +5579,7 @@ index 29ce02ef..cc7a1ca4 100644
    }
  
    return WM_operator_confirm_ex(
-@@ -3359,7 +3359,7 @@ void WM_OT_open_mainfile(wmOperatorType *ot)
+@@ -3405,7 +3405,7 @@ void WM_OT_open_mainfile(wmOperatorType *ot)
  {
    ot->name = "Open";
    ot->idname = "WM_OT_open_mainfile";
@@ -5526,7 +5588,7 @@ index 29ce02ef..cc7a1ca4 100644
    ot->get_description = wm_open_mainfile_get_description;
  
    ot->invoke = wm_open_mainfile_invoke;
-@@ -3612,7 +3612,7 @@ static void wm_filepath_default(const Main *bmain, char *filepath)
+@@ -3889,7 +3889,7 @@ static void wm_filepath_default(const Main *bmain, char *filepath)
    if (bmain->filepath[0] == '\0') {
      char filename_untitled[FILE_MAXFILE];
      /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
@@ -5535,7 +5597,7 @@ index 29ce02ef..cc7a1ca4 100644
      BLI_path_filename_ensure(filepath, FILE_MAX, filename_untitled);
    }
  }
-@@ -3814,7 +3814,8 @@ static bool wm_save_mainfile_check(bContext * /*C*/, wmOperator *op)
+@@ -4123,7 +4123,8 @@ static bool wm_save_mainfile_check(bContext * /*C*/, wmOperator *op)
      /* NOTE(@ideasman42): some users would prefer #BLI_path_extension_replace(),
       * we have had some nitpicking bug reports about this.
       * Always adding the extension as users may use '.' as part of the file-name. */
@@ -5545,7 +5607,7 @@ index 29ce02ef..cc7a1ca4 100644
      RNA_string_set(op->ptr, "filepath", filepath);
      return true;
    }
-@@ -3933,9 +3934,9 @@ static std::string wm_save_mainfile_get_description(bContext * /*C*/,
+@@ -4262,9 +4263,9 @@ static std::string wm_save_mainfile_get_description(bContext * /*C*/,
  
  void WM_OT_save_mainfile(wmOperatorType *ot)
  {
@@ -5557,7 +5619,7 @@ index 29ce02ef..cc7a1ca4 100644
  
    ot->invoke = wm_save_mainfile_invoke;
    ot->exec = wm_save_as_mainfile_exec;
-@@ -3958,7 +3959,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
+@@ -4287,7 +4288,7 @@ void WM_OT_save_mainfile(wmOperatorType *ot)
                    "Remap Relative",
                    "Remap relative paths when saving to a different directory");
  
@@ -5566,7 +5628,7 @@ index 29ce02ef..cc7a1ca4 100644
    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
  
    prop = RNA_def_boolean(ot->srna,
-@@ -4512,7 +4513,7 @@ static ui::Block *block_create_save_file_overwrite_dialog(bContext *C, ARegion *
+@@ -4837,7 +4838,7 @@ static ui::Block *block_create_save_file_overwrite_dialog(bContext *C, ARegion *
    }
    else {
      /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
@@ -5575,7 +5637,7 @@ index 29ce02ef..cc7a1ca4 100644
      /* Since this dialog should only be shown when re-saving an existing file, current filepath
       * should never be empty. */
      BLI_assert_unreachable();
-@@ -4731,7 +4732,7 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region,
+@@ -5058,7 +5059,7 @@ static ui::Block *block_create__close_file_dialog(bContext *C, ARegion *region,
    }
    else {
      /* While a filename need not be UTF8, at this point the constructed name should be UTF8. */
@@ -5585,7 +5647,7 @@ index 29ce02ef..cc7a1ca4 100644
    layout.label(filename, ICON_NONE);
  
 diff --git a/source/blender/windowmanager/intern/wm_files_link.cc b/source/blender/windowmanager/intern/wm_files_link.cc
-index f8b7033d..f9366c8d 100644
+index df7d21d1..9f2614f9 100644
 --- a/source/blender/windowmanager/intern/wm_files_link.cc
 +++ b/source/blender/windowmanager/intern/wm_files_link.cc
 @@ -1,4 +1,4 @@
@@ -5595,7 +5657,7 @@ index f8b7033d..f9366c8d 100644
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
 diff --git a/source/blender/windowmanager/intern/wm_init_exit.cc b/source/blender/windowmanager/intern/wm_init_exit.cc
-index 44126b0e..55a55ec0 100644
+index 9c0b6254..9c67415c 100644
 --- a/source/blender/windowmanager/intern/wm_init_exit.cc
 +++ b/source/blender/windowmanager/intern/wm_init_exit.cc
 @@ -1,4 +1,4 @@
@@ -5604,7 +5666,7 @@ index 44126b0e..55a55ec0 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -695,7 +695,7 @@ void WM_exit(bContext *C, const int exit_code)
+@@ -721,7 +721,7 @@ void WM_exit(bContext *C, const int exit_code)
    WM_exit_ex(C, true, do_user_exit_actions);
  
    if (!CLG_quiet_get()) {
@@ -5624,7 +5686,7 @@ index 957f691f..a18cd2e5 100644
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
 diff --git a/source/blender/windowmanager/intern/wm_operators.cc b/source/blender/windowmanager/intern/wm_operators.cc
-index 9cda80f4..cbc667ac 100644
+index d20615d0..710f28c9 100644
 --- a/source/blender/windowmanager/intern/wm_operators.cc
 +++ b/source/blender/windowmanager/intern/wm_operators.cc
 @@ -1,4 +1,4 @@
@@ -5633,7 +5695,7 @@ index 9cda80f4..cbc667ac 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -2429,9 +2429,9 @@ static wmOperatorStatus wm_exit_blender_invoke(bContext *C,
+@@ -2430,9 +2430,9 @@ static wmOperatorStatus wm_exit_blender_invoke(bContext *C,
  
  static void WM_OT_quit_blender(wmOperatorType *ot)
  {
@@ -5683,7 +5745,7 @@ index a5fd7aad..def2d77a 100644
            title, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Platform Unsupported"));
        slen = 0;
 diff --git a/source/blender/windowmanager/intern/wm_playanim.cc b/source/blender/windowmanager/intern/wm_playanim.cc
-index 0e3f2d31..2649357f 100644
+index 2ec49d86..a8f79b96 100644
 --- a/source/blender/windowmanager/intern/wm_playanim.cc
 +++ b/source/blender/windowmanager/intern/wm_playanim.cc
 @@ -1,4 +1,4 @@
@@ -5701,7 +5763,7 @@ index 0e3f2d31..2649357f 100644
  
  struct PlayState;
  static void playanim_window_zoom(PlayState &ps, const float zoom_offset);
-@@ -2386,8 +2386,8 @@ int WM_main_playanim(int argc, const char **argv)
+@@ -2336,8 +2336,8 @@ int WM_main_playanim(int argc, const char **argv)
  
      bke::sound_system_initialize();
  
@@ -5713,7 +5775,7 @@ index 0e3f2d31..2649357f 100644
    }
  #endif
 diff --git a/source/blender/windowmanager/intern/wm_splash_screen.cc b/source/blender/windowmanager/intern/wm_splash_screen.cc
-index 1e197a73..8d2f6742 100644
+index 92d1fdce..8e782b5c 100644
 --- a/source/blender/windowmanager/intern/wm_splash_screen.cc
 +++ b/source/blender/windowmanager/intern/wm_splash_screen.cc
 @@ -1,4 +1,4 @@
@@ -5732,11 +5794,11 @@ index 1e197a73..8d2f6742 100644
  #include "DNA_screen_types.h"
  #include "DNA_userdef_types.h"
 @@ -314,7 +314,7 @@ static ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*
-     button_func_set(but, wm_block_splash_close, block, nullptr);
+     button_func_set(but, [block](bContext &C) { wm_block_splash_close(&C, block); });
  
      wm_block_splash_add_label(block,
 -                              BKE_blender_version_string(),
-+                              "1.0" /*ANIMORA_VERSION*/,
++                              "1.4.3" /*ANIMORA_VERSION*/,
                                splash_width - 8.0 * UI_SCALE_FAC,
                                splash_height - 13.0 * UI_SCALE_FAC);
    }
@@ -5806,7 +5868,7 @@ index 1e197a73..8d2f6742 100644
    ot->invoke = wm_splash_about_invoke;
    ot->poll = WM_operator_winactive;
 diff --git a/source/blender/windowmanager/intern/wm_window.cc b/source/blender/windowmanager/intern/wm_window.cc
-index e88f0288..e8ea3d21 100644
+index 4c0aa2cd..8d13092c 100644
 --- a/source/blender/windowmanager/intern/wm_window.cc
 +++ b/source/blender/windowmanager/intern/wm_window.cc
 @@ -1,4 +1,4 @@
@@ -5815,7 +5877,7 @@ index e88f0288..e8ea3d21 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -601,7 +601,7 @@ static std::string wm_window_title_text(
+@@ -607,7 +607,7 @@ static std::string wm_window_title_text(
      if (is_single && area && area->spacetype != SPACE_EMPTY) {
        return IFACE_(ED_area_name(area).c_str());
      }
@@ -5824,7 +5886,7 @@ index e88f0288..e8ea3d21 100644
    }
  
    /* This path may contain invalid UTF8 byte sequences on UNIX systems,
-@@ -684,7 +684,7 @@ static std::string wm_window_title_text(
+@@ -690,7 +690,7 @@ static std::string wm_window_title_text(
      }
    }
  
@@ -5844,10 +5906,10 @@ index 69b046e4..60c09347 100644
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
 diff --git a/source/creator/creator.cc b/source/creator/creator.cc
-index 0356b458..d12e45be 100644
+index b1692910..2f8dec19 100644
 --- a/source/creator/creator.cc
 +++ b/source/creator/creator.cc
-@@ -273,7 +273,7 @@ static void restore_ld_preload()
+@@ -279,7 +279,7 @@ static void restore_ld_preload()
  {
    /* LD_PRELOAD may have been modified on startup for Blender. However
     * we don't want it for other executables launched from Blender. */
@@ -5856,7 +5918,7 @@ index 0356b458..d12e45be 100644
    if (restore_ld_preload) {
      BLI_setenv("LD_PRELOAD", restore_ld_preload);
    }
-@@ -285,7 +285,7 @@ static void restore_ld_preload()
+@@ -291,7 +291,7 @@ static void restore_ld_preload()
  /** \name Blender as a Stand-Alone Python Module (bpy)
   *
   * While not officially supported, this can be useful for Python developers.
@@ -5866,7 +5928,7 @@ index 0356b458..d12e45be 100644
  
  #ifdef WITH_PYTHON_MODULE
 diff --git a/source/creator/creator_args.cc b/source/creator/creator_args.cc
-index 22434e33..2d2ca872 100644
+index fceee3f3..313b79b5 100644
 --- a/source/creator/creator_args.cc
 +++ b/source/creator/creator_args.cc
 @@ -1,4 +1,4 @@
@@ -5875,7 +5937,7 @@ index 22434e33..2d2ca872 100644
   *
   * SPDX-License-Identifier: GPL-2.0-or-later */
  
-@@ -600,13 +600,13 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
+@@ -598,13 +598,13 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
   *   see: `doc/manpage/blender.1.py`
   * - Parsed and extracted for the manual,
   *   which converts our ad-hoc formatting to reStructuredText.
@@ -5891,7 +5953,7 @@ index 22434e33..2d2ca872 100644
  #  ifdef BUILD_DATE
    printf("\tbuild date: %s\n", build_date);
    printf("\tbuild time: %s\n", build_time);
-@@ -628,13 +628,13 @@ static void print_version_short()
+@@ -626,19 +626,19 @@ static void print_version_short()
  #  ifdef BUILD_DATE
    /* NOTE: We include built time since sometimes we need to tell broken from
     * working built of the same hash. */
@@ -5907,16 +5969,60 @@ index 22434e33..2d2ca872 100644
  #  endif
  }
  
-@@ -663,7 +663,7 @@ static void print_help(bArgs *ba, bool all)
+ static const char arg_handle_print_version_doc[] =
+     "\n\t"
+-    "Print Blender version and exit.";
++    "Print Animora version and exit.";
+ static int arg_handle_print_version(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+ {
+   print_version_full();
+@@ -661,8 +661,8 @@ static void print_help(bArgs *ba, bool all)
  
  #  define PRINT(...) BLI_args_printf(ba, __VA_ARGS__)
  
 -  PRINT("Blender %s\n", BKE_blender_version_string());
+-  PRINT("Usage: blender [args ...] [file] [args ...]\n");
 +  PRINT("Animora %s\n", BKE_blender_version_string());
-   PRINT("Usage: blender [args ...] [file] [args ...]\n");
++  PRINT("Usage: animora [args ...] [file] [args ...]\n");
    PRINT("\n");
  
-@@ -1361,7 +1361,7 @@ static const char arg_handle_debug_mode_set_doc[] =
+   PRINT("Render Options:\n");
+@@ -688,7 +688,7 @@ static void print_help(bArgs *ba, bool all)
+     PRINT("\tAppend +CPU to a GPU device to render on both CPU and GPU.\n");
+     PRINT("\n");
+     PRINT("\tExample:\n");
+-    PRINT("\t# blender -b file.blend -f 20 -- --cycles-device OPTIX\n");
++    PRINT("\t# animora -b file.blend -f 20 -- --cycles-device OPTIX\n");
+     PRINT("--cycles-print-stats\n");
+     PRINT("\tLog statistics about render memory and time usage.\n");
+   }
+@@ -865,21 +865,21 @@ static void print_help(bArgs *ba, bool all)
+   PRINT("\n");
+   PRINT("Argument Parsing:\n");
+   PRINT("\tArguments must be separated by white space, eg:\n");
+-  PRINT("\t# blender -ba test.blend\n");
++  PRINT("\t# animora -ba test.blend\n");
+   PRINT("\t...will exit since '-ba' is an unknown argument.\n");
+   PRINT("\n");
+ 
+   PRINT("Argument Order:\n");
+   PRINT("\tArguments are executed in the order they are given. eg:\n");
+-  PRINT("\t# blender --background test.blend --render-frame 1 --render-output \"/tmp\"\n");
++  PRINT("\t# animora --background test.blend --render-frame 1 --render-output \"/tmp\"\n");
+   PRINT(
+       "\t...will not render to '/tmp' because '--render-frame 1' renders before the output path "
+       "is set.\n");
+-  PRINT("\t# blender --background --render-output /tmp test.blend --render-frame 1\n");
++  PRINT("\t# animora --background --render-output /tmp test.blend --render-frame 1\n");
+   PRINT(
+       "\t...will not render to '/tmp' because loading the blend-file overwrites the render output "
+       "that was set.\n");
+-  PRINT("\t# blender --background test.blend --render-output /tmp --render-frame 1\n");
++  PRINT("\t# animora --background test.blend --render-output /tmp --render-frame 1\n");
+   PRINT("\t...works as expected.\n");
+   PRINT("\n");
+ 
+@@ -1369,7 +1369,7 @@ static const char arg_handle_debug_mode_set_doc[] =
  static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void *data)
  {
    G.debug |= G_DEBUG;
@@ -5925,8 +6031,127 @@ index 22434e33..2d2ca872 100644
    MEM_set_memory_debug();
  #  ifndef NDEBUG
    BLI_mempool_set_memory_debug();
+@@ -1738,7 +1738,7 @@ static const char arg_handle_gpu_device_set_doc[] =
+     "\t* 'help' prints supported Vulkan devices and exits.\n"
+     "\n"
+     "\tOnly used with the Vulkan backend. Other backends print a warning and ignore this option.\n"
+-    "\tIf the requested Vulkan device is unavailable, Blender falls back to the saved GPU\n"
++    "\tIf the requested Vulkan device is unavailable, Animora falls back to the saved GPU\n"
+     "\tpreference unless '--gpu-device-no-fallback' is also set.";
+ static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*/)
+ {
+@@ -1750,7 +1750,7 @@ static int arg_handle_gpu_device_set(int argc, const char **argv, void * /*data*
+ 
+   const char *spec = argv[1];
+   if (STREQ(spec, "help")) {
+-    printf("Blender GPU Device Listing (Vulkan):\n");
++    printf("Animora GPU Device Listing (Vulkan):\n");
+     printf("Pass an Index or Device-ID to '--gpu-device'.\n");
+ #  ifdef WITH_VULKAN_BACKEND
+     GPU_vulkan_supported_devices_print(stdout);
+@@ -1978,8 +1978,8 @@ static int arg_handle_env_system_set(int argc, const char **argv, void * /*data*
+ 
+ static const char arg_handle_playback_mode_doc[] =
+     "<options> <file(s)>\n"
+-    "\tInstead of showing Blender's user interface, this runs Blender as an animation player,\n"
+-    "\tto view movies and image sequences rendered in Blender (ignored if '-b' is set).\n"
++    "\tInstead of showing Animora's user interface, this runs Animora as an animation player,\n"
++    "\tto view movies and image sequences rendered in Animora (ignored if '-b' is set).\n"
+     "\n"
+     "\tPlayback Arguments:\n"
+     "\n"
+@@ -2211,7 +2211,7 @@ static const char arg_handle_qos_set_doc[] =
+     "\n"
+     "\tdefault: Uses the default behavior of the OS.\n"
+     "\thigh: Always makes use of performance cores.\n"
+-    "\teco: Schedules Blender threads exclusively to efficiency cores.";
++    "\teco: Schedules Animora threads exclusively to efficiency cores.";
+ static int arg_handle_qos_set(int argc, const char **argv, void * /*data*/)
+ {
+   const char *arg_id = "--qos";
+@@ -2278,7 +2278,7 @@ static const char arg_handle_output_set_doc[] =
+     "\tUse '//' at the start of the path to render relative to the blend-file.\n"
+     "\n"
+     "\tYou can use path templating features such as '{blend_name}' in the path.\n"
+-    "\tSee Blender's documentation on path templates for more details.\n"
++    "\tSee the path template documentation for more details.\n"
+     "\n"
+     "\tThe '#' characters are replaced by the frame number, and used to define zero padding.\n"
+     "\n"
+@@ -2288,7 +2288,7 @@ static const char arg_handle_output_set_doc[] =
+     "\tWhen the filename does not contain '#', the suffix '####' is added to the filename.\n"
+     "\n"
+     "\tThe frame number will be added at the end of the filename, eg:\n"
+-    "\t# blender -b animation.blend -o //render_ -F PNG -x 1 -a\n"
++    "\t# animora -b animation.blend -o //render_ -F PNG -x 1 -a\n"
+     "\t'//render_' becomes '//render_####', writing frames as '//render_0001.png'";
+ static int arg_handle_output_set(int argc, const char **argv, void *data)
+ {
+@@ -2319,7 +2319,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
+     const char *engine_name = argv[1];
+ 
+     if (STREQ(engine_name, "help")) {
+-      printf("Blender Engine Listing:\n");
++      printf("Animora Engine Listing:\n");
+       for (RenderEngineType &type : R_engines) {
+         printf("\t%s\n", type.idname);
+       }
+@@ -2363,7 +2363,7 @@ static const char arg_handle_image_type_set_doc[] =
+     "\tValid options are:\n"
+     "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
+     "\n"
+-    "\tFormats that can be compiled into Blender, not available on all systems:\n"
++    "\tFormats that can be compiled into Animora, not available on all systems:\n"
+     "\t'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'FFMPEG' 'CINEON' 'DPX' 'JP2' 'WEBP'.";
+ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
+ {
+@@ -2738,7 +2738,7 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
+     }
+ #  else
+     UNUSED_VARS(C);
+-    fprintf(stderr, "This Blender was built without Python support\n");
++    fprintf(stderr, "This Animora was built without Python support\n");
+ #  endif /* WITH_PYTHON */
+ 
+     return 1;
+@@ -2776,7 +2776,7 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
+     }
+ #  else
+     UNUSED_VARS(C);
+-    fprintf(stderr, "This Blender was built without Python support\n");
++    fprintf(stderr, "This Animora was built without Python support\n");
+ #  endif /* WITH_PYTHON */
+ 
+     return 1;
+@@ -2807,7 +2807,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
+     }
+ #  else
+     UNUSED_VARS(C);
+-    fprintf(stderr, "This Blender was built without Python support\n");
++    fprintf(stderr, "This Animora was built without Python support\n");
+ #  endif /* WITH_PYTHON */
+ 
+     return 1;
+@@ -2818,7 +2818,7 @@ static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
+ 
+ static const char arg_handle_python_console_run_doc[] =
+     "\n\t"
+-    "Run Blender with an interactive console.";
++    "Run Animora with an interactive console.";
+ static int arg_handle_python_console_run(int /*argc*/, const char ** /*argv*/, void *data)
+ {
+   bContext *C = static_cast<bContext *>(data);
+@@ -2827,7 +2827,7 @@ static int arg_handle_python_console_run(int /*argc*/, const char ** /*argv*/, v
+   BPY_CTX_SETUP(BPY_run_string_eval(C, imports, "code.interact()"));
+ #  else
+   UNUSED_VARS(C);
+-  fprintf(stderr, "This Blender was built without python support\n");
++  fprintf(stderr, "This Animora was built without python support\n");
+ #  endif /* WITH_PYTHON */
+ 
+   return 0;
 diff --git a/source/creator/creator_signals.cc b/source/creator/creator_signals.cc
-index 3cf0b778..4b261029 100644
+index 83e1a69f..3c48acb8 100644
 --- a/source/creator/creator_signals.cc
 +++ b/source/creator/creator_signals.cc
 @@ -1,4 +1,4 @@

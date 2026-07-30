@@ -1,6 +1,6 @@
 # Animora Native Patches
 
-Patches applied on top of vanilla Blender 5.1.1 source to produce the Animora binary.
+Patches applied on top of vanilla Blender 5.2.0 source to produce the Animora binary.
 
 > ⚠️ **2026-07 — IMPORTANT, READ BEFORE RE-CLONING.** The complete native delta
 > is captured in the repo:
@@ -38,7 +38,7 @@ Patches applied on top of vanilla Blender 5.1.1 source to produce the Animora bi
 
 ```bash
 # 1. Clone vanilla Blender into a FRESH dir (do NOT delete the old fork yet).
-git clone --depth 1 --branch v5.1.1 \
+git clone --depth 1 --branch v5.2.0 \
     https://projects.blender.org/blender/blender.git blender-fork-fresh
 
 # 2. Apply the complete Animora native delta.

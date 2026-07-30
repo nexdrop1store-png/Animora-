@@ -12,7 +12,7 @@ target OS. One push (a `v*` tag) or a manual run produces all three.
   Release with the installers attached.
 
 ## What each job does
-1. Clone vanilla Blender `v5.1.1` + `git lfs pull` (the binary assets).
+1. Clone vanilla Blender `v5.2.0` + `git lfs pull` (the binary assets).
 2. Apply our native delta: `patches/animora-native-full.patch` +
    `patches/native-overlay/` (the editor, splash, font).
 3. `scripts/rebrand.py` — assets, strings, AI-panel inject.
