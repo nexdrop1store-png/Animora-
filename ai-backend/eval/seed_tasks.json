@@ -1,0 +1,72 @@
+[
+  {
+    "name": "geometry.cube_dimensions",
+    "category": "geometry",
+    "prompt": "Create a cube 2 meters wide, 1 meter tall, and 0.5 meters deep, centered at the origin."
+  },
+  {
+    "name": "geometry.table_leg",
+    "category": "geometry",
+    "prompt": "Model a simple table leg: a cylinder 8cm in diameter and 75cm tall, with a beveled top and bottom edge."
+  },
+  {
+    "name": "geometry.stone_archway",
+    "category": "geometry",
+    "prompt": "Model a simple stone archway: two rectangular pillars supporting a curved arch on top, with a doorway roughly 1 meter wide and 2.2 meters tall."
+  },
+  {
+    "name": "geometry.low_poly_tree",
+    "category": "geometry",
+    "prompt": "Model a simple low-poly tree: a cylindrical trunk and a cone-shaped canopy on top."
+  },
+  {
+    "name": "placement.dining_table_setting",
+    "category": "placement",
+    "prompt": "Place a rectangular dining table with four chairs around it, one on each side, all facing the table."
+  },
+  {
+    "name": "placement.bookshelf_arrangement",
+    "category": "placement",
+    "prompt": "Create a bookshelf (a tall box with 3 shelves) and place 5 small box 'books' standing upright on the middle shelf."
+  },
+  {
+    "name": "placement.picnic_scene",
+    "category": "placement",
+    "prompt": "Arrange a picnic scene: a round table in the center with 4 stools placed evenly around it, and a small basket placed on top of the table."
+  },
+  {
+    "name": "placement.parking_row",
+    "category": "placement",
+    "prompt": "Place three identical car-sized boxes in a row, evenly spaced, as if parked side by side in a parking lot."
+  },
+  {
+    "name": "lighting.three_point_portrait",
+    "category": "lighting",
+    "prompt": "Set up a classic three-point lighting rig (key, fill, rim) aimed at a sphere placed at the origin representing a subject."
+  },
+  {
+    "name": "lighting.warm_sunset_interior",
+    "category": "lighting",
+    "prompt": "Light an empty room (a simple box interior) with warm, low-angle sunset light coming through one wall, like late afternoon sun."
+  },
+  {
+    "name": "lighting.moody_spotlight",
+    "category": "lighting",
+    "prompt": "Light a single cube dramatically with one strong spotlight from above and no other light sources, creating hard shadows."
+  },
+  {
+    "name": "materials.glossy_red_metal",
+    "category": "materials",
+    "prompt": "Apply a glossy red metallic paint material to a car-body-like object (a stretched cube), similar to automotive paint."
+  },
+  {
+    "name": "materials.rough_wood_plank",
+    "category": "materials",
+    "prompt": "Apply a matte, rough wood material to a flat rectangular plank object, brown in color with no shine."
+  },
+  {
+    "name": "materials.glass_bottle",
+    "category": "materials",
+    "prompt": "Create a simple cylindrical bottle shape and apply a clear glass material to it, transparent with a slight green tint."
+  }
+]
