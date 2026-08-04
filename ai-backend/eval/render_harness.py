@@ -113,6 +113,10 @@ class RenderTaskResult:
     # Cost (orchestrator tokens + the one VLM scoring call)
     cost_usd: float = 0.0
     vlm_cost_usd: float = 0.0
+    # Debug/audit trail — what the agent actually called, so a surprising
+    # render can be traced to "agent chose bad values" vs "the translator
+    # mistranslated a correct call". Not scored on; purely diagnostic.
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def total_cost_usd(self) -> float:
@@ -327,6 +331,7 @@ async def _run_one(client: AnthropicClient, bench: Benchmark, output_dir: Path, 
     result = RenderTaskResult(name=bench.name, category=bench.notes, prompt=bench.prompt)
     print(f"  [{bench.name}] running orchestrator...", end=" ", flush=True)
     tool_calls, real_script = await _run_orchestrator(client, bench, result)
+    result.tool_calls = tool_calls
     print(f"{result.tool_call_count} tool calls, {result.orchestrator_elapsed_ms}ms"
           f"{' (ERROR: ' + result.orchestrator_error + ')' if result.orchestrator_error else ''}")
 
@@ -418,7 +423,14 @@ async def _main(args: argparse.Namespace) -> int:
         print(f"Animora/Blender executable not found: {args.animora_exe}", file=sys.stderr)
         return 2
 
-    output_dir = Path(args.render_dir)
+    # Resolve to an absolute path BEFORE handing it to the render_worker
+    # subprocess — render_worker.py runs inside Animora.exe, which may not
+    # share this process's working directory, so a relative path here can
+    # silently resolve to a different location in each process (exactly
+    # what happened in the single-task dry run: renders were written
+    # somewhere real but this process then looked for them in the wrong
+    # place and found nothing).
+    output_dir = Path(args.render_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     client = AnthropicClient(api_key=api_key, session_id="render-eval-harness")
