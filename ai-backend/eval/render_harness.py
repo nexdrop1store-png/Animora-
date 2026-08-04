@@ -58,6 +58,7 @@ from ai_backend.config import settings
 from ai_backend.eval.atomic_to_bpy import tool_calls_to_bpy_script
 from ai_backend.eval.benchmarks import Benchmark
 from ai_backend.eval.scoring import estimate_cost_usd
+from ai_backend.orchestrator.aspect_verifiers import run_all_aspect_verifiers
 from ai_backend.orchestrator.image_media import sniff_image_media_type
 from ai_backend.llm_provider import LLMProvider, provider_from_env
 from ai_backend.observability import configure
@@ -105,12 +106,16 @@ class RenderTaskResult:
     render_paths: list[str] = field(default_factory=list)
     render_errors: list[str] = field(default_factory=list)
     render_elapsed_ms: int = 0
-    # VLM judgment (Phase 0's "automatic" scoring leg)
+    # VLM judgment (Phase 0's "automatic" scoring leg — one holistic call)
     vlm_score: int = 0  # 1-10, 0 = not scored (no renders / vlm call failed)
     vlm_matches_brief: bool = False
     vlm_notes: str = ""
     vlm_error: str = ""
-    # Cost (orchestrator tokens + the one VLM scoring call)
+    # Aspect-verifier judgment (Phase 1 — 8 independent single-aspect calls)
+    aspect_overall: str = ""  # "pass" | "fail" | "" (not run / total failure)
+    aspect_results: list[dict[str, Any]] = field(default_factory=list)
+    aspect_cost_usd: float = 0.0
+    # Cost (orchestrator tokens + VLM scoring calls)
     cost_usd: float = 0.0
     vlm_cost_usd: float = 0.0
     # Debug/audit trail — what the agent actually called, so a surprising
@@ -120,7 +125,7 @@ class RenderTaskResult:
 
     @property
     def total_cost_usd(self) -> float:
-        return round(self.cost_usd + self.vlm_cost_usd, 6)
+        return round(self.cost_usd + self.vlm_cost_usd + self.aspect_cost_usd, 6)
 
 
 def _load_seed_tasks(path: Path) -> list[Benchmark]:
@@ -326,6 +331,41 @@ async def _score_with_vlm(client: AnthropicClient, prompt: str, render_paths: li
         )
 
 
+async def _score_with_aspect_verifiers(client: AnthropicClient, prompt: str, render_paths: list[str],
+                                        result: RenderTaskResult) -> None:
+    """Phase 1 scoring leg — the 8 independent single-aspect verifiers,
+    given ALL render viewpoints per call (multi-view, per the roadmap
+    note), run alongside the existing holistic _score_with_vlm so the two
+    can be compared directly against the same Phase 0 renders."""
+    images: list[bytes] = []
+    for p in render_paths:
+        try:
+            images.append(Path(p).read_bytes())
+        except OSError as exc:
+            result.render_errors.append(f"aspect verifier could not read render {p}: {exc}")
+    if not images:
+        return
+
+    results = await run_all_aspect_verifiers(
+        images, client, user_intent=prompt,
+        persona_display_name="Generalist (eval harness — no live persona)",
+        persona_quality_checks="(none declared — scoring against the brief only)",
+        scene_diff_summary="n/a (single-shot eval build, no before/after scene graph)",
+        execution_outcome="OK",
+    )
+
+    result.aspect_results = [
+        {"aspect": r.aspect, "label": r.label, "verdict": r.verdict, "reason": r.reason,
+         "fix_suggestion": r.fix_suggestion, "confidence": r.confidence}
+        for r in results
+    ]
+    judged = [r for r in results if r.verdict != "error"]
+    result.aspect_overall = "fail" if any(r.verdict == "fail" for r in judged) else ("pass" if judged else "")
+    result.aspect_cost_usd = round(sum(
+        estimate_cost_usd(_VLM_SCORE_MODEL, r.input_tokens, r.output_tokens) for r in results
+    ), 6)
+
+
 async def _run_one(client: AnthropicClient, bench: Benchmark, output_dir: Path, animora_exe: str
                     ) -> RenderTaskResult:
     result = RenderTaskResult(name=bench.name, category=bench.notes, prompt=bench.prompt)
@@ -369,6 +409,11 @@ async def _render_and_score(client: AnthropicClient, bench: Benchmark,
         print(f"  [{bench.name}] VLM scoring...", end=" ", flush=True)
         await _score_with_vlm(client, bench.prompt, result.render_paths, result)
         print(f"score={result.vlm_score}/10 matches_brief={result.vlm_matches_brief}")
+
+        print(f"  [{bench.name}] aspect verifiers...", end=" ", flush=True)
+        await _score_with_aspect_verifiers(client, bench.prompt, result.render_paths, result)
+        failed = [r["label"] for r in result.aspect_results if r["verdict"] == "fail"]
+        print(f"overall={result.aspect_overall or 'n/a'} failed={failed or '—'}")
 
     result.ok = result.render_ok and result.vlm_score >= 6 and not result.orchestrator_error
 
