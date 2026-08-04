@@ -335,6 +335,31 @@ async def _run_one(client: AnthropicClient, bench: Benchmark, output_dir: Path, 
     print(f"{result.tool_call_count} tool calls, {result.orchestrator_elapsed_ms}ms"
           f"{' (ERROR: ' + result.orchestrator_error + ')' if result.orchestrator_error else ''}")
 
+    await _render_and_score(client, bench, tool_calls, real_script=real_script, output_dir=output_dir,
+                             animora_exe=animora_exe, result=result)
+    return result
+
+
+def _resumed_result(row: dict[str, Any]) -> RenderTaskResult:
+    """Rehydrate a RenderTaskResult from a prior --json dump, keeping the
+    orchestrator-side fields (tool_calls, tokens, cost, model, timing) and
+    resetting only the render/VLM fields so _render_and_score recomputes
+    them against the current (fixed) translator."""
+    result = RenderTaskResult(
+        name=row["name"], category=row.get("category", ""), prompt=row.get("prompt", ""),
+        tool_call_count=row.get("tool_call_count", 0), model=row.get("model", ""),
+        input_tokens=row.get("input_tokens", 0), output_tokens=row.get("output_tokens", 0),
+        orchestrator_elapsed_ms=row.get("orchestrator_elapsed_ms", 0),
+        orchestrator_error=row.get("orchestrator_error", ""),
+        cost_usd=row.get("cost_usd", 0.0),
+        tool_calls=row.get("tool_calls", []),
+    )
+    return result
+
+
+async def _render_and_score(client: AnthropicClient, bench: Benchmark,
+                             tool_calls: list[dict[str, Any]], real_script: str, output_dir: Path,
+                             animora_exe: str, result: RenderTaskResult) -> None:
     print(f"  [{bench.name}] rendering...", end=" ", flush=True)
     _render_task(bench.name, tool_calls, real_script, output_dir, animora_exe, result)
     print(f"ok={result.render_ok} ({result.render_elapsed_ms}ms)"
@@ -346,6 +371,15 @@ async def _run_one(client: AnthropicClient, bench: Benchmark, output_dir: Path, 
         print(f"score={result.vlm_score}/10 matches_brief={result.vlm_matches_brief}")
 
     result.ok = result.render_ok and result.vlm_score >= 6 and not result.orchestrator_error
+
+
+async def _run_one_resumed(client: AnthropicClient, row: dict[str, Any], output_dir: Path,
+                            animora_exe: str) -> RenderTaskResult:
+    result = _resumed_result(row)
+    bench = Benchmark(name=result.name, prompt=result.prompt, required_named=False)
+    bench.notes = result.category
+    await _render_and_score(client, bench, result.tool_calls, real_script="", output_dir=output_dir,
+                             animora_exe=animora_exe, result=result)
     return result
 
 
@@ -403,10 +437,19 @@ def _format_report(results: list[RenderTaskResult]) -> str:
 
 async def _main(args: argparse.Namespace) -> int:
     configure()
-    tasks = _load_seed_tasks(Path(args.tasks_file))
-    if args.filter:
-        terms = [t.strip() for t in args.filter.split(",") if t.strip()]
-        tasks = [t for t in tasks if any(t2 in t.name for t2 in terms)]
+
+    resumed_rows: list[dict[str, Any]] | None = None
+    if args.resume_json:
+        resumed_rows = json.loads(Path(args.resume_json).read_text(encoding="utf-8"))
+        if args.filter:
+            terms = [t.strip() for t in args.filter.split(",") if t.strip()]
+            resumed_rows = [r for r in resumed_rows if any(t2 in r["name"] for t2 in terms)]
+        tasks = []
+    else:
+        tasks = _load_seed_tasks(Path(args.tasks_file))
+        if args.filter:
+            terms = [t.strip() for t in args.filter.split(",") if t.strip()]
+            tasks = [t for t in tasks if any(t2 in t.name for t2 in terms)]
 
     if provider_from_env() is LLMProvider.BEDROCK:
         if not os.environ.get("AWS_BEARER_TOKEN_BEDROCK"):
@@ -436,13 +479,23 @@ async def _main(args: argparse.Namespace) -> int:
     client = AnthropicClient(api_key=api_key, session_id="render-eval-harness")
 
     results: list[RenderTaskResult] = []
-    print(f"Running {len(tasks)} task(s)...")
-    for bench in tasks:
-        print(f"\n=== {bench.name} ===")
-        result = await _run_one(client, bench, output_dir, args.animora_exe)
-        results.append(result)
-        if args.json:
-            Path(args.json).write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
+    if resumed_rows is not None:
+        print(f"Resuming {len(resumed_rows)} task(s) from {args.resume_json} "
+              "(re-render + re-score only, no orchestrator/LLM generation cost)...")
+        for row in resumed_rows:
+            print(f"\n=== {row['name']} ===")
+            result = await _run_one_resumed(client, row, output_dir, args.animora_exe)
+            results.append(result)
+            if args.json:
+                Path(args.json).write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
+    else:
+        print(f"Running {len(tasks)} task(s)...")
+        for bench in tasks:
+            print(f"\n=== {bench.name} ===")
+            result = await _run_one(client, bench, output_dir, args.animora_exe)
+            results.append(result)
+            if args.json:
+                Path(args.json).write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
 
     report = _format_report(results)
     if args.output:
@@ -460,13 +513,18 @@ async def _main(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 0 render-based eval harness")
-    parser.add_argument("--tasks-file", required=True, help="Path to seed_tasks.json")
+    parser.add_argument("--tasks-file", help="Path to seed_tasks.json (required unless --resume-json)")
+    parser.add_argument("--resume-json", help="Path to a prior --json dump; re-render + re-score its "
+                         "captured tool_calls against the current translator instead of re-running the "
+                         "orchestrator (no LLM generation cost — for validating render-pipeline fixes)")
     parser.add_argument("--filter", help="Run only tasks whose name contains this substring")
     parser.add_argument("--output", help="Path to write the markdown report")
     parser.add_argument("--json", help="Path to write the full JSON results dump")
     parser.add_argument("--render-dir", default="eval_renders", help="Directory to write rendered PNGs")
     parser.add_argument("--animora-exe", default=_DEFAULT_ANIMORA_EXE, help="Path to Animora.exe / blender.exe")
     args = parser.parse_args()
+    if not args.tasks_file and not args.resume_json:
+        parser.error("either --tasks-file or --resume-json is required")
     return asyncio.run(_main(args))
 
 

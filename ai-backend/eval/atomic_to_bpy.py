@@ -317,9 +317,18 @@ def _set_world(inp: dict[str, Any]) -> str:
     return "\n".join(lines + body) + "\n"
 
 
-# Tool name -> translator. Read-only / meta tools (get_scene_info,
-# viewport_screenshot, request_final_review, use_asset, load_asset) don't
-# mutate the scene and are intentionally omitted — nothing to render.
+# Tool name -> translator. get_scene_info / viewport_screenshot /
+# render_preview / request_final_review / suggest_next_steps / use_asset are
+# genuinely read-only/meta and intentionally omitted.
+#
+# load_asset is NOT read-only — it downloads and links a real PolyHaven
+# HDRI/texture/mesh (see addons/animora_panel/operators.py:_load_asset) — but
+# is still intentionally omitted here: replicating it would require the
+# render worker to fetch the asset over the network, which this harness
+# doesn't do. Known limitation: any task that leans on load_asset for scene
+# content (environment HDRIs, ground textures, library meshes) will render
+# without that content. Flag affected tasks in the report rather than
+# silently trusting their scores.
 _TRANSLATORS = {
     "create_primitive": _create_primitive,
     "create_light": _create_light,
@@ -334,38 +343,72 @@ _TRANSLATORS = {
 }
 
 
+_SCRIPT_TOOL_NAMES = ("execute_animora_code", "execute_blender_script")
+
+
 def tool_calls_to_bpy_script(tool_calls: list[dict[str, Any]], real_script: str = "") -> str:
     """Build ONE directly-executable bpy script reproducing everything the
     agent did: every atomic tool call translated to real bpy.data/bmesh
-    calls (in order), plus the raw script from any execute_animora_code /
-    execute_blender_script call appended verbatim (that path already emits
-    valid bpy, no translation needed).
+    calls, plus the raw script from any execute_animora_code /
+    execute_blender_script call (that path already emits valid bpy, no
+    translation needed) — emitted IN THE SAME ORDER the agent actually
+    issued them.
 
-    Each atomic translation is wrapped in its own try/except so one bad
-    tool call (e.g. referencing an object the agent never actually created
-    due to a naming mismatch) can't take down the whole render — matches
-    the spirit of the addon's per-tool error isolation, just headless.
+    Order matters: later atomic calls routinely reference objects created
+    by an earlier escape-hatch script (e.g. apply_material on an object
+    the script built because no atomic primitive fits, like a curved
+    arch). Translating all atomics first and appending scripts at the end
+    would run those references before the object exists. `real_script` is
+    kept as a fallback for callers that only captured the last script
+    without per-call bodies; when a given execute_* tool_call has its own
+    `input.script`, that is used instead so multiple script calls each
+    land at their correct position.
+
+    Each translated/script step is wrapped in its own try/except so one
+    bad tool call (e.g. referencing an object the agent never actually
+    created due to a naming mismatch) can't take down the whole render —
+    matches the spirit of the addon's per-tool error isolation, just
+    headless.
     """
     lines: list[str] = [
         "import bpy",
         "import bmesh",
         "",
     ]
+    emitted_script = False
     for i, tc in enumerate(tool_calls):
         name = tc.get("name", "")
         inp = tc.get("input") or {}
+
+        if name in _SCRIPT_TOOL_NAMES:
+            script = str(inp.get("script", "")) or real_script
+            emitted_script = True
+            if not script.strip():
+                continue
+            lines.append(f"# --- tool call {i}: {name} (escape-hatch script) ---")
+            lines.append("try:")
+            lines.extend(f"    {ln}" for ln in script.splitlines())
+            lines.append("except Exception as _exc:")
+            lines.append(f"    print('[atomic_to_bpy] tool call {i} ({name}) failed:', _exc)")
+            lines.append("")
+            continue
+
         translator = _TRANSLATORS.get(name)
         if translator is None:
-            continue  # execute_* handled separately below; everything else is read-only/meta
+            continue  # read-only/meta tool, nothing to translate
         snippet = translator(inp)
         lines.append(f"# --- tool call {i}: {name} ---")
         lines.append("try:")
         lines.extend(f"    {ln}" for ln in snippet.splitlines())
+        # translators that skip (e.g. missing required fields) return a
+        # comment-only line — `try: <comment>` alone is an IndentationError,
+        # so always guarantee at least one real statement in the try body.
+        lines.append("    pass")
         lines.append("except Exception as _exc:")
         lines.append(f"    print('[atomic_to_bpy] tool call {i} ({name}) failed:', _exc)")
         lines.append("")
 
-    if real_script.strip():
+    if not emitted_script and real_script.strip():
         lines.append("# --- escape-hatch script (execute_animora_code/execute_blender_script) ---")
         lines.append("try:")
         lines.extend(f"    {ln}" for ln in real_script.splitlines())

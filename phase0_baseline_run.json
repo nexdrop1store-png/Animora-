@@ -1,0 +1,4267 @@
+[
+  {
+    "name": "geometry.cube_dimensions",
+    "category": "geometry",
+    "prompt": "Create a cube 2 meters wide, 1 meter tall, and 0.5 meters deep, centered at the origin.",
+    "ok": true,
+    "tool_call_count": 12,
+    "model": "claude-opus-4-7",
+    "input_tokens": 16987,
+    "output_tokens": 1705,
+    "orchestrator_elapsed_ms": 66390,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.cube_dimensions__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.cube_dimensions__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.cube_dimensions__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 27921,
+    "vlm_score": 7,
+    "vlm_matches_brief": true,
+    "vlm_notes": "The object is present and reads as a rectangular cuboid with clearly non-equal dimensions consistent with the 2\u00d71\u00d70.5 m spec (wider than tall, shallow depth). Lighting and material are clean; minor concern is that the third view introduces an unexplained secondary bright sphere artifact near the box, but the geometry itself appears correct.",
+    "vlm_error": "",
+    "cost_usd": 0.38268,
+    "vlm_cost_usd": 0.006906,
+    "tool_calls": [
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "HeroBox",
+          "location": [
+            0,
+            0,
+            0.5
+          ],
+          "scale": [
+            1.0,
+            0.25,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "StudioFloor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            10,
+            10,
+            1
+          ]
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "HeroBox",
+          "kind": "bevel",
+          "params": {
+            "width": 0.003,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "HeroBox",
+          "name": "SatinMetal",
+          "base_color": [
+            0.28,
+            0.28,
+            0.28,
+            1.0
+          ],
+          "roughness": 0.45,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "StudioFloor",
+          "name": "StudioGrey",
+          "base_color": [
+            0.25,
+            0.25,
+            0.25,
+            1.0
+          ],
+          "roughness": 0.7,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            3,
+            -2,
+            4
+          ],
+          "energy": 800,
+          "color": [
+            1.0,
+            0.96,
+            0.9
+          ],
+          "rotation": [
+            1.0,
+            0.0,
+            0.5
+          ],
+          "size": 2.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -3,
+            -1.5,
+            2.5
+          ],
+          "energy": 320,
+          "color": [
+            0.85,
+            0.9,
+            1.0
+          ],
+          "rotation": [
+            1.1,
+            0.0,
+            -0.6
+          ],
+          "size": 1.5
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            3,
+            3.5
+          ],
+          "energy": 500,
+          "color": [
+            1.0,
+            0.97,
+            0.92
+          ],
+          "rotation": [
+            0.6,
+            0.0,
+            3.14
+          ],
+          "size": 1.2
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            3.2,
+            -3.2,
+            1.8
+          ],
+          "rotation": [
+            1.2,
+            0.0,
+            0.85
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.012,
+            0.012,
+            0.012
+          ],
+          "strength": 1.0
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add anisotropic sheen to the top face",
+            "Swap material to brushed aluminium",
+            "Add a ground-contact shadow catcher",
+            "Render a final high-quality image",
+            "Add edge-wear highlights via procedural shader"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "geometry.table_leg",
+    "category": "geometry",
+    "prompt": "Model a simple table leg: a cylinder 8cm in diameter and 75cm tall, with a beveled top and bottom edge.",
+    "ok": false,
+    "tool_call_count": 15,
+    "model": "claude-opus-4-7",
+    "input_tokens": 29062,
+    "output_tokens": 2293,
+    "orchestrator_elapsed_ms": 93188,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.table_leg__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.table_leg__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.table_leg__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 23500,
+    "vlm_score": 2,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show a flat, diamond-shaped plane lit from above \u2014 there is no visible cylinder or table leg geometry present. The brief calls for a tall cylindrical form with beveled edges, which is entirely absent from all three viewpoints.",
+    "vlm_error": "",
+    "cost_usd": 0.607905,
+    "vlm_cost_usd": 0.006543,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "TableLeg",
+          "location": [
+            0,
+            0,
+            0.375
+          ],
+          "scale": [
+            0.04,
+            0.04,
+            0.375
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            2,
+            2,
+            1
+          ]
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "TableLeg",
+          "kind": "bevel",
+          "params": {
+            "width": 0.004,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "TableLeg",
+          "name": "LacqueredHardwood",
+          "base_color": [
+            0.55,
+            0.42,
+            0.3,
+            1.0
+          ],
+          "roughness": 0.35,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "StudioBackdrop",
+          "base_color": [
+            0.91,
+            0.91,
+            0.91,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            0.5,
+            -0.6,
+            0.8
+          ],
+          "energy": 150,
+          "color": [
+            1.0,
+            0.96,
+            0.92
+          ],
+          "rotation": [
+            1.0,
+            0,
+            0.4
+          ],
+          "size": 0.6
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -0.5,
+            -0.4,
+            0.5
+          ],
+          "energy": 50,
+          "color": [
+            0.92,
+            0.95,
+            1.0
+          ],
+          "rotation": [
+            1.0,
+            0,
+            -0.4
+          ],
+          "size": 0.5
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            0.6,
+            0.9
+          ],
+          "energy": 80,
+          "color": [
+            1.0,
+            0.98,
+            0.95
+          ],
+          "rotation": [
+            -0.8,
+            0,
+            3.14
+          ],
+          "size": 0.3
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            0.35,
+            -0.7,
+            0.4
+          ],
+          "rotation": [
+            1.3,
+            0,
+            0.25
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.studio_neutral",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.studio_neutral\\2k.hdr",
+          "name": "Brown Photostudio Neutral",
+          "target": "",
+          "polyhaven_id": "brown_photostudio_02"
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "script": "\nimport bpy\n\n# Smooth shade the table leg for proper cylindrical silhouette\nleg = bpy.data.objects['TableLeg']\nbpy.context.view_layer.objects.active = leg\nleg.select_set(True)\nbpy.ops.object.shade_smooth()\nleg.select_set(False)\n",
+          "intent_summary": "Smooth shade table leg cylinder"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add three more legs and a tabletop to complete a table",
+            "Apply a weathered oak texture for more grain detail",
+            "Duplicate into an array of turned legs with varying profiles",
+            "Add a decorative chamfer ring detail at mid-height"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "geometry.stone_archway",
+    "category": "geometry",
+    "prompt": "Model a simple stone archway: two rectangular pillars supporting a curved arch on top, with a doorway roughly 1 meter wide and 2.2 meters tall.",
+    "ok": false,
+    "tool_call_count": 46,
+    "model": "claude-opus-4-7",
+    "input_tokens": 172898,
+    "output_tokens": 15335,
+    "orchestrator_elapsed_ms": 299640,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.stone_archway__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.stone_archway__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.stone_archway__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 40952,
+    "vlm_score": 2,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show only a thin curved arch/handle-like form resting on a flat plane \u2014 there are no rectangular pillars, no doorway opening, and no structural archway as specified in the brief. The model is completely missing the core architectural elements required.",
+    "vlm_error": "",
+    "cost_usd": 3.743595,
+    "vlm_cost_usd": 0.006645,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ground",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            3,
+            3,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Pillar_Left",
+          "location": [
+            -0.7,
+            0,
+            1.2
+          ],
+          "scale": [
+            0.2,
+            0.175,
+            1.2
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Pillar_Right",
+          "location": [
+            0.7,
+            0,
+            1.2
+          ],
+          "scale": [
+            0.2,
+            0.175,
+            1.2
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_L1",
+          "location": [
+            -0.85,
+            0.15,
+            0.02
+          ],
+          "scale": [
+            0.035,
+            0.025,
+            0.02
+          ],
+          "rotation": [
+            0.3,
+            0.8,
+            1.2
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_L2",
+          "location": [
+            -0.55,
+            -0.13,
+            0.015
+          ],
+          "scale": [
+            0.02,
+            0.015,
+            0.012
+          ],
+          "rotation": [
+            1.1,
+            0.4,
+            2.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_L3",
+          "location": [
+            -0.78,
+            -0.2,
+            0.025
+          ],
+          "scale": [
+            0.03,
+            0.02,
+            0.018
+          ],
+          "rotation": [
+            2.0,
+            1.5,
+            0.6
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_R1",
+          "location": [
+            0.82,
+            0.1,
+            0.02
+          ],
+          "scale": [
+            0.028,
+            0.022,
+            0.016
+          ],
+          "rotation": [
+            0.7,
+            2.1,
+            1.8
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_R2",
+          "location": [
+            0.6,
+            -0.16,
+            0.015
+          ],
+          "scale": [
+            0.018,
+            0.025,
+            0.013
+          ],
+          "rotation": [
+            1.9,
+            0.2,
+            3.0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "ico_sphere",
+          "name": "Debris_R3",
+          "location": [
+            0.75,
+            0.22,
+            0.025
+          ],
+          "scale": [
+            0.032,
+            0.02,
+            0.022
+          ],
+          "rotation": [
+            0.5,
+            1.3,
+            2.2
+          ]
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Create semicircular stone arch with rectangular cross-section spanning between pillars",
+          "script": "\nimport bpy\nimport bmesh\nimport math\n\n# Arch parameters\ninner_radius = 0.5    # half of 1.0m doorway width\nouter_radius = 0.65   # voussoir thickness 0.15m\ndepth = 0.35          # matches pillar depth\nspring_height = 2.2   # where arch begins (doorway height)\nsegments = 32         # smooth semicircle\n\n# Create mesh and object\nmesh = bpy.data.meshes.new(\"Arch_mesh\")\nobj = bpy.data.objects.new(\"Arch\", mesh)\nbpy.context.collection.objects.link(obj)\n\nbm = bmesh.new()\n\nhalf_depth = depth / 2.0\n\n# Build vertex rings for the semicircle (angle 0 = right spring, pi = left spring)\nverts_inner_front = []\nverts_outer_front = []\nverts_inner_back = []\nverts_outer_back = []\n\nfor i in range(segments + 1):\n    angle = math.pi * i / segments\n    cos_a = math.cos(angle)\n    sin_a = math.sin(angle)\n    \n    ix = inner_radius * cos_a\n    iz = inner_radius * sin_a + spring_height\n    ox = outer_radius * cos_a\n    oz = outer_radius * sin_a + spring_height\n    \n    verts_inner_front.append(bm.verts.new((ix, -half_depth, iz)))\n    verts_outer_front.append(bm.verts.new((ox, -half_depth, iz)))\n    verts_inner_back.append(bm.verts.new((ix, half_depth, iz)))\n    verts_outer_back.append(bm.verts.new((ox, half_depth, iz)))\n\nbm.verts.ensure_lookup_table()\n\n# Create faces for each segment\nfor i in range(segments):\n    # Outer face (extrados) - normal pointing outward\n    bm.faces.new([verts_outer_front[i], verts_outer_back[i], verts_outer_back[i+1], verts_outer_front[i+1]])\n    # Inner face (intrados) - normal pointing inward (toward doorway)\n    bm.faces.new([verts_inner_front[i], verts_inner_front[i+1], verts_inner_back[i+1], verts_inner_back[i]])\n    # Front face - normal pointing toward camera (-Y)\n    bm.faces.new([verts_outer_front[i], verts_outer_front[i+1], verts_inner_front[i+1], verts_inner_front[i]])\n    # Back face - normal pointing away from camera (+Y)\n    bm.faces.new([verts_inner_back[i], verts_inner_back[i+1], verts_outer_back[i+1], verts_outer_back[i]])\n\n# End caps at spring line (left and right)\n# Right end cap (i=0, x=+radius)\nbm.faces.new([verts_outer_front[0], verts_inner_front[0], verts_inner_back[0], verts_outer_back[0]])\n# Left end cap (i=segments, x=-radius)\nbm.faces.new([verts_inner_front[segments], verts_outer_front[segments], verts_outer_back[segments], verts_inner_back[segments]])\n\n# Recalculate normals\nbmesh.ops.recalc_face_normals(bm, faces=bm.faces)\n\nbm.to_mesh(mesh)\nbm.free()\n\nmesh.update()\n\n# Apply smooth shading\nfor poly in mesh.polygons:\n    poly.use_smooth = True\n"
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.noon_overcast",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.noon_overcast\\2k.hdr",
+          "name": "Studio Country Hall",
+          "target": "",
+          "polyhaven_id": "studio_country_hall"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            -2.5,
+            -3,
+            4.5
+          ],
+          "energy": 400,
+          "color": [
+            0.92,
+            0.95,
+            1.0
+          ],
+          "rotation": [
+            0.9,
+            -0.3,
+            0.2
+          ],
+          "size": 2.5
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            2.5,
+            -1.5,
+            2.5
+          ],
+          "energy": 240,
+          "color": [
+            0.87,
+            0.92,
+            1.0
+          ],
+          "rotation": [
+            1.1,
+            0.3,
+            -0.4
+          ],
+          "size": 2.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            3.5,
+            3.5
+          ],
+          "energy": 250,
+          "color": [
+            1.0,
+            0.84,
+            0.67
+          ],
+          "rotation": [
+            2.2,
+            0,
+            0
+          ],
+          "size": 1.5
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "Camera_Hero",
+          "location": [
+            0,
+            -4.5,
+            1.35
+          ],
+          "rotation": [
+            1.48,
+            0,
+            0
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Pillar_Left",
+          "name": "Limestone",
+          "base_color": [
+            0.26,
+            0.22,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.85,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Pillar_Right",
+          "name": "Limestone",
+          "base_color": [
+            0.26,
+            0.22,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.85,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Arch",
+          "name": "Limestone",
+          "base_color": [
+            0.26,
+            0.22,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.85,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Ground",
+          "name": "StonePavement",
+          "base_color": [
+            0.22,
+            0.19,
+            0.16,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_L1",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_L2",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_L3",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_R1",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_R2",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Debris_R3",
+          "name": "DebrisStone",
+          "base_color": [
+            0.2,
+            0.17,
+            0.14,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Pillar_Left",
+          "kind": "bevel",
+          "params": {
+            "width": 0.008,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Pillar_Right",
+          "kind": "bevel",
+          "params": {
+            "width": 0.008,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Pillar_Left",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Pillar_Right",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Arch",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_L1",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_L2",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_L3",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_R1",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_R2",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Debris_R3",
+          "parent": "Ground"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Arch",
+          "kind": "bevel",
+          "params": {
+            "width": 0.006,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Assign lighter intrados material to inner arch faces for material contrast",
+          "script": "\nimport bpy\nimport math\n\n# Get the arch object\narch = bpy.data.objects[\"Arch\"]\n\n# Create intrados material (slightly lighter, smoother stone)\nmat_intrados = bpy.data.materials.new(name=\"Limestone_Intrados\")\nmat_intrados.use_nodes = True\nbsdf = mat_intrados.node_tree.nodes.get(\"Principled BSDF\")\nif bsdf:\n    # Try Blender 4.0+ input names first, fallback to older\n    for input_name in (\"Base Color\", \"base_color\"):\n        inp = bsdf.inputs.get(input_name)\n        if inp:\n            inp.default_value = (0.30, 0.26, 0.22, 1.0)\n            break\n    for input_name in (\"Roughness\", \"roughness\"):\n        inp = bsdf.inputs.get(input_name)\n        if inp:\n            inp.default_value = 0.78\n            break\n    for input_name in (\"Metallic\", \"metallic\"):\n        inp = bsdf.inputs.get(input_name)\n        if inp:\n            inp.default_value = 0.0\n            break\n\n# Add the intrados material as a second slot\narch.data.materials.append(mat_intrados)\n\n# Assign intrados material to inner-facing faces\n# Inner faces are those whose normal points roughly toward center (inward)\n# In our arch: inner faces have normals pointing toward the arch center\n# The arch center is at (0, 0, 2.2). Inner faces point TOWARD this center.\nmesh = arch.data\nmesh.update()\n\n# Material indices: 0 = Limestone (outer), 1 = Limestone_Intrados (inner)\n# Inner faces are those between inner_front and inner_back vertex rings\n# In our construction, every 4th face starting from index 1 is an inner face\n# Pattern: outer(0), inner(1), front(2), back(3), outer(4), inner(5)...\n# So inner faces are at indices 1, 5, 9, 13, ... (every 4th starting at 1)\nsegments = 32\nfor i in range(segments):\n    face_idx = i * 4 + 1  # inner face index in our construction order\n    if face_idx < len(mesh.polygons):\n        mesh.polygons[face_idx].material_index = 1\n\nmesh.update()\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "set_transform",
+        "input": {
+          "name": "Camera_Hero",
+          "location": [
+            0,
+            -5.2,
+            1.3
+          ],
+          "rotation": [
+            1.5,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "texture.rocky_ground",
+          "kind": "texture",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\texture.rocky_ground\\2k.blend",
+          "name": "Rock Ground",
+          "target": "Ground",
+          "polyhaven_id": "rocky_terrain_02"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add weathering and moss growth on the arch stones",
+            "Place the archway in an outdoor courtyard scene",
+            "Add a second matching archway to create a colonnade",
+            "Swap to a Gothic pointed-arch profile",
+            "Add torch sconces on the pillar faces"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "geometry.low_poly_tree",
+    "category": "geometry",
+    "prompt": "Model a simple low-poly tree: a cylindrical trunk and a cone-shaped canopy on top.",
+    "ok": false,
+    "tool_call_count": 15,
+    "model": "claude-opus-4-7",
+    "input_tokens": 21445,
+    "output_tokens": 2867,
+    "orchestrator_elapsed_ms": 79938,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.low_poly_tree__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.low_poly_tree__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\geometry.low_poly_tree__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 24765,
+    "vlm_score": 2,
+    "vlm_matches_brief": false,
+    "vlm_notes": "Only a cylindrical trunk is present; the cone-shaped canopy (the defining feature of the brief) is entirely missing. The result is an incomplete model that does not read as a tree.",
+    "vlm_error": "",
+    "cost_usd": 0.5367,
+    "vlm_cost_usd": 0.00639,
+    "tool_calls": [
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Tree_Trunk",
+          "location": [
+            0,
+            0,
+            0.6
+          ],
+          "scale": [
+            0.15,
+            0.15,
+            0.6
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cone",
+          "name": "Tree_Canopy",
+          "location": [
+            0,
+            0,
+            2.1
+          ],
+          "scale": [
+            0.6,
+            0.6,
+            0.9
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ground_Plane",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            2,
+            2,
+            1
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Tree_Trunk",
+          "name": "WarmBrown_Wood",
+          "base_color": [
+            0.48,
+            0.31,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Tree_Canopy",
+          "name": "MuteGreen_Foliage",
+          "base_color": [
+            0.29,
+            0.48,
+            0.24,
+            1.0
+          ],
+          "roughness": 0.95,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Ground_Plane",
+          "name": "NeutralGrey_Ground",
+          "base_color": [
+            0.7,
+            0.7,
+            0.7,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Tree_Canopy",
+          "parent": "Tree_Trunk"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            3,
+            -3,
+            4
+          ],
+          "energy": 300,
+          "color": [
+            1.0,
+            0.96,
+            0.9
+          ],
+          "size": 2,
+          "rotation": [
+            1.0,
+            0,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -3,
+            -2,
+            2.5
+          ],
+          "energy": 150,
+          "color": [
+            0.85,
+            0.88,
+            1.0
+          ],
+          "size": 2,
+          "rotation": [
+            0.8,
+            0,
+            -0.5
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            4,
+            3.5
+          ],
+          "energy": 200,
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": 1.5,
+          "rotation": [
+            0.6,
+            0,
+            3.14
+          ]
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            4,
+            -4,
+            2.5
+          ],
+          "rotation": [
+            1.15,
+            0,
+            0.78
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.85,
+            0.85,
+            0.88
+          ],
+          "strength": 0.5
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add more low-poly trees in a small cluster",
+            "Place the tree in a grassy scene environment",
+            "Add a low-poly rock at the base",
+            "Swap the canopy to a rounder sphere shape",
+            "Render a final high-quality image"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "placement.dining_table_setting",
+    "category": "placement",
+    "prompt": "Place a rectangular dining table with four chairs around it, one on each side, all facing the table.",
+    "ok": false,
+    "tool_call_count": 2,
+    "model": "claude-opus-4-7",
+    "input_tokens": 2145,
+    "output_tokens": 16407,
+    "orchestrator_elapsed_ms": 252671,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.dining_table_setting__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.dining_table_setting__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.dining_table_setting__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 15031,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "All three renders are completely black \u2014 no scene content is visible whatsoever. There is no table, no chairs, and no 3D work to evaluate.",
+    "vlm_error": "",
+    "cost_usd": 1.2627,
+    "vlm_cost_usd": 0.006282,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Build complete dining table with 4 chairs, materials, studio lighting, and hero camera"
+        }
+      }
+    ]
+  },
+  {
+    "name": "placement.bookshelf_arrangement",
+    "category": "placement",
+    "prompt": "Create a bookshelf (a tall box with 3 shelves) and place 5 small box 'books' standing upright on the middle shelf.",
+    "ok": false,
+    "tool_call_count": 62,
+    "model": "claude-opus-4-7",
+    "input_tokens": 94073,
+    "output_tokens": 11867,
+    "orchestrator_elapsed_ms": 187405,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.bookshelf_arrangement__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.bookshelf_arrangement__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.bookshelf_arrangement__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 24952,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show only a flat white plane (floor/ground) with a single thin vertical black stick \u2014 there is no bookshelf, no shelves, and no books present whatsoever. The build completely fails to satisfy the brief.",
+    "vlm_error": "",
+    "cost_usd": 2.30112,
+    "vlm_cost_usd": 0.006564,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Left_Panel",
+          "location": [
+            -0.19,
+            0,
+            0.9
+          ],
+          "scale": [
+            0.01,
+            0.125,
+            0.9
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Right_Panel",
+          "location": [
+            0.19,
+            0,
+            0.9
+          ],
+          "scale": [
+            0.01,
+            0.125,
+            0.9
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Top",
+          "location": [
+            0,
+            0,
+            1.79
+          ],
+          "scale": [
+            0.2,
+            0.125,
+            0.01
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Bottom",
+          "location": [
+            0,
+            0,
+            0.01
+          ],
+          "scale": [
+            0.2,
+            0.125,
+            0.01
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Back",
+          "location": [
+            0,
+            0.12,
+            0.9
+          ],
+          "scale": [
+            0.2,
+            0.005,
+            0.9
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Lower",
+          "location": [
+            0,
+            0,
+            0.3
+          ],
+          "scale": [
+            0.18,
+            0.125,
+            0.01
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Middle",
+          "location": [
+            0,
+            0,
+            0.85
+          ],
+          "scale": [
+            0.18,
+            0.125,
+            0.01
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Shelf_Upper",
+          "location": [
+            0,
+            0,
+            1.4
+          ],
+          "scale": [
+            0.18,
+            0.125,
+            0.01
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Book_Red",
+          "location": [
+            -0.12,
+            -0.01,
+            0.96
+          ],
+          "scale": [
+            0.02,
+            0.075,
+            0.1
+          ],
+          "rotation": [
+            0,
+            0.02,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Book_Olive",
+          "location": [
+            -0.06,
+            -0.01,
+            0.97
+          ],
+          "scale": [
+            0.025,
+            0.075,
+            0.11
+          ],
+          "rotation": [
+            0,
+            -0.015,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Book_Navy",
+          "location": [
+            0.0,
+            -0.01,
+            0.955
+          ],
+          "scale": [
+            0.015,
+            0.075,
+            0.095
+          ],
+          "rotation": [
+            0,
+            0.03,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Book_Ochre",
+          "location": [
+            0.06,
+            -0.01,
+            0.965
+          ],
+          "scale": [
+            0.0225,
+            0.075,
+            0.105
+          ],
+          "rotation": [
+            0,
+            -0.02,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Book_Slate",
+          "location": [
+            0.12,
+            -0.01,
+            0.95
+          ],
+          "scale": [
+            0.0175,
+            0.075,
+            0.09
+          ],
+          "rotation": [
+            0,
+            0.025,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            3,
+            3,
+            1
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Left_Panel",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Right_Panel",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Top",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Bottom",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Back",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Lower",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Middle",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Shelf_Upper",
+          "name": "WarmOak",
+          "base_color": [
+            0.25,
+            0.11,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.6,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Book_Red",
+          "name": "DustyRed",
+          "base_color": [
+            0.35,
+            0.06,
+            0.05,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Book_Olive",
+          "name": "OliveGreen",
+          "base_color": [
+            0.12,
+            0.18,
+            0.05,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Book_Navy",
+          "name": "NavyBlue",
+          "base_color": [
+            0.02,
+            0.03,
+            0.15,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Book_Ochre",
+          "name": "Ochre",
+          "base_color": [
+            0.45,
+            0.25,
+            0.04,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Book_Slate",
+          "name": "SlateGrey",
+          "base_color": [
+            0.15,
+            0.16,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "StudioFloor",
+          "base_color": [
+            0.7,
+            0.68,
+            0.65,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Left_Panel",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Right_Panel",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Top",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Bottom",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Lower",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Middle",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Shelf_Upper",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Book_Red",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 1
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Book_Olive",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 1
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Book_Navy",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 1
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Book_Ochre",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 1
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Book_Slate",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 1
+          }
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Right_Panel",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Top",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Bottom",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Back",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Lower",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Middle",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Shelf_Upper",
+          "parent": "Shelf_Left_Panel"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Book_Red",
+          "parent": "Shelf_Middle"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Book_Olive",
+          "parent": "Shelf_Middle"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Book_Navy",
+          "parent": "Shelf_Middle"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Book_Ochre",
+          "parent": "Shelf_Middle"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Book_Slate",
+          "parent": "Shelf_Middle"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            2.0,
+            -1.5,
+            2.5
+          ],
+          "energy": 300,
+          "color": [
+            1.0,
+            0.95,
+            0.9
+          ],
+          "size": 1.5,
+          "rotation": [
+            -0.6,
+            0.3,
+            0.2
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -1.8,
+            -1.0,
+            1.5
+          ],
+          "energy": 100,
+          "color": [
+            0.85,
+            0.9,
+            1.0
+          ],
+          "size": 1.2,
+          "rotation": [
+            -0.4,
+            -0.3,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            2.0,
+            2.5
+          ],
+          "energy": 200,
+          "color": [
+            1.0,
+            0.97,
+            0.92
+          ],
+          "size": 0.8,
+          "rotation": [
+            -1.2,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            1.2,
+            -1.8,
+            1.0
+          ],
+          "rotation": [
+            1.35,
+            0,
+            0.55
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.85,
+            0.82,
+            0.78
+          ],
+          "strength": 0.3
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add more books to the other shelves",
+            "Apply a wood grain texture from PolyHaven",
+            "Add a decorative object (plant or vase) on the top shelf",
+            "Change the book colors or add spine text detail",
+            "Render a final high-quality image"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "placement.picnic_scene",
+    "category": "placement",
+    "prompt": "Arrange a picnic scene: a round table in the center with 4 stools placed evenly around it, and a small basket placed on top of the table.",
+    "ok": true,
+    "tool_call_count": 43,
+    "model": "claude-opus-4-7",
+    "input_tokens": 88076,
+    "output_tokens": 6362,
+    "orchestrator_elapsed_ms": 154344,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.picnic_scene__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.picnic_scene__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.picnic_scene__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 22172,
+    "vlm_score": 7,
+    "vlm_matches_brief": true,
+    "vlm_notes": "The scene contains a round table centered on the green platform with 4 stools evenly distributed around it and what appears to be a small basket on top \u2014 matching all brief requirements. The low-poly aesthetic is consistent and competent, though the scale of furniture relative to the platform feels quite small and the overall composition could benefit from better proportioning.",
+    "vlm_error": "",
+    "cost_usd": 1.79829,
+    "vlm_cost_usd": 0.006912,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.golden_hour_field",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.golden_hour_field\\2k.hdr",
+          "name": "Sunset in the Chalk Quarry",
+          "target": "",
+          "polyhaven_id": "sunset_in_the_chalk_quarry"
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ground_Grass",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            5,
+            5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Table_Top",
+          "location": [
+            0,
+            0,
+            0.75
+          ],
+          "scale": [
+            0.45,
+            0.45,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Table_Pedestal",
+          "location": [
+            0,
+            0,
+            0.375
+          ],
+          "scale": [
+            0.05,
+            0.05,
+            0.375
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Table_Base",
+          "location": [
+            0,
+            0,
+            0.03
+          ],
+          "scale": [
+            0.2,
+            0.2,
+            0.03
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Stool_Seat_N",
+          "location": [
+            0,
+            1.0,
+            0.45
+          ],
+          "scale": [
+            0.18,
+            0.18,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Stool_Seat_E",
+          "location": [
+            1.0,
+            0,
+            0.45
+          ],
+          "scale": [
+            0.18,
+            0.18,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Stool_Seat_S",
+          "location": [
+            0,
+            -1.0,
+            0.45
+          ],
+          "scale": [
+            0.18,
+            0.18,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Stool_Seat_W",
+          "location": [
+            -1.0,
+            0,
+            0.45
+          ],
+          "scale": [
+            0.18,
+            0.18,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Basket_Body",
+          "location": [
+            0,
+            0,
+            0.895
+          ],
+          "scale": [
+            0.15,
+            0.15,
+            0.125
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "torus",
+          "name": "Basket_Handle",
+          "location": [
+            0,
+            0,
+            1.07
+          ],
+          "scale": [
+            0.1,
+            0.04,
+            0.08
+          ],
+          "rotation": [
+            1.5708,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Create 16 stool legs (4 per stool) at correct positions",
+          "script": "\nimport bpy\nimport math\n\n# Stool positions (center of each stool)\nstool_positions = {\n    'N': (0, 1.0),\n    'E': (1.0, 0),\n    'S': (0, -1.0),\n    'W': (-1.0, 0),\n}\n\nleg_radius = 0.015\nleg_height = 0.45\nleg_offset = 0.12  # offset from stool center for each leg\n\nfor direction, (sx, sy) in stool_positions.items():\n    # 4 legs per stool, arranged in a square pattern\n    offsets = [\n        (leg_offset, leg_offset),\n        (leg_offset, -leg_offset),\n        (-leg_offset, leg_offset),\n        (-leg_offset, -leg_offset),\n    ]\n    for i, (ox, oy) in enumerate(offsets):\n        name = f\"Stool_Leg_{direction}_{i+1}\"\n        bpy.ops.mesh.primitive_cylinder_add(\n            radius=leg_radius,\n            depth=leg_height,\n            location=(sx + ox, sy + oy, leg_height / 2)\n        )\n        obj = bpy.context.active_object\n        obj.name = name\n"
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Ground_Grass",
+          "name": "Mat_Grass",
+          "base_color": [
+            0.12,
+            0.28,
+            0.06,
+            1.0
+          ],
+          "roughness": 0.9
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Table_Top",
+          "name": "Mat_Oak_Wood",
+          "base_color": [
+            0.35,
+            0.22,
+            0.1,
+            1.0
+          ],
+          "roughness": 0.6
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Table_Pedestal",
+          "name": "Mat_Oak_Wood",
+          "base_color": [
+            0.35,
+            0.22,
+            0.1,
+            1.0
+          ],
+          "roughness": 0.6
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Table_Base",
+          "name": "Mat_Oak_Wood",
+          "base_color": [
+            0.35,
+            0.22,
+            0.1,
+            1.0
+          ],
+          "roughness": 0.6
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Stool_Seat_N",
+          "name": "Mat_Stool_Wood",
+          "base_color": [
+            0.4,
+            0.26,
+            0.13,
+            1.0
+          ],
+          "roughness": 0.55
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Stool_Seat_E",
+          "name": "Mat_Stool_Wood",
+          "base_color": [
+            0.4,
+            0.26,
+            0.13,
+            1.0
+          ],
+          "roughness": 0.55
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Stool_Seat_S",
+          "name": "Mat_Stool_Wood",
+          "base_color": [
+            0.4,
+            0.26,
+            0.13,
+            1.0
+          ],
+          "roughness": 0.55
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Stool_Seat_W",
+          "name": "Mat_Stool_Wood",
+          "base_color": [
+            0.4,
+            0.26,
+            0.13,
+            1.0
+          ],
+          "roughness": 0.55
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Basket_Body",
+          "name": "Mat_Wicker",
+          "base_color": [
+            0.55,
+            0.42,
+            0.22,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Basket_Handle",
+          "name": "Mat_Wicker",
+          "base_color": [
+            0.55,
+            0.42,
+            0.22,
+            1.0
+          ],
+          "roughness": 0.85
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Apply stool wood material to all 16 stool legs",
+          "script": "\nimport bpy\n\n# Get or reuse the stool wood material\nmat = bpy.data.materials.get(\"Mat_Stool_Wood\")\n\nfor direction in ['N', 'E', 'S', 'W']:\n    for i in range(1, 5):\n        name = f\"Stool_Leg_{direction}_{i}\"\n        obj = bpy.data.objects.get(name)\n        if obj:\n            obj.data.materials.clear()\n            obj.data.materials.append(mat)\n"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "sun",
+          "name": "Key_Sun",
+          "location": [
+            3,
+            -2,
+            5
+          ],
+          "energy": 4.5,
+          "rotation": [
+            0.785,
+            0,
+            0.52
+          ],
+          "color": [
+            1.0,
+            0.9,
+            0.75
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "Fill_Sky",
+          "location": [
+            -3,
+            2,
+            3
+          ],
+          "energy": 150,
+          "rotation": [
+            1.0,
+            0,
+            -0.6
+          ],
+          "color": [
+            0.7,
+            0.8,
+            1.0
+          ],
+          "size": 3
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "Rim_Warm",
+          "location": [
+            -1,
+            3,
+            2
+          ],
+          "energy": 80,
+          "rotation": [
+            1.2,
+            0,
+            3.14
+          ],
+          "color": [
+            1.0,
+            0.85,
+            0.6
+          ],
+          "size": 2
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "Hero_Camera",
+          "location": [
+            2.8,
+            -2.5,
+            1.4
+          ],
+          "rotation": [
+            1.25,
+            0,
+            0.82
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Table_Top",
+          "parent": "Table_Pedestal"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Table_Base",
+          "parent": "Table_Pedestal"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Basket_Handle",
+          "parent": "Basket_Body"
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Table_Top",
+          "kind": "bevel",
+          "params": {
+            "width": 0.008,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Table_Base",
+          "kind": "bevel",
+          "params": {
+            "width": 0.005,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Stool_Seat_N",
+          "kind": "bevel",
+          "params": {
+            "width": 0.006,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Stool_Seat_E",
+          "kind": "bevel",
+          "params": {
+            "width": 0.006,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Stool_Seat_S",
+          "kind": "bevel",
+          "params": {
+            "width": 0.006,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Stool_Seat_W",
+          "kind": "bevel",
+          "params": {
+            "width": 0.006,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Basket_Body",
+          "kind": "bevel",
+          "params": {
+            "width": 0.004,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Parent stool legs to their respective seat objects",
+          "script": "\nimport bpy\n\nfor direction in ['N', 'E', 'S', 'W']:\n    seat = bpy.data.objects.get(f\"Stool_Seat_{direction}\")\n    if seat:\n        for i in range(1, 5):\n            leg = bpy.data.objects.get(f\"Stool_Leg_{direction}_{i}\")\n            if leg:\n                leg.parent = seat\n                leg.matrix_parent_inverse = seat.matrix_world.inverted()\n"
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "texture.weathered_oak",
+          "kind": "texture",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\texture.weathered_oak\\2k.blend",
+          "name": "Weathered Oak Wood",
+          "target": "Table_Top",
+          "polyhaven_id": "weathered_planks"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Ground_Grass",
+          "kind": "subdivision_surface",
+          "params": {
+            "levels": 2
+          }
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      }
+    ]
+  },
+  {
+    "name": "placement.parking_row",
+    "category": "placement",
+    "prompt": "Place three identical car-sized boxes in a row, evenly spaced, as if parked side by side in a parking lot.",
+    "ok": true,
+    "tool_call_count": 9,
+    "model": "claude-opus-4-7",
+    "input_tokens": 1981,
+    "output_tokens": 16407,
+    "orchestrator_elapsed_ms": 278405,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.parking_row__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.parking_row__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\placement.parking_row__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 26359,
+    "vlm_score": 8,
+    "vlm_matches_brief": true,
+    "vlm_notes": "Three identical rectangular box forms are clearly arranged in an evenly-spaced row on a flat ground plane, reading convincingly as parked car-sized volumes. Lighting and shading are clean and consistent across all three viewpoints, confirming competent 3D construction.",
+    "vlm_error": "",
+    "cost_usd": 1.26024,
+    "vlm_cost_usd": 0.006663,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Box_Left",
+          "location": [
+            -2.7,
+            0,
+            0.75
+          ],
+          "scale": [
+            0.9,
+            2.25,
+            0.75
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Box_Center",
+          "location": [
+            0,
+            0,
+            0.75
+          ],
+          "scale": [
+            0.9,
+            2.25,
+            0.75
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Box_Right",
+          "location": [
+            2.7,
+            0,
+            0.75
+          ],
+          "scale": [
+            0.9,
+            2.25,
+            0.75
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ground_Asphalt",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            8,
+            6,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "ParkingLine_1",
+          "location": [
+            -3.6,
+            0,
+            0.002
+          ],
+          "scale": [
+            0.06,
+            2.5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "ParkingLine_2",
+          "location": [
+            -1.35,
+            0,
+            0.002
+          ],
+          "scale": [
+            0.06,
+            2.5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "ParkingLine_3",
+          "location": [
+            1.35,
+            0,
+            0.002
+          ],
+          "scale": [
+            0.06,
+            2.5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {}
+      }
+    ]
+  },
+  {
+    "name": "lighting.three_point_portrait",
+    "category": "lighting",
+    "prompt": "Set up a classic three-point lighting rig (key, fill, rim) aimed at a sphere placed at the origin representing a subject.",
+    "ok": true,
+    "tool_call_count": 8,
+    "model": "claude-opus-4-7",
+    "input_tokens": 1937,
+    "output_tokens": 16407,
+    "orchestrator_elapsed_ms": 289000,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.three_point_portrait__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.three_point_portrait__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.three_point_portrait__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 26047,
+    "vlm_score": 6,
+    "vlm_matches_brief": true,
+    "vlm_notes": "A sphere is present at the origin and lighting differentiation is visible across the renders, suggesting multiple light sources are set up. However, the classic three-point rig is not clearly readable \u2014 the rim/backlight is not distinctly visible as a separate highlight on the sphere's edge, and the overall contrast balance between key, fill, and rim feels underdeveloped.",
+    "vlm_error": "",
+    "cost_usd": 1.25958,
+    "vlm_cost_usd": 0.006966,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "sphere",
+          "name": "Subject_Sphere",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            -0.5
+          ],
+          "scale": [
+            5,
+            5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Backdrop_Wall",
+          "location": [
+            0,
+            4,
+            2
+          ],
+          "rotation": [
+            1.5708,
+            0,
+            0
+          ],
+          "scale": [
+            5,
+            2.5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.02,
+            0.02,
+            0.02
+          ],
+          "strength": 1.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Subject_Sphere",
+          "name": "Mat_WhiteMatte",
+          "base_color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "Mat_StudioGrey",
+          "base_color": [
+            0.18,
+            0.18,
+            0.18,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Backdrop_Wall",
+          "name": "Mat_DarkBackdrop",
+          "base_color": [
+            0.02,
+            0.02,
+            0.02,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      }
+    ]
+  },
+  {
+    "name": "lighting.warm_sunset_interior",
+    "category": "lighting",
+    "prompt": "Light an empty room (a simple box interior) with warm, low-angle sunset light coming through one wall, like late afternoon sun.",
+    "ok": false,
+    "tool_call_count": 2,
+    "model": "claude-opus-4-7",
+    "input_tokens": 2131,
+    "output_tokens": 16407,
+    "orchestrator_elapsed_ms": 307155,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.warm_sunset_interior__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.warm_sunset_interior__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.warm_sunset_interior__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 15811,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "All three renders are completely black with no visible geometry, lighting, or scene content whatsoever. There is no room, no sunset light, and no 3D work visible \u2014 the renders appear to have failed entirely.",
+    "vlm_error": "",
+    "cost_usd": 1.26249,
+    "vlm_cost_usd": 0.006483,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Build empty room interior (5\u00d76\u00d73m) with window cutout in far wall, window jamb reveals, procedural concrete floor and plaster wall materials, Cycles render settings"
+        }
+      }
+    ]
+  },
+  {
+    "name": "lighting.moody_spotlight",
+    "category": "lighting",
+    "prompt": "Light a single cube dramatically with one strong spotlight from above and no other light sources, creating hard shadows.",
+    "ok": true,
+    "tool_call_count": 11,
+    "model": "claude-opus-4-7",
+    "input_tokens": 58341,
+    "output_tokens": 8493,
+    "orchestrator_elapsed_ms": 197702,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.moody_spotlight__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.moody_spotlight__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\lighting.moody_spotlight__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 22813,
+    "vlm_score": 7,
+    "vlm_matches_brief": true,
+    "vlm_notes": "A single cube is lit by a strong spotlight from above, creating clear light/dark face contrast and a visible cast shadow on the ground plane. The shadows read as relatively hard-edged and dramatic, though the spotlight halo is somewhat soft and the scene could benefit from a sharper shadow terminator to fully sell 'hard shadows.'",
+    "vlm_error": "",
+    "cost_usd": 1.51209,
+    "vlm_cost_usd": 0.006822,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "HeroCube",
+          "location": [
+            0,
+            0,
+            0.5
+          ],
+          "scale": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "ShadowGround",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "spot",
+          "name": "KeySpot_Above",
+          "location": [
+            0.57,
+            -0.57,
+            3.5
+          ],
+          "energy": 1000,
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "rotation": [
+            0.19,
+            0.19,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            2.5,
+            -2.5,
+            0.3
+          ],
+          "rotation": [
+            1.53,
+            0,
+            0.78
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "HeroCube",
+          "name": "Mat_MatteMidGrey",
+          "base_color": [
+            0.5,
+            0.5,
+            0.5,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "ShadowGround",
+          "name": "Mat_DarkGround",
+          "base_color": [
+            0.1,
+            0.1,
+            0.1,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "strength": 1.0
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "script": "\nimport bpy\n\n# Configure the spotlight for hard, dramatic shadows\nspot = bpy.data.objects['KeySpot_Above']\nlight = spot.data\n\n# Tight cone angle for focused pool of light\nlight.spot_size = 0.785  # 45 degrees cone\nlight.spot_blend = 0.15  # Slight edge softness on cone, but hard shadow\n\n# Hard shadow - point-like source\nlight.shadow_soft_size = 0.02  # Nearly point source for hard shadow edges\n\n# Ensure shadows are enabled\nlight.use_shadow = True\n\n# Set Cycles render settings for this dramatic scene\nscene = bpy.context.scene\nscene.render.engine = 'CYCLES'\nscene.cycles.samples = 256\nscene.cycles.use_denoising = True\n\n# Film transparent OFF - we want the black world background\nscene.render.film_transparent = False\n",
+          "intent_summary": "Configure spotlight for hard shadows and set Cycles render engine"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      }
+    ]
+  },
+  {
+    "name": "materials.glossy_red_metal",
+    "category": "materials",
+    "prompt": "Apply a glossy red metallic paint material to a car-body-like object (a stretched cube), similar to automotive paint.",
+    "ok": true,
+    "tool_call_count": 26,
+    "model": "claude-opus-4-7",
+    "input_tokens": 213424,
+    "output_tokens": 13588,
+    "orchestrator_elapsed_ms": 327640,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glossy_red_metal__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glossy_red_metal__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glossy_red_metal__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 30093,
+    "vlm_score": 7,
+    "vlm_matches_brief": true,
+    "vlm_notes": "The stretched cube reads clearly as a car-body-like object with a convincing glossy red metallic paint material showing strong specular highlights and reflections. The material quality is solid, though the scene composition is minimal and the lighting setup (visible hot-spot pools) feels slightly utilitarian rather than polished automotive presentation.",
+    "vlm_error": "",
+    "cost_usd": 4.22046,
+    "vlm_cost_usd": 0.00681,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "CarBody_Panel",
+          "location": [
+            0,
+            0,
+            0.2
+          ],
+          "scale": [
+            2.0,
+            0.6,
+            0.2
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            6,
+            6,
+            1
+          ]
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.studio_neutral",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.studio_neutral\\2k.hdr",
+          "name": "Brown Photostudio Neutral",
+          "target": "",
+          "polyhaven_id": "brown_photostudio_02"
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "CarBody_Panel",
+          "kind": "bevel",
+          "params": {
+            "width": 0.015,
+            "segments": 3
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "CarBody_Panel",
+          "kind": "subdivision_surface",
+          "params": {
+            "levels": 2
+          }
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "Mat_StudioFloor",
+          "base_color": [
+            0.02,
+            0.02,
+            0.02,
+            1.0
+          ],
+          "roughness": 0.25,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Apply glossy red metallic automotive paint with clearcoat and flake normal to CarBody_Panel",
+          "script": "\nimport bpy\nimport math\n\n# Get the car body panel\nobj = bpy.data.objects['CarBody_Panel']\n\n# Create automotive paint material\nmat = bpy.data.materials.new(name='Mat_AutomotivePaint_Red')\nmat.use_nodes = True\nnodes = mat.node_tree.nodes\nlinks = mat.node_tree.links\n\n# Clear default nodes\nnodes.clear()\n\n# Create output node\noutput = nodes.new('ShaderNodeOutputMaterial')\noutput.location = (600, 0)\n\n# Create Principled BSDF\nprincipled = nodes.new('ShaderNodeBsdfPrincipled')\nprincipled.location = (200, 0)\n\n# Set automotive paint values\n# Base Color: deep candy red (#A00010 sRGB -> linear approx)\nprincipled.inputs['Base Color'].default_value = (0.36, 0.005, 0.005, 1.0)\nprincipled.inputs['Metallic'].default_value = 0.85\nprincipled.inputs['Roughness'].default_value = 0.08\nprincipled.inputs['IOR'].default_value = 1.5\n\n# Clearcoat (Coat in Blender 4.x)\n# Try both naming conventions\nfor input_name in ['Coat Weight', 'Clearcoat', 'Coat']:\n    if input_name in principled.inputs:\n        principled.inputs[input_name].default_value = 1.0\n        break\n\nfor input_name in ['Coat Roughness', 'Clearcoat Roughness']:\n    if input_name in principled.inputs:\n        principled.inputs[input_name].default_value = 0.03\n        break\n\n# Specular / IOR Level\nfor input_name in ['Specular IOR Level', 'Specular']:\n    if input_name in principled.inputs:\n        principled.inputs[input_name].default_value = 0.9\n        break\n\n# Create metallic flake normal map using noise texture\ntex_coord = nodes.new('ShaderNodeTexCoord')\ntex_coord.location = (-600, -200)\n\nmapping = nodes.new('ShaderNodeMapping')\nmapping.location = (-400, -200)\nmapping.inputs['Scale'].default_value = (500, 500, 500)\n\nnoise = nodes.new('ShaderNodeTexNoise')\nnoise.location = (-200, -200)\nnoise.inputs['Scale'].default_value = 800.0\nnoise.inputs['Detail'].default_value = 4.0\nnoise.inputs['Roughness'].default_value = 0.7\n\nbump = nodes.new('ShaderNodeBump')\nbump.location = (0, -200)\nbump.inputs['Strength'].default_value = 0.05\nbump.inputs['Distance'].default_value = 0.001\n\n# Link nodes\nlinks.new(principled.outputs['BSDF'], output.inputs['Surface'])\nlinks.new(tex_coord.outputs['Object'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], noise.inputs['Vector'])\nlinks.new(noise.outputs['Fac'], bump.inputs['Height'])\nlinks.new(bump.outputs['Normal'], principled.inputs['Normal'])\n\n# Assign material to object\nobj.data.materials.clear()\nobj.data.materials.append(mat)\n"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight_Softbox",
+          "location": [
+            -2.5,
+            -1.5,
+            2.0
+          ],
+          "rotation": [
+            1.1,
+            0,
+            -0.6
+          ],
+          "energy": 800,
+          "color": [
+            1.0,
+            0.95,
+            0.9
+          ],
+          "size": 1.5
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight_Cool",
+          "location": [
+            2.5,
+            -1.0,
+            1.5
+          ],
+          "rotation": [
+            1.2,
+            0,
+            0.5
+          ],
+          "energy": 250,
+          "color": [
+            0.85,
+            0.92,
+            1.0
+          ],
+          "size": 2.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight_Strip",
+          "location": [
+            0,
+            2.5,
+            1.0
+          ],
+          "rotation": [
+            1.3,
+            0,
+            3.14
+          ],
+          "energy": 500,
+          "color": [
+            0.95,
+            0.97,
+            1.0
+          ],
+          "size": 0.3
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            2.5,
+            -3.0,
+            0.5
+          ],
+          "rotation": [
+            1.5,
+            0.0,
+            0.75
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.01,
+            0.01,
+            0.01
+          ],
+          "strength": 0.3
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Set up world shader with HDRI for reflections and dark background for camera rays, and aim camera at panel",
+          "script": "\nimport bpy\nimport mathutils\nimport math\n\n# Set up world: dark background for camera, but keep environment for reflections\nworld = bpy.context.scene.world\nif world is None:\n    world = bpy.data.worlds.new(\"World\")\n    bpy.context.scene.world = world\n\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links\n\n# Clear existing nodes\nnodes.clear()\n\n# Create nodes for light path based background\noutput = nodes.new('ShaderNodeOutputWorld')\noutput.location = (400, 0)\n\nmix_shader = nodes.new('ShaderNodeMixShader')\nmix_shader.location = (200, 0)\n\n# Dark background for camera rays\nbg_dark = nodes.new('ShaderNodeBackground')\nbg_dark.location = (0, -100)\nbg_dark.inputs['Color'].default_value = (0.012, 0.012, 0.012, 1.0)\nbg_dark.inputs['Strength'].default_value = 1.0\n\n# Brighter neutral environment for reflection/glossy rays\nbg_env = nodes.new('ShaderNodeBackground')\nbg_env.location = (0, 100)\nbg_env.inputs['Color'].default_value = (0.5, 0.5, 0.5, 1.0)\nbg_env.inputs['Strength'].default_value = 1.0\n\n# Light path node to separate camera vs glossy rays\nlight_path = nodes.new('ShaderNodeLightPath')\nlight_path.location = (-200, 200)\n\n# Connect: Is Camera Ray -> Mix factor\n# Fac=0 uses first shader (env for reflections), Fac=1 uses second (dark for camera)\nlinks.new(light_path.outputs['Is Camera Ray'], mix_shader.inputs['Fac'])\nlinks.new(bg_env.outputs['Background'], mix_shader.inputs[1])\nlinks.new(bg_dark.outputs['Background'], mix_shader.inputs[2])\nlinks.new(mix_shader.outputs['Shader'], output.inputs['Surface'])\n\n# Aim camera at the car body panel using Track To constraint\ncamera = bpy.data.objects['HeroCamera']\n# Remove existing constraints\nfor c in camera.constraints:\n    camera.constraints.remove(c)\n\n# Add Track To constraint\ntrack = camera.constraints.new(type='TRACK_TO')\ntrack.target = bpy.data.objects['CarBody_Panel']\ntrack.track_axis = 'TRACK_NEGATIVE_Z'\ntrack.up_axis = 'UP_Y'\n\n# Set render settings for Cycles\nscene = bpy.context.scene\nscene.render.engine = 'CYCLES'\nscene.cycles.samples = 256\nscene.cycles.use_denoising = True\nscene.render.resolution_x = 1920\nscene.render.resolution_y = 1080\n"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "set_transform",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            4.0,
+            -5.0,
+            0.7
+          ]
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Convert rim light to rectangular strip for long specular highlight on automotive paint",
+          "script": "\nimport bpy\n\n# Make rim light a narrow rectangular strip (like a strip softbox)\nrim = bpy.data.objects['RimLight_Strip']\nrim_data = rim.data\nrim_data.shape = 'RECTANGLE'\nrim_data.size = 3.0  # 3m long strip\nrim_data.size_y = 0.15  # very narrow\n\n# Also adjust key light to be slightly rectangular for natural softbox shape\nkey = bpy.data.objects['KeyLight_Softbox']\nkey_data = key.data\nkey_data.shape = 'RECTANGLE'\nkey_data.size = 1.8\nkey_data.size_y = 1.2\n\n# Adjust rim position to be more overhead-behind for edge highlight\nrim.location = (0, 2.0, 1.8)\nrim.rotation_euler = (0.8, 0, 3.14)\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "get_object_info",
+        "input": {
+          "name": "CarBody_Panel"
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "CarBody_Panel",
+          "name": "Mat_AutomotivePaint_Red",
+          "base_color": [
+            0.36,
+            0.005,
+            0.005,
+            1.0
+          ],
+          "metallic": 0.85,
+          "roughness": 0.08
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Enhance automotive paint with clearcoat and metallic flake bump normal",
+          "script": "\nimport bpy\n\n# Get the material that was just applied\nmat = bpy.data.materials.get('Mat_AutomotivePaint_Red')\nif mat and mat.use_nodes:\n    nodes = mat.node_tree.nodes\n    links = mat.node_tree.links\n    \n    # Find the Principled BSDF node\n    principled = None\n    for node in nodes:\n        if node.type == 'BSDF_PRINCIPLED':\n            principled = node\n            break\n    \n    if principled:\n        # Set clearcoat/coat properties\n        for input_name in ['Coat Weight', 'Clearcoat', 'Coat']:\n            if input_name in principled.inputs:\n                principled.inputs[input_name].default_value = 1.0\n                break\n        \n        for input_name in ['Coat Roughness', 'Clearcoat Roughness']:\n            if input_name in principled.inputs:\n                principled.inputs[input_name].default_value = 0.03\n                break\n        \n        # Set specular\n        for input_name in ['Specular IOR Level', 'Specular']:\n            if input_name in principled.inputs:\n                principled.inputs[input_name].default_value = 0.9\n                break\n        \n        # Add metallic flake bump for that sparkle effect\n        tex_coord = nodes.new('ShaderNodeTexCoord')\n        tex_coord.location = (-800, -300)\n        \n        mapping = nodes.new('ShaderNodeMapping')\n        mapping.location = (-600, -300)\n        mapping.inputs['Scale'].default_value = (400, 400, 400)\n        \n        noise = nodes.new('ShaderNodeTexNoise')\n        noise.location = (-400, -300)\n        noise.inputs['Scale'].default_value = 600.0\n        noise.inputs['Detail'].default_value = 6.0\n        noise.inputs['Roughness'].default_value = 0.8\n        \n        bump = nodes.new('ShaderNodeBump')\n        bump.location = (-200, -300)\n        bump.inputs['Strength'].default_value = 0.04\n        bump.inputs['Distance'].default_value = 0.001\n        \n        # Connect the flake normal chain\n        links.new(tex_coord.outputs['Object'], mapping.inputs['Vector'])\n        links.new(mapping.outputs['Vector'], noise.inputs['Vector'])\n        links.new(noise.outputs['Fac'], bump.inputs['Height'])\n        links.new(bump.outputs['Normal'], principled.inputs['Normal'])\n\n# Also fix rim light position (previous script may not have applied)\nrim = bpy.data.objects.get('RimLight_Strip')\nif rim:\n    rim.location = (0, 2.0, 1.8)\n    rim.rotation_euler = (0.8, 0, 3.14)\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add a second panel with a different paint colour for comparison",
+            "Increase metallic flake visibility for close-up macro shot",
+            "Add a turntable animation of the panel",
+            "Swap to a sunset HDRI for warm outdoor lighting",
+            "Render at full quality (256+ samples)"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "materials.rough_wood_plank",
+    "category": "materials",
+    "prompt": "Apply a matte, rough wood material to a flat rectangular plank object, brown in color with no shine.",
+    "ok": true,
+    "tool_call_count": 18,
+    "model": "claude-opus-4-7",
+    "input_tokens": 57131,
+    "output_tokens": 4864,
+    "orchestrator_elapsed_ms": 145780,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.rough_wood_plank__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.rough_wood_plank__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.rough_wood_plank__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 17547,
+    "vlm_score": 8,
+    "vlm_matches_brief": true,
+    "vlm_notes": "The plank reads clearly as a flat rectangular wooden board with a matte, rough surface texture and warm brown color, matching the brief well. No specular shine is visible; minor quibble is the texture scale appears slightly coarse/repetitive but remains competent 3D work.",
+    "vlm_error": "",
+    "cost_usd": 1.221765,
+    "vlm_cost_usd": 0.006693,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Wood_Plank",
+          "location": [
+            0,
+            0,
+            0.025
+          ],
+          "rotation": [
+            0,
+            0,
+            0.15
+          ],
+          "scale": [
+            0.6,
+            0.1,
+            0.025
+          ]
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.studio_neutral",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.studio_neutral\\2k.hdr",
+          "name": "Brown Photostudio Neutral",
+          "target": "",
+          "polyhaven_id": "brown_photostudio_02"
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "texture.weathered_oak",
+          "kind": "texture",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\texture.weathered_oak\\2k.blend",
+          "name": "Weathered Oak Wood",
+          "target": "Wood_Plank",
+          "polyhaven_id": "weathered_planks"
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Override weathered oak material to matte rough wood \u2014 roughness 0.95, specular 0",
+          "script": "\nimport bpy\n\n# Find the material on Wood_Plank and override roughness/specular\nobj = bpy.data.objects['Wood_Plank']\nmat = obj.data.materials[0]\n\n# Walk the node tree to find the Principled BSDF\nfor node in mat.node_tree.nodes:\n    if node.type == 'BSDF_PRINCIPLED':\n        # Set roughness to near-max matte\n        # Check if roughness input has a link (texture map)\n        roughness_input = node.inputs['Roughness']\n        if roughness_input.links:\n            # There's a roughness map \u2014 add a Math node to clamp it high\n            tree = mat.node_tree\n            # Remove the link and set a flat high value for pure matte\n            tree.links.remove(roughness_input.links[0])\n        roughness_input.default_value = 0.95\n        \n        # Set specular to 0 for no shine\n        node.inputs['Specular IOR Level'].default_value = 0.0\n        \n        # Ensure no clearcoat/sheen\n        if 'Coat Weight' in node.inputs:\n            node.inputs['Coat Weight'].default_value = 0.0\n        if 'Sheen Weight' in node.inputs:\n            node.inputs['Sheen Weight'].default_value = 0.0\n        \n        break\n"
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Wood_Plank",
+          "kind": "bevel",
+          "params": {
+            "width": 0.003,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight_Softbox",
+          "location": [
+            -1.0,
+            -0.6,
+            0.8
+          ],
+          "rotation": [
+            1.1,
+            0,
+            -0.6
+          ],
+          "energy": 150,
+          "color": [
+            1.0,
+            0.92,
+            0.82
+          ],
+          "size": 1.2
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight_Bounce",
+          "location": [
+            0.9,
+            -0.4,
+            0.5
+          ],
+          "rotation": [
+            1.2,
+            0,
+            0.5
+          ],
+          "energy": 50,
+          "color": [
+            1.0,
+            0.98,
+            0.96
+          ],
+          "size": 0.8
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight_Back",
+          "location": [
+            0.2,
+            0.9,
+            0.4
+          ],
+          "rotation": [
+            0.8,
+            0,
+            3.14
+          ],
+          "energy": 30,
+          "color": [
+            0.96,
+            0.97,
+            1.0
+          ],
+          "size": 0.5
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            0.4,
+            -1.1,
+            0.45
+          ],
+          "rotation": [
+            1.25,
+            0,
+            0.2
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.18,
+            0.18,
+            0.18
+          ],
+          "strength": 0.5
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Wood_Plank",
+          "name": "Matte_Rough_Wood",
+          "base_color": [
+            0.176,
+            0.089,
+            0.035,
+            1.0
+          ],
+          "roughness": 0.95,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Add procedural wood grain texture with bump to Matte_Rough_Wood material",
+          "script": "\nimport bpy\n\nmat = bpy.data.materials.get('Matte_Rough_Wood')\nif mat is None:\n    mat = bpy.data.materials.new(name='Matte_Rough_Wood')\n    mat.use_nodes = True\n\ntree = mat.node_tree\nnodes = tree.nodes\nlinks = tree.links\n\n# Get the Principled BSDF\nprincipled = None\nfor node in nodes:\n    if node.type == 'BSDF_PRINCIPLED':\n        principled = node\n        break\n\n# Add Texture Coordinate and Mapping\ntex_coord = nodes.new('ShaderNodeTexCoord')\ntex_coord.location = (-1200, 300)\n\nmapping = nodes.new('ShaderNodeMapping')\nmapping.location = (-1000, 300)\nmapping.inputs['Scale'].default_value = (4.0, 4.0, 20.0)  # Stretch along one axis for grain\nlinks.new(tex_coord.outputs['Object'], mapping.inputs['Vector'])\n\n# Wave Texture for wood grain bands\nwave = nodes.new('ShaderNodeTexWave')\nwave.location = (-700, 400)\nwave.wave_type = 'BANDS'\nwave.bands_direction = 'X'\nwave.inputs['Scale'].default_value = 3.0\nwave.inputs['Distortion'].default_value = 4.0\nwave.inputs['Detail'].default_value = 3.0\nwave.inputs['Detail Scale'].default_value = 1.5\nlinks.new(mapping.outputs['Vector'], wave.inputs['Vector'])\n\n# Noise Texture for grain variation\nnoise = nodes.new('ShaderNodeTexNoise')\nnoise.location = (-700, 100)\nnoise.inputs['Scale'].default_value = 12.0\nnoise.inputs['Detail'].default_value = 6.0\nnoise.inputs['Roughness'].default_value = 0.7\nlinks.new(mapping.outputs['Vector'], noise.inputs['Vector'])\n\n# Mix the wave and noise for wood pattern\nmix_rgb = nodes.new('ShaderNodeMix')\nmix_rgb.data_type = 'RGBA'\nmix_rgb.location = (-400, 300)\nmix_rgb.inputs['Factor'].default_value = 0.3\nlinks.new(wave.outputs['Color'], mix_rgb.inputs[6])  # A input for RGBA\nlinks.new(noise.outputs['Fac'], mix_rgb.inputs[7])   # B input for RGBA\n\n# ColorRamp for wood tones (brown range)\nramp = nodes.new('ShaderNodeValToRGB')\nramp.location = (-200, 300)\nramp.color_ramp.elements[0].position = 0.0\nramp.color_ramp.elements[0].color = (0.05, 0.025, 0.01, 1.0)  # Dark grain\nramp.color_ramp.elements[1].position = 1.0\nramp.color_ramp.elements[1].color = (0.2, 0.1, 0.04, 1.0)  # Lighter brown\n# Add a midpoint\nmid = ramp.color_ramp.elements.new(0.5)\nmid.color = (0.14, 0.065, 0.025, 1.0)  # Medium brown\n\nlinks.new(mix_rgb.outputs[2], ramp.inputs['Fac'])  # Result output for RGBA\n\n# Connect color ramp to Base Color\nlinks.new(ramp.outputs['Color'], principled.inputs['Base Color'])\n\n# Bump node for surface fiber texture\nbump_noise = nodes.new('ShaderNodeTexNoise')\nbump_noise.location = (-500, -100)\nbump_noise.inputs['Scale'].default_value = 50.0\nbump_noise.inputs['Detail'].default_value = 8.0\nbump_noise.inputs['Roughness'].default_value = 0.6\nlinks.new(mapping.outputs['Vector'], bump_noise.inputs['Vector'])\n\nbump = nodes.new('ShaderNodeBump')\nbump.location = (-100, -100)\nbump.inputs['Strength'].default_value = 0.4\nbump.inputs['Distance'].default_value = 0.005\nlinks.new(bump_noise.outputs['Fac'], bump.inputs['Height'])\nlinks.new(bump.outputs['Normal'], principled.inputs['Normal'])\n\n# Ensure roughness and specular are correct\nprincipled.inputs['Roughness'].default_value = 0.95\nprincipled.inputs['Specular IOR Level'].default_value = 0.0\nprincipled.inputs['Metallic'].default_value = 0.0\n\n# Ensure material is on the plank\nobj = bpy.data.objects['Wood_Plank']\nif not obj.data.materials:\n    obj.data.materials.append(mat)\nelif obj.data.materials[0] != mat:\n    obj.data.materials[0] = mat\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Increase wood grain detail or change grain direction",
+            "Add a second plank or stack of planks",
+            "Change wood tone to lighter pine or darker walnut",
+            "Add subtle surface imperfections like knots or scratches",
+            "Render final high-quality image"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "materials.glass_bottle",
+    "category": "materials",
+    "prompt": "Create a simple cylindrical bottle shape and apply a clear glass material to it, transparent with a slight green tint.",
+    "ok": false,
+    "tool_call_count": 28,
+    "model": "claude-opus-4-7",
+    "input_tokens": 49078,
+    "output_tokens": 4251,
+    "orchestrator_elapsed_ms": 116844,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glass_bottle__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glass_bottle__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_v2\\materials.glass_bottle__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 40936,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show a glowing white light emission object on a flat surface, resembling a recessed lighting fixture or light source \u2014 there is no cylindrical bottle shape, no clear glass material, and no green tint visible anywhere. The result fundamentally contradicts every aspect of the brief.",
+    "vlm_error": "",
+    "cost_usd": 1.054995,
+    "vlm_cost_usd": 0.006681,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Bottle_Body",
+          "location": [
+            0,
+            0,
+            0.075
+          ],
+          "scale": [
+            0.035,
+            0.035,
+            0.075
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Bottle_Neck",
+          "location": [
+            0,
+            0,
+            0.175
+          ],
+          "scale": [
+            0.018,
+            0.018,
+            0.025
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "torus",
+          "name": "Bottle_Lip",
+          "location": [
+            0,
+            0,
+            0.2
+          ],
+          "scale": [
+            0.02,
+            0.02,
+            0.02
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Bottle_Shoulder",
+          "location": [
+            0,
+            0,
+            0.15
+          ],
+          "scale": [
+            0.035,
+            0.035,
+            0.005
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            2,
+            2,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            -0.5,
+            -0.3,
+            0.4
+          ],
+          "energy": 150,
+          "color": [
+            1.0,
+            0.96,
+            0.92
+          ],
+          "size": 0.5,
+          "rotation": [
+            1.0,
+            0,
+            -0.5
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            0.5,
+            -0.2,
+            0.3
+          ],
+          "energy": 60,
+          "color": [
+            0.92,
+            0.95,
+            1.0
+          ],
+          "size": 0.4,
+          "rotation": [
+            1.0,
+            0,
+            0.5
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            0.4,
+            0.25
+          ],
+          "energy": 100,
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": 0.3,
+          "rotation": [
+            1.2,
+            0,
+            3.14
+          ]
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            0.25,
+            -0.45,
+            0.12
+          ],
+          "rotation": [
+            1.35,
+            0,
+            0.5
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Bottle_Body",
+          "name": "GreenGlass",
+          "base_color": [
+            0.78,
+            0.9,
+            0.79,
+            1.0
+          ],
+          "roughness": 0.0,
+          "metallic": 0.0,
+          "alpha": 0.15
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Bottle_Neck",
+          "name": "GreenGlass",
+          "base_color": [
+            0.78,
+            0.9,
+            0.79,
+            1.0
+          ],
+          "roughness": 0.0,
+          "metallic": 0.0,
+          "alpha": 0.15
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Bottle_Lip",
+          "name": "GreenGlass",
+          "base_color": [
+            0.78,
+            0.9,
+            0.79,
+            1.0
+          ],
+          "roughness": 0.0,
+          "metallic": 0.0,
+          "alpha": 0.15
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Bottle_Shoulder",
+          "name": "GreenGlass",
+          "base_color": [
+            0.78,
+            0.9,
+            0.79,
+            1.0
+          ],
+          "roughness": 0.0,
+          "metallic": 0.0,
+          "alpha": 0.15
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "StudioWhite",
+          "base_color": [
+            0.9,
+            0.9,
+            0.9,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Set up proper glass transmission material with IOR 1.52 and green tint on all bottle parts",
+          "script": "\nimport bpy\n\n# Configure the GreenGlass material for proper glass transmission\nmat = bpy.data.materials.get(\"GreenGlass\")\nif mat:\n    mat.use_nodes = True\n    mat.blend_method = 'HASHED'  # For EEVEE transparency fallback\n    nodes = mat.node_tree.nodes\n    principled = None\n    for node in nodes:\n        if node.type == 'BSDF_PRINCIPLED':\n            principled = node\n            break\n    if principled:\n        # Base color with slight green tint\n        principled.inputs['Base Color'].default_value = (0.78, 0.90, 0.79, 1.0)\n        principled.inputs['Roughness'].default_value = 0.0\n        principled.inputs['Metallic'].default_value = 0.0\n        principled.inputs['IOR'].default_value = 1.52\n        \n        # Try Blender 4.0+ input names first, then fall back\n        for name in ('Transmission Weight', 'Transmission'):\n            if name in principled.inputs:\n                principled.inputs[name].default_value = 1.0\n                break\n        \n        # Alpha setting for viewport display\n        principled.inputs['Alpha'].default_value = 0.3\n        \n        # Set material surface settings\n        mat.surface_render_method = 'DITHERED' if hasattr(mat, 'surface_render_method') else None\n\n# Set render engine to Cycles for proper glass rendering\nbpy.context.scene.render.engine = 'CYCLES'\nbpy.context.scene.cycles.samples = 256\nbpy.context.scene.cycles.use_denoising = True\n\n# Set color management\nbpy.context.scene.view_settings.view_transform = 'AgX'\n"
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Bottle_Body",
+          "kind": "bevel",
+          "params": {
+            "width": 0.002,
+            "segments": 3
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Bottle_Neck",
+          "kind": "bevel",
+          "params": {
+            "width": 0.001,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Bottle_Body",
+          "kind": "subdivision_surface",
+          "params": {
+            "levels": 2
+          }
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Bottle_Neck",
+          "kind": "subdivision_surface",
+          "params": {
+            "levels": 2
+          }
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Bottle_Neck",
+          "parent": "Bottle_Body"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Bottle_Shoulder",
+          "parent": "Bottle_Body"
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Bottle_Lip",
+          "parent": "Bottle_Neck"
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.85,
+            0.85,
+            0.85
+          ],
+          "strength": 0.5
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Apply smooth shading to all bottle parts for clean glass reflections",
+          "script": "\nimport bpy\n\n# Smooth shade all bottle parts\nbottle_parts = ['Bottle_Body', 'Bottle_Neck', 'Bottle_Lip', 'Bottle_Shoulder']\nfor part_name in bottle_parts:\n    obj = bpy.data.objects.get(part_name)\n    if obj:\n        bpy.ops.object.select_all(action='DESELECT')\n        obj.select_set(True)\n        bpy.context.view_layer.objects.active = obj\n        bpy.ops.object.shade_smooth()\n\n# Ensure viewport is set to material preview\nfor area in bpy.context.screen.areas:\n    if area.type == 'VIEW_3D':\n        for space in area.spaces:\n            if space.type == 'VIEW_3D':\n                space.shading.type = 'MATERIAL'\n                break\n"
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add a label or embossed text to the bottle",
+            "Place the bottle in a bar/kitchen scene",
+            "Add liquid inside the bottle",
+            "Create a matching bottle cap or cork",
+            "Add caustic lighting effects for more realism"
+          ]
+        }
+      }
+    ]
+  }
+]
