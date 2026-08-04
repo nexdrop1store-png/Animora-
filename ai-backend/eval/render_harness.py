@@ -122,6 +122,12 @@ class RenderTaskResult:
     # render can be traced to "agent chose bad values" vs "the translator
     # mistranslated a correct call". Not scored on; purely diagnostic.
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    # Phase 2 — best-of-N (docs/ROADMAP-V2-notes.md §B2 item 3). When
+    # best_of_n > 1, every other field above describes the SELECTED
+    # (highest combined_score) candidate; `candidates` holds a summary of
+    # every candidate generated so the selection can be audited/compared.
+    best_of_n: int = 1
+    candidates: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def total_cost_usd(self) -> float:
@@ -428,6 +434,87 @@ async def _run_one_resumed(client: AnthropicClient, row: dict[str, Any], output_
     return result
 
 
+def _combined_aspect_score(result: RenderTaskResult) -> float:
+    """Phase 2's ranking criterion for best-of-N.
+
+    NOT aspect-verifiers-only — an earlier version was, and a smoke test
+    caught it picking a candidate the holistic judge correctly flagged as
+    wrong ("reads as a tiny wall-sconce fixture, not a 2m x 1m x 0.5m
+    block") over one it praised, because all 8 aspects passed the bad
+    candidate anyway: none of silhouette/proportion/topology/placement/
+    composition/materials/lighting/technical is actually responsible for
+    checking ABSOLUTE scale against the brief's stated numbers —
+    "Proportion" only judges relative ratios between parts, which a
+    tiny-but-correctly-proportioned object satisfies just as well as a
+    correctly-sized one. A vision model has no ruler in the frame; only
+    the holistic check, which is explicitly comparing against the
+    brief's text, has a shot at catching that class of failure.
+
+    So this is a genuine blend, weighted evenly, plus a hard-ish penalty
+    when the holistic judge says the brief flatly isn't matched — that
+    signal is closer to disqualifying than "average it in":
+      - aspect_fraction: confidence-weighted pass fraction over judged
+        (non-error) aspects — an aspect verifier 95% sure something
+        failed should count for more than one 40% sure it passed.
+      - vlm_fraction: holistic vlm_score / 10.
+      - combined = 0.5 * vlm_fraction + 0.5 * aspect_fraction, capped at
+        0.35 if vlm_matches_brief is False (not zeroed — if EVERY
+        candidate fails to match the brief, ranking among them by
+        remaining quality is still better than a coin flip).
+    """
+    judged = [r for r in result.aspect_results if r["verdict"] != "error"]
+    passing_weight = sum(r["confidence"] for r in judged if r["verdict"] == "pass")
+    total_weight = sum(r["confidence"] for r in judged) or 1e-9
+    aspect_fraction = passing_weight / total_weight if judged else 0.0
+    vlm_fraction = result.vlm_score / 10.0
+    combined = 0.5 * vlm_fraction + 0.5 * aspect_fraction
+    if not result.vlm_matches_brief:
+        combined = min(combined, 0.35)
+    return round(combined, 6)
+
+
+async def _run_one_best_of_n(client: AnthropicClient, bench: Benchmark, n: int, output_dir: Path,
+                              animora_exe: str) -> RenderTaskResult:
+    """Generate N independent candidates for this task (fresh orchestrator
+    run each — NOT N variations of one run), score each with both legs,
+    and return the candidate with the highest _combined_aspect_score. All
+    N results are recorded on the winner's `candidates` field for audit."""
+    candidates: list[RenderTaskResult] = []
+    for i in range(n):
+        print(f"  [{bench.name}] candidate {i + 1}/{n}:")
+        candidate_dir = output_dir / f"_candidate{i}"
+        candidate = await _run_one(client, bench, candidate_dir, animora_exe)
+        candidates.append(candidate)
+
+    scores = [_combined_aspect_score(c) for c in candidates]
+    best_index = max(range(n), key=lambda i: scores[i])
+    best = candidates[best_index]
+
+    best.best_of_n = n
+    best.candidates = [
+        {
+            "index": i, "vlm_score": c.vlm_score, "aspect_overall": c.aspect_overall,
+            "combined_score": s, "cost_usd": c.total_cost_usd, "tool_call_count": c.tool_call_count,
+            "selected": i == best_index,
+        }
+        for i, (c, s) in enumerate(zip(candidates, scores))
+    ]
+    print(f"  [{bench.name}] best-of-{n}: selected candidate {best_index} "
+          f"(combined_score={scores[best_index]:.3f}, vlm_score={best.vlm_score}/10)")
+
+    # Move the winning candidate's renders up to the task-level directory so
+    # downstream consumers (report, manual PNG inspection) find them at the
+    # same path shape as a single-shot run, without keeping every loser's
+    # renders cluttering the top-level output dir.
+    winning_dir = output_dir / f"_candidate{best_index}"
+    for src in winning_dir.glob(f"{bench.name}__*.png"):
+        dst = output_dir / src.name
+        dst.write_bytes(src.read_bytes())
+    best.render_paths = [str(output_dir / Path(p).name) for p in best.render_paths]
+
+    return best
+
+
 def _format_report(results: list[RenderTaskResult]) -> str:
     n = len(results)
     scored = [r for r in results if r.vlm_score > 0]
@@ -533,6 +620,15 @@ async def _main(args: argparse.Namespace) -> int:
             results.append(result)
             if args.json:
                 Path(args.json).write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
+    elif args.best_of_n > 1:
+        print(f"Running {len(tasks)} task(s) at best-of-{args.best_of_n} "
+              "(N independent orchestrator runs per task, ranked by combined aspect-verifier score)...")
+        for bench in tasks:
+            print(f"\n=== {bench.name} ===")
+            result = await _run_one_best_of_n(client, bench, args.best_of_n, output_dir, args.animora_exe)
+            results.append(result)
+            if args.json:
+                Path(args.json).write_text(json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8")
     else:
         print(f"Running {len(tasks)} task(s)...")
         for bench in tasks:
@@ -567,9 +663,17 @@ def main() -> int:
     parser.add_argument("--json", help="Path to write the full JSON results dump")
     parser.add_argument("--render-dir", default="eval_renders", help="Directory to write rendered PNGs")
     parser.add_argument("--animora-exe", default=_DEFAULT_ANIMORA_EXE, help="Path to Animora.exe / blender.exe")
+    parser.add_argument("--best-of-n", type=int, default=1, help="Phase 2: generate N independent "
+                         "orchestrator runs per task and keep the one with the highest combined "
+                         "aspect-verifier score (N=1, the default, is today's single-shot behavior). "
+                         "Incompatible with --resume-json (best-of-N needs fresh generation).")
     args = parser.parse_args()
     if not args.tasks_file and not args.resume_json:
         parser.error("either --tasks-file or --resume-json is required")
+    if args.best_of_n > 1 and args.resume_json:
+        parser.error("--best-of-n requires fresh generation and cannot be combined with --resume-json")
+    if args.best_of_n < 1:
+        parser.error("--best-of-n must be >= 1")
     return asyncio.run(_main(args))
 
 

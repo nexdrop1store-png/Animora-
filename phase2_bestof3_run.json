@@ -1,0 +1,1745 @@
+[
+  {
+    "name": "geometry.table_leg",
+    "category": "geometry",
+    "prompt": "Model a simple table leg: a cylinder 8cm in diameter and 75cm tall, with a beveled top and bottom edge.",
+    "ok": false,
+    "tool_call_count": 12,
+    "model": "claude-opus-4-7",
+    "input_tokens": 19574,
+    "output_tokens": 1628,
+    "orchestrator_elapsed_ms": 72437,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.table_leg__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.table_leg__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.table_leg__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 22687,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show what appears to be a flat, glowing plane or surface with light scattering \u2014 there is no visible cylinder, no table leg geometry, and no beveled edges present. The result bears no resemblance to the brief's requirement of an 8cm-diameter, 75cm-tall cylindrical table leg.",
+    "vlm_error": "",
+    "aspect_overall": "fail",
+    "aspect_results": [
+      {
+        "aspect": "silhouette",
+        "label": "Silhouette",
+        "verdict": "fail",
+        "reason": "The silhouette reads as a flat diamond/rhombus plane or shallow dish rather than a tall cylindrical table leg \u2014 no vertical height or cylindrical form is discernible from the outline.",
+        "fix_suggestion": "Ensure the cylinder is rendered upright (75cm tall, 8cm diameter) so the silhouette shows a tall rectangular/oval column with beveled top and bottom edges, not a flat overhead view.",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "proportion",
+        "label": "Proportion",
+        "verdict": "fail",
+        "reason": "The rendered object appears as a flat, roughly square panel/sheet with no visible cylindrical leg form \u2014 the height-to-diameter ratio of a 75cm tall by 8cm diameter cylinder is not represented; instead the shape reads as a very wide, low fo",
+        "fix_suggestion": "Ensure the cylinder geometry is correctly parameterized with height 75cm and diameter 8cm, yielding a tall slender rod with approximately 9:1 height-to-diameter ratio, and verify the camera/viewport shows the full height of the object.",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "topology",
+        "label": "Topology / construction",
+        "verdict": "fail",
+        "reason": "The rendered geometry appears to be a flat, nearly planar quad/plane mesh rather than a constructed cylinder with beveled top and bottom edges \u2014 there is no visible cylindrical volume, no height consistent with a 75cm tall leg, and no disti",
+        "fix_suggestion": "Build the table leg as an actual cylinder mesh (e.g. 16\u201324 sides, 75cm tall, 8cm diameter) and add edge loops near the top and bottom caps to create visible chamfered/beveled edges before exporting.",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "placement",
+        "label": "Placement",
+        "verdict": "pass",
+        "reason": "The object (table leg/cylinder) appears to be resting on a flat surface plane with no floating or intersection issues visible across all three views.",
+        "fix_suggestion": "",
+        "confidence": 0.7
+      },
+      {
+        "aspect": "composition",
+        "label": "Composition / framing",
+        "verdict": "fail",
+        "reason": "The first two images show the table leg rendered at a very small scale with a large empty grey surround, making the subject difficult to read clearly; the third image is better framed but presents a near-top-down orthographic view that obsc",
+        "fix_suggestion": "Position the camera at a 3/4 perspective angle (roughly 30\u201345\u00b0 elevation, offset to one side) and zoom in so the full height of the cylinder fills at least 60% of the frame, clearly showing both the beveled top/bottom edges and the cylinder's length.",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "materials",
+        "label": "Materials",
+        "verdict": "pass",
+        "reason": "The object displays a white/light gray diffuse material with visible shading and highlight response, which is an acceptable default neutral material for an unspecified table leg \u2014 the brief does not mandate any specific material properties ",
+        "fix_suggestion": "",
+        "confidence": 0.6
+      },
+      {
+        "aspect": "lighting",
+        "label": "Lighting",
+        "verdict": "fail",
+        "reason": "The lighting is severely overexposed with a blown-out white center across all three views, lacking any discernible key/fill/rim structure and with no reasonable exposure control.",
+        "fix_suggestion": "Reduce light intensity significantly (e.g. by 50-70%), add a distinct key light from one side with a dimmer fill light from the opposite side, and ensure the brightest highlight stays below clipping threshold so surface detail remains visible.",
+        "confidence": 0.9
+      },
+      {
+        "aspect": "technical",
+        "label": "Technical correctness",
+        "verdict": "pass",
+        "reason": "No visible holes in geometry, z-fighting, inverted normals, or unintended clipping are present across the three render views of the cylinder with beveled edges.",
+        "fix_suggestion": "",
+        "confidence": 0.85
+      }
+    ],
+    "aspect_cost_usd": 0.064035,
+    "cost_usd": 0.41571,
+    "vlm_cost_usd": 0.006843,
+    "tool_calls": [
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "TableLeg",
+          "location": [
+            0,
+            0,
+            0.375
+          ],
+          "scale": [
+            0.04,
+            0.04,
+            0.375
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            3,
+            3,
+            1
+          ]
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "TableLeg",
+          "kind": "bevel",
+          "params": {
+            "width": 0.004,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "TableLeg",
+          "name": "LegMetal",
+          "base_color": [
+            0.55,
+            0.53,
+            0.5,
+            1.0
+          ],
+          "roughness": 0.45,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Floor",
+          "name": "StudioFloor",
+          "base_color": [
+            0.75,
+            0.75,
+            0.75,
+            1.0
+          ],
+          "roughness": 0.8,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            1.2,
+            -1.0,
+            1.5
+          ],
+          "energy": 300,
+          "color": [
+            1.0,
+            0.97,
+            0.93
+          ],
+          "size": 1.0,
+          "rotation": [
+            0.9,
+            0.0,
+            0.6
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -1.5,
+            -0.8,
+            1.0
+          ],
+          "energy": 120,
+          "color": [
+            0.85,
+            0.9,
+            1.0
+          ],
+          "size": 1.5,
+          "rotation": [
+            0.8,
+            0.0,
+            -0.5
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0,
+            1.2,
+            1.8
+          ],
+          "energy": 200,
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "size": 0.6,
+          "rotation": "[\u22120.6, 0.0, 3.14]"
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            0.6,
+            -0.9,
+            0.5
+          ],
+          "rotation": [
+            1.25,
+            0.0,
+            0.55
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.85,
+            0.85,
+            0.85
+          ],
+          "strength": 0.5
+        }
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Duplicate into four legs and add a tabletop",
+            "Switch to a weathered oak wood texture",
+            "Add a slight taper toward the bottom",
+            "Render a final high-quality product shot"
+          ]
+        }
+      }
+    ],
+    "best_of_n": 3,
+    "candidates": [
+      {
+        "index": 0,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.163971,
+        "cost_usd": 1.109658,
+        "tool_call_count": 15,
+        "selected": false
+      },
+      {
+        "index": 1,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.214122,
+        "cost_usd": 0.486588,
+        "tool_call_count": 12,
+        "selected": true
+      },
+      {
+        "index": 2,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.178299,
+        "cost_usd": 0.760443,
+        "tool_call_count": 16,
+        "selected": false
+      }
+    ]
+  },
+  {
+    "name": "geometry.low_poly_tree",
+    "category": "geometry",
+    "prompt": "Model a simple low-poly tree: a cylindrical trunk and a cone-shaped canopy on top.",
+    "ok": false,
+    "tool_call_count": 15,
+    "model": "claude-opus-4-7",
+    "input_tokens": 24984,
+    "output_tokens": 2715,
+    "orchestrator_elapsed_ms": 86937,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.low_poly_tree__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.low_poly_tree__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\geometry.low_poly_tree__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 23781,
+    "vlm_score": 2,
+    "vlm_matches_brief": false,
+    "vlm_notes": "Only the cylindrical trunk is present; the cone-shaped canopy is completely missing, making the model an incomplete representation of a tree. The trunk itself is modeled correctly but the absence of the canopy means the brief is not satisfied.",
+    "vlm_error": "",
+    "aspect_overall": "fail",
+    "aspect_results": [
+      {
+        "aspect": "silhouette",
+        "label": "Silhouette",
+        "verdict": "fail",
+        "reason": "The cone-shaped canopy is entirely absent from the silhouette \u2014 only a cylindrical trunk stub is visible, so the outline reads as a post/peg rather than a tree.",
+        "fix_suggestion": "Add the cone mesh on top of the trunk so the canopy is present and readable in the scene; ensure it is placed and scaled so it visually dominates the trunk in silhouette.",
+        "confidence": 0.97
+      },
+      {
+        "aspect": "proportion",
+        "label": "Proportion",
+        "verdict": "fail",
+        "reason": "The cone canopy is entirely absent from the rendered model \u2014 only a short cylindrical trunk is visible on the plane, meaning the canopy-to-trunk proportion cannot be evaluated and the tree is missing its defining upper mass.",
+        "fix_suggestion": "Add the cone-shaped canopy mesh above the trunk and ensure its base radius is noticeably larger than the trunk radius (e.g., canopy base radius ~3\u20134\u00d7 trunk radius) and its height is roughly 2\u20133\u00d7 the trunk height.",
+        "confidence": 0.92
+      },
+      {
+        "aspect": "topology",
+        "label": "Topology / construction",
+        "verdict": "fail",
+        "reason": "Only a cylindrical trunk primitive is visible in the scene; the cone-shaped canopy required by the brief is entirely absent, meaning the geometry is incomplete with a missing major part.",
+        "fix_suggestion": "Add a cone mesh above the cylinder trunk, scaled and positioned to form the tree canopy as specified in the brief.",
+        "confidence": 0.97
+      },
+      {
+        "aspect": "placement",
+        "label": "Placement",
+        "verdict": "fail",
+        "reason": "Only the cylindrical trunk is visible in the scene; the cone-shaped canopy that should be placed on top of the trunk is absent, making the relative placement between trunk and canopy impossible to evaluate as correct.",
+        "fix_suggestion": "Add a cone mesh positioned directly above the trunk so its base aligns with the top of the cylinder and it sits centered on the trunk's axis.",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "composition",
+        "label": "Composition / framing",
+        "verdict": "fail",
+        "reason": "The third image (likely a top-down or low-angle view) renders the cylindrical trunk as a tiny, barely-visible dot near center-frame, making the subject extremely hard to read; the first two isometric views are better but the cone canopy app",
+        "fix_suggestion": "Adjust the camera distance and angle so both the trunk and the cone canopy are clearly visible and fill a reasonable portion of the frame; for the close-up/top view, raise or tilt the camera so the full object height is captured rather than just the top edge of the trunk.",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "materials",
+        "label": "Materials",
+        "verdict": "fail",
+        "reason": "The trunk has a brown wood-like material visibly applied, but the canopy (cone) appears to be missing entirely from the scene \u2014 only the trunk and a flat plane are visible \u2014 so the canopy material (expected green for foliage) is not applied",
+        "fix_suggestion": "Add a cone mesh for the canopy and apply a green diffuse material with appropriate roughness (e.g. rough matte, roughness ~0.8) to represent foliage.",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "lighting",
+        "label": "Lighting",
+        "verdict": "pass",
+        "reason": "All three views show intentional multi-source lighting with a clear bright key highlight, soft fill on the opposite side, and reasonable exposure \u2014 no blown-out whites or crushed blacks.",
+        "fix_suggestion": "",
+        "confidence": 0.82
+      },
+      {
+        "aspect": "technical",
+        "label": "Technical correctness",
+        "verdict": "fail",
+        "reason": "The cone-shaped canopy is entirely missing from the scene \u2014 only the cylindrical trunk is visible across all three views, leaving the tree geometrically incomplete (missing geometry).",
+        "fix_suggestion": "Add a cone mesh above the trunk and assign it a green/leafy material to complete the canopy as specified in the brief.",
+        "confidence": 0.95
+      }
+    ],
+    "aspect_cost_usd": 0.063936,
+    "cost_usd": 0.578385,
+    "vlm_cost_usd": 0.006525,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ground_Plane",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            4,
+            4,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cylinder",
+          "name": "Tree_Trunk",
+          "location": [
+            0,
+            0,
+            0.6
+          ],
+          "scale": [
+            0.15,
+            0.15,
+            0.6
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cone",
+          "name": "Tree_Canopy",
+          "location": [
+            0,
+            0,
+            1.95
+          ],
+          "scale": [
+            0.5,
+            0.5,
+            0.75
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Ground_Plane",
+          "name": "StudioFloor",
+          "base_color": [
+            0.64,
+            0.64,
+            0.64,
+            1.0
+          ],
+          "roughness": 1.0,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Tree_Trunk",
+          "name": "Bark_Brown",
+          "base_color": [
+            0.42,
+            0.24,
+            0.15,
+            1.0
+          ],
+          "roughness": 0.9,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Tree_Canopy",
+          "name": "Foliage_Green",
+          "base_color": [
+            0.29,
+            0.49,
+            0.25,
+            1.0
+          ],
+          "roughness": 0.95,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "set_parent",
+        "input": {
+          "child": "Tree_Canopy",
+          "parent": "Tree_Trunk"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            3,
+            -2,
+            4
+          ],
+          "energy": 300,
+          "color": [
+            1.0,
+            0.97,
+            0.92
+          ],
+          "size": 2,
+          "rotation": [
+            -0.9,
+            0,
+            0.6
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            -3,
+            -2,
+            3
+          ],
+          "energy": 120,
+          "color": [
+            0.85,
+            0.9,
+            1.0
+          ],
+          "size": 1.5,
+          "rotation": [
+            -0.8,
+            0,
+            -0.6
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            -1,
+            3,
+            3.5
+          ],
+          "energy": 200,
+          "color": [
+            1.0,
+            0.95,
+            0.88
+          ],
+          "size": 1,
+          "rotation": [
+            -1.2,
+            0,
+            3.0
+          ]
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            3.8,
+            -3.5,
+            2.0
+          ],
+          "rotation": [
+            1.25,
+            0,
+            0.83
+          ],
+          "focal_length": 50,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "color": [
+            0.12,
+            0.12,
+            0.12
+          ],
+          "strength": 1
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add more trees in a scattered cluster",
+            "Swap to a forest HDRI environment",
+            "Add a low-poly rock at the base",
+            "Duplicate into a small grove with scale variation",
+            "Render a final high-quality image"
+          ]
+        }
+      }
+    ],
+    "best_of_n": 3,
+    "candidates": [
+      {
+        "index": 0,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.156319,
+        "cost_usd": 0.648846,
+        "tool_call_count": 15,
+        "selected": true
+      },
+      {
+        "index": 1,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.1513,
+        "cost_usd": 0.859371,
+        "tool_call_count": 18,
+        "selected": false
+      },
+      {
+        "index": 2,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.149451,
+        "cost_usd": 0.607746,
+        "tool_call_count": 15,
+        "selected": false
+      }
+    ]
+  },
+  {
+    "name": "lighting.warm_sunset_interior",
+    "category": "lighting",
+    "prompt": "Light an empty room (a simple box interior) with warm, low-angle sunset light coming through one wall, like late afternoon sun.",
+    "ok": true,
+    "tool_call_count": 36,
+    "model": "claude-opus-4-7",
+    "input_tokens": 258900,
+    "output_tokens": 17783,
+    "orchestrator_elapsed_ms": 416328,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\lighting.warm_sunset_interior__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\lighting.warm_sunset_interior__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\lighting.warm_sunset_interior__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 27452,
+    "vlm_score": 6,
+    "vlm_matches_brief": true,
+    "vlm_notes": "The warm golden light emanating through a window aperture on the front face reads clearly as late-afternoon sunset light, and the interior box geometry is recognizable. However, the execution is rudimentary \u2014 the 'room' reads more as a solid exterior box than a convincingly hollow interior, and the bloom on the window is overly intense, lacking nuanced bounce light or atmospheric depth expected of professional work.",
+    "vlm_error": "",
+    "aspect_overall": "fail",
+    "aspect_results": [
+      {
+        "aspect": "silhouette",
+        "label": "Silhouette",
+        "verdict": "fail",
+        "reason": "The silhouette reads as a solid exterior box/crate from all three views, not as an interior room \u2014 there is no cutaway, open-top, or cross-section outline that would communicate 'empty room interior' from the outline alone.",
+        "fix_suggestion": "Model the room as a visible interior by either removing one wall/the top face to create an open-box cross-section, or using a camera placed inside the room so the silhouette reads as walls/floor/ceiling converging inward rather than a closed exterior cube.",
+        "confidence": 0.92
+      },
+      {
+        "aspect": "proportion",
+        "label": "Proportion",
+        "verdict": "pass",
+        "reason": "The box represents a room interior and its width-to-height ratio (roughly 2:1, wider than tall) is consistent with a low-ceiling room; the wall opening/window cutout is proportionally sized relative to the wall face in a believable way.",
+        "fix_suggestion": "",
+        "confidence": 0.75
+      },
+      {
+        "aspect": "topology",
+        "label": "Topology / construction",
+        "verdict": "fail",
+        "reason": "The scene shows what appears to be a solid exterior box/cube with a separate flat plane on top rather than a hollow interior room constructed from distinct wall, floor, and ceiling planes with an opening for light to enter.",
+        "fix_suggestion": "Build the room as six inward-facing planes (four walls, floor, ceiling) forming an open box interior, with an aperture or gap in one wall to allow the sunset light to enter and illuminate the inside.",
+        "confidence": 0.8
+      },
+      {
+        "aspect": "placement",
+        "label": "Placement",
+        "verdict": "pass",
+        "reason": "The box geometry serves as a room interior with walls, floor, and ceiling all properly positioned and connected \u2014 no floating or intersecting surfaces observed across the three views.",
+        "fix_suggestion": "",
+        "confidence": 0.82
+      },
+      {
+        "aspect": "composition",
+        "label": "Composition / framing",
+        "verdict": "fail",
+        "reason": "The three views show inconsistent and problematic framing: the first image is a reasonable exterior 3/4 view but shows the outside of the box rather than the interior room; the second image shows the box top-down from too far away making th",
+        "fix_suggestion": "Place the camera inside the box interior, aimed at the wall with the light opening, at roughly eye level (e.g. 1\u20131.5 m height), with a FOV of ~60\u201380\u00b0 so the lit wall, floor, and side walls are all visible and fill the frame, clearly communicating the warm low-angle light effect.",
+        "confidence": 0.88
+      },
+      {
+        "aspect": "materials",
+        "label": "Materials",
+        "verdict": "fail",
+        "reason": "The box surfaces use a flat, matte orange/tan color that reads as cardboard rather than the interior walls of a room \u2014 no appropriate interior wall material (painted plaster, drywall, etc.) is applied, and the side faces appear nearly black",
+        "fix_suggestion": "Apply a light neutral diffuse material (off-white or light gray, roughness ~0.8, metallic 0) to all interior wall faces to simulate painted drywall, so the warm sunset light can visibly tint and shade the room surfaces as intended.",
+        "confidence": 0.72
+      },
+      {
+        "aspect": "lighting",
+        "label": "Lighting",
+        "verdict": "fail",
+        "reason": "Image 1 shows a single blown-out light source embedded in the front face with severe overexposure (clipping to white), Image 2 has only top-face illumination with sides crushed to near-black, and Image 3 shows flat ambient-only lighting \u2014 n",
+        "fix_suggestion": "Place a warm-colored (orange/golden) area or directional light at a low angle (roughly 10\u201320\u00b0 elevation) positioned outside one wall opening, add a low-intensity warm fill light on the opposite side to soften shadows, and clamp exposure so no surface clips to pure white while pre",
+        "confidence": 0.92
+      },
+      {
+        "aspect": "technical",
+        "label": "Technical correctness",
+        "verdict": "fail",
+        "reason": "The second and third images show the side/front faces of the box rendered completely black, indicating inverted normals or missing/incorrect face normals on those faces rather than being lit by the scene lighting.",
+        "fix_suggestion": "Recalculate or flip the normals on the side faces of the box geometry (in Blender: select all faces in Edit Mode and use Mesh > Normals > Recalculate Outside) so they face outward and receive lighting correctly.",
+        "confidence": 0.85
+      }
+    ],
+    "aspect_cost_usd": 0.066735,
+    "cost_usd": 5.217225,
+    "vlm_cost_usd": 0.007083,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Floor",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            2.5,
+            2.5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Ceiling",
+          "location": [
+            0,
+            0,
+            3
+          ],
+          "scale": [
+            2.5,
+            2.5,
+            1
+          ],
+          "rotation": [
+            3.14159,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Wall_Left",
+          "location": [
+            -2.5,
+            0,
+            1.5
+          ],
+          "scale": [
+            0.075,
+            2.5,
+            1.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Wall_Right",
+          "location": [
+            2.5,
+            0,
+            1.5
+          ],
+          "scale": [
+            0.075,
+            2.5,
+            1.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Wall_Back",
+          "location": [
+            0,
+            2.5,
+            1.5
+          ],
+          "scale": [
+            2.5,
+            0.075,
+            1.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "WindowWall_Left",
+          "location": [
+            -1.55,
+            -2.5,
+            1.5
+          ],
+          "scale": [
+            0.95,
+            0.075,
+            1.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "WindowWall_Right",
+          "location": [
+            1.55,
+            -2.5,
+            1.5
+          ],
+          "scale": [
+            0.95,
+            0.075,
+            1.5
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "WindowWall_Top",
+          "location": [
+            0,
+            -2.5,
+            2.625
+          ],
+          "scale": [
+            0.6,
+            0.075,
+            0.375
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "WindowWall_Bottom",
+          "location": [
+            0,
+            -2.5,
+            0.375
+          ],
+          "scale": [
+            0.6,
+            0.075,
+            0.375
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Floor",
+          "name": "Mat_Concrete_Floor",
+          "base_color": [
+            0.35,
+            0.33,
+            0.3,
+            1.0
+          ],
+          "roughness": 0.88,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Ceiling",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Wall_Left",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Wall_Right",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Wall_Back",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "WindowWall_Left",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "WindowWall_Right",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "WindowWall_Top",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "WindowWall_Bottom",
+          "name": "Mat_Plaster_Walls",
+          "base_color": [
+            0.87,
+            0.82,
+            0.73,
+            1.0
+          ],
+          "roughness": 0.92,
+          "metallic": 0
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.golden_hour_field",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.golden_hour_field\\2k.hdr",
+          "name": "Sunset in the Chalk Quarry",
+          "target": "",
+          "polyhaven_id": "sunset_in_the_chalk_quarry"
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "sun",
+          "name": "Sun_Key",
+          "location": [
+            0,
+            -4,
+            3
+          ],
+          "energy": 5,
+          "rotation": [
+            1.31,
+            0,
+            -0.35
+          ],
+          "color": [
+            1.0,
+            0.45,
+            0.12
+          ]
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "Fill_Bounce",
+          "location": [
+            0.3,
+            -1.0,
+            0.05
+          ],
+          "energy": 30,
+          "rotation": [
+            -1.57,
+            0,
+            0
+          ],
+          "color": [
+            1.0,
+            0.58,
+            0.22
+          ],
+          "size": 3
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "Camera_Hero",
+          "location": [
+            1.0,
+            2.0,
+            1.6
+          ],
+          "rotation": [
+            1.49,
+            0,
+            3.32
+          ],
+          "focal_length": 24,
+          "set_active": true
+        }
+      },
+      {
+        "name": "set_world",
+        "input": {
+          "strength": 0.5
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "set_transform",
+        "input": {
+          "name": "Camera_Hero",
+          "rotation": [
+            1.49,
+            0,
+            -0.18
+          ]
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "set_transform",
+        "input": {
+          "name": "Fill_Bounce",
+          "location": [
+            0.3,
+            -0.8,
+            0.02
+          ],
+          "rotation": [
+            3.14159,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Exterior_Glow",
+          "location": [
+            0,
+            -2.7,
+            1.5
+          ],
+          "rotation": [
+            1.5708,
+            0,
+            0
+          ],
+          "scale": [
+            0.6,
+            0.75,
+            1
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Exterior_Glow",
+          "name": "Mat_Exterior_Emit",
+          "base_color": [
+            1.0,
+            0.75,
+            0.4,
+            1.0
+          ],
+          "emission": [
+            1.0,
+            0.75,
+            0.4,
+            1.0
+          ],
+          "emission_strength": 15,
+          "roughness": 1.0
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Add volumetric scatter cube filling the room interior for god ray effect",
+          "script": "\nimport bpy\n\n# Create a cube that fills the room interior for volumetric scattering\nbpy.ops.mesh.primitive_cube_add(location=(0, 0, 1.5), scale=(2.4, 2.4, 1.45))\nvol_cube = bpy.context.active_object\nvol_cube.name = \"Volume_Room\"\n\n# Create a volume scatter material\nmat = bpy.data.materials.new(name=\"Mat_Volume_Scatter\")\nmat.use_nodes = True\nnodes = mat.node_tree.nodes\nlinks = mat.node_tree.links\n\n# Clear default nodes\nnodes.clear()\n\n# Add Material Output\noutput = nodes.new('ShaderNodeOutputMaterial')\noutput.location = (300, 0)\n\n# Add Volume Scatter\nvol_scatter = nodes.new('ShaderNodeVolumeScatter')\nvol_scatter.location = (0, 0)\nvol_scatter.inputs['Density'].default_value = 0.015\nvol_scatter.inputs['Color'].default_value = (1.0, 0.85, 0.6, 1.0)\nvol_scatter.inputs['Anisotropy'].default_value = 0.6\n\n# Connect volume scatter to volume input of material output\nlinks.new(vol_scatter.outputs['Volume'], output.inputs['Volume'])\n\n# Assign material\nvol_cube.data.materials.append(mat)\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Configure Cycles render settings, sun shadow angle, and Filmic color management for golden hour interior",
+          "script": "\nimport bpy\n\nscene = bpy.context.scene\n\n# Set render engine to Cycles\nscene.render.engine = 'CYCLES'\nscene.cycles.samples = 256\nscene.cycles.use_denoising = True\n\n# Set film exposure slightly over for golden warmth\nscene.view_settings.exposure = 0.3\n\n# Filmic color management with Medium High Contrast look\nscene.view_settings.view_transform = 'Filmic'\nscene.view_settings.look = 'Medium High Contrast'\n\n# Set sun lamp angle for sharp shadows (crisp shadow edges)\nsun = bpy.data.objects.get('Sun_Key')\nif sun and sun.type == 'LIGHT':\n    sun.data.angle = 0.008  # ~0.5 degrees in radians for crisp shadows\n\n# Disable shadow on fill light (bounce shouldn't cast shadows)\nfill = bpy.data.objects.get('Fill_Bounce')\nif fill and fill.type == 'LIGHT':\n    fill.data.use_shadow = False\n\n# Set render resolution\nscene.render.resolution_x = 1920\nscene.render.resolution_y = 1080\nscene.render.resolution_percentage = 100\n"
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Increase volumetric density for stronger god rays",
+            "Add dust motes (particle system in the light shaft)",
+            "Warm up the shadow fill further toward burnt sienna",
+            "Add a second window or widen the aperture",
+            "Render final at full quality"
+          ]
+        }
+      }
+    ],
+    "best_of_n": 3,
+    "candidates": [
+      {
+        "index": 0,
+        "vlm_score": 6,
+        "aspect_overall": "fail",
+        "combined_score": 0.417868,
+        "cost_usd": 5.291043,
+        "tool_call_count": 36,
+        "selected": true
+      },
+      {
+        "index": 1,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.1,
+        "cost_usd": 2.019423,
+        "tool_call_count": 24,
+        "selected": false
+      },
+      {
+        "index": 2,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.085112,
+        "cost_usd": 1.328358,
+        "tool_call_count": 1,
+        "selected": false
+      }
+    ]
+  },
+  {
+    "name": "materials.rough_wood_plank",
+    "category": "materials",
+    "prompt": "Apply a matte, rough wood material to a flat rectangular plank object, brown in color with no shine.",
+    "ok": false,
+    "tool_call_count": 15,
+    "model": "claude-opus-4-7",
+    "input_tokens": 33317,
+    "output_tokens": 2801,
+    "orchestrator_elapsed_ms": 106359,
+    "orchestrator_error": "",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.rough_wood_plank__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.rough_wood_plank__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.rough_wood_plank__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 22030,
+    "vlm_score": 2,
+    "vlm_matches_brief": false,
+    "vlm_notes": "The renders show a flat plane with a bright specular hotspot and glossy light falloff, directly contradicting the brief's requirement for a matte, rough, no-shine wood material. There is no visible wood texture or brown coloration \u2014 the surface appears smooth, grey, and highly reflective.",
+    "vlm_error": "",
+    "aspect_overall": "fail",
+    "aspect_results": [
+      {
+        "aspect": "silhouette",
+        "label": "Silhouette",
+        "verdict": "pass",
+        "reason": "The outline of a flat rectangular plank is clearly readable in all three views \u2014 the diamond/rhombus perspective shape of a horizontal flat board is unambiguous from the silhouette alone.",
+        "fix_suggestion": "",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "proportion",
+        "label": "Proportion",
+        "verdict": "pass",
+        "reason": "The flat rectangular plank object appears proportionally consistent across all three views \u2014 it reads as a thin, wide flat board with believable length-to-width-to-thickness ratios throughout.",
+        "fix_suggestion": "",
+        "confidence": 0.85
+      },
+      {
+        "aspect": "topology",
+        "label": "Topology / construction",
+        "verdict": "pass",
+        "reason": "The geometry is a flat rectangular plank mesh \u2014 a deliberately constructed quad plane appropriate for the brief, with visible edge boundaries and consistent flat topology across all three views.",
+        "fix_suggestion": "",
+        "confidence": 0.9
+      },
+      {
+        "aspect": "placement",
+        "label": "Placement",
+        "verdict": "pass",
+        "reason": "The flat rectangular plank object is resting on a ground plane with no floating or intersection issues visible across all three views.",
+        "fix_suggestion": "",
+        "confidence": 0.9
+      },
+      {
+        "aspect": "composition",
+        "label": "Composition / framing",
+        "verdict": "pass",
+        "reason": "Across all three images the flat rectangular plank is clearly visible and fills a reasonable portion of the frame, with the lit spotlight area and shadow pattern making the object's shape and surface readable; the third image is slightly cl",
+        "fix_suggestion": "",
+        "confidence": 0.82
+      },
+      {
+        "aspect": "materials",
+        "label": "Materials",
+        "verdict": "fail",
+        "reason": "The surface appears as a neutral gray/white with a strong specular highlight and glossy light falloff, showing no brown color, no wood texture, and significant shininess \u2014 directly contradicting the brief's requirement for a matte, rough, b",
+        "fix_suggestion": "Apply a Principled BSDF material with Base Color set to a brown hue (e.g. hex #6B3A2A), Roughness set to 0.85\u20131.0, Metallic at 0.0, and add a wood grain texture map to the Base Color and Roughness inputs to achieve a visibly rough, non-shiny wooden appearance.",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "lighting",
+        "label": "Lighting",
+        "verdict": "pass",
+        "reason": "All three renders show intentional single-spotlight lighting with a bright specular hot-spot that falls off naturally to dark surroundings, producing clear directional shadows and reasonable exposure \u2014 the highlight is bright but not fully ",
+        "fix_suggestion": "",
+        "confidence": 0.82
+      },
+      {
+        "aspect": "technical",
+        "label": "Technical correctness",
+        "verdict": "fail",
+        "reason": "A thin dark line artifact is visible cutting across the bright specular region of the plane in images 2 and 3, indicating a z-fighting or geometry overlap issue where two coplanar surfaces are intersecting.",
+        "fix_suggestion": "Ensure there are no duplicate or overlapping coplanar meshes occupying the same space; remove or offset any duplicate geometry on the plane object to eliminate the z-fighting line artifact.",
+        "confidence": 0.85
+      }
+    ],
+    "aspect_cost_usd": 0.061215,
+    "cost_usd": 0.70983,
+    "vlm_cost_usd": 0.006738,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "cube",
+          "name": "Wood_Plank",
+          "location": [
+            0,
+            0,
+            0.025
+          ],
+          "scale": [
+            1.0,
+            0.15,
+            0.025
+          ]
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "hdri.studio_neutral",
+          "kind": "hdri",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\hdri.studio_neutral\\2k.hdr",
+          "name": "Brown Photostudio Neutral",
+          "target": "",
+          "polyhaven_id": "brown_photostudio_02"
+        }
+      },
+      {
+        "name": "load_asset",
+        "input": {
+          "asset_id": "texture.weathered_oak",
+          "kind": "texture",
+          "local_path": "C:\\Users\\Administrator\\.animora\\assets\\texture.weathered_oak\\2k.blend",
+          "name": "Weathered Oak Wood",
+          "target": "Wood_Plank",
+          "polyhaven_id": "weathered_planks"
+        }
+      },
+      {
+        "name": "execute_animora_code",
+        "input": {
+          "intent_summary": "Set wood material to full matte roughness 0.9, no metallic, no specular",
+          "script": "\nimport bpy\n\n# Find the material on Wood_Plank and set it to full matte\nobj = bpy.data.objects[\"Wood_Plank\"]\nif obj.data.materials:\n    mat = obj.data.materials[0]\n    if mat.use_nodes:\n        for node in mat.node_tree.nodes:\n            if node.type == 'BSDF_PRINCIPLED':\n                # Set roughness to 0.9 - very matte\n                node.inputs['Roughness'].default_value = 0.9\n                # No metallic\n                node.inputs['Metallic'].default_value = 0.0\n                # Reduce specular to eliminate any shine\n                node.inputs['Specular IOR Level'].default_value = 0.0\n                break\n"
+        }
+      },
+      {
+        "name": "add_modifier",
+        "input": {
+          "object": "Wood_Plank",
+          "kind": "bevel",
+          "params": {
+            "width": 0.003,
+            "segments": 2
+          }
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "KeyLight",
+          "location": [
+            -1.2,
+            -0.8,
+            1.0
+          ],
+          "rotation": [
+            1.0,
+            0.0,
+            -0.5
+          ],
+          "energy": 150,
+          "color": [
+            1.0,
+            0.95,
+            0.9
+          ],
+          "size": 1.0
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "FillLight",
+          "location": [
+            1.2,
+            -0.6,
+            0.6
+          ],
+          "rotation": [
+            1.2,
+            0.0,
+            0.6
+          ],
+          "energy": 50,
+          "color": [
+            0.9,
+            0.93,
+            1.0
+          ],
+          "size": 0.8
+        }
+      },
+      {
+        "name": "create_light",
+        "input": {
+          "kind": "area",
+          "name": "RimLight",
+          "location": [
+            0.0,
+            0.8,
+            1.2
+          ],
+          "rotation": [
+            2.4,
+            0.0,
+            0.0
+          ],
+          "energy": 40,
+          "color": [
+            1.0,
+            0.98,
+            0.95
+          ],
+          "size": 0.6
+        }
+      },
+      {
+        "name": "create_camera",
+        "input": {
+          "name": "HeroCamera",
+          "location": [
+            0.3,
+            -1.5,
+            0.45
+          ],
+          "rotation": [
+            1.35,
+            0.0,
+            0.1
+          ],
+          "focal_length": 85,
+          "set_active": true
+        }
+      },
+      {
+        "name": "viewport_screenshot",
+        "input": {}
+      },
+      {
+        "name": "create_primitive",
+        "input": {
+          "kind": "plane",
+          "name": "Studio_Backdrop",
+          "location": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            5,
+            5,
+            1
+          ]
+        }
+      },
+      {
+        "name": "apply_material",
+        "input": {
+          "object": "Studio_Backdrop",
+          "name": "Mat_StudioBackdrop",
+          "base_color": [
+            0.78,
+            0.75,
+            0.72,
+            1.0
+          ],
+          "roughness": 0.85,
+          "metallic": 0.0
+        }
+      },
+      {
+        "name": "render_preview",
+        "input": {}
+      },
+      {
+        "name": "suggest_next_steps",
+        "input": {
+          "steps": [
+            "Add procedural wood grain bump for more surface detail",
+            "Stack multiple planks into a lumber pile",
+            "Add subtle dust/wear particles on the surface",
+            "Change wood tone to lighter pine or darker walnut",
+            "Add a second plank material variation for contrast"
+          ]
+        }
+      }
+    ],
+    "best_of_n": 3,
+    "candidates": [
+      {
+        "index": 0,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.35,
+        "cost_usd": 0.777783,
+        "tool_call_count": 15,
+        "selected": true
+      },
+      {
+        "index": 1,
+        "vlm_score": 2,
+        "aspect_overall": "fail",
+        "combined_score": 0.35,
+        "cost_usd": 0.696843,
+        "tool_call_count": 13,
+        "selected": false
+      },
+      {
+        "index": 2,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.35,
+        "cost_usd": 2.241108,
+        "tool_call_count": 24,
+        "selected": false
+      }
+    ]
+  },
+  {
+    "name": "materials.glass_bottle",
+    "category": "materials",
+    "prompt": "Create a simple cylindrical bottle shape and apply a clear glass material to it, transparent with a slight green tint.",
+    "ok": false,
+    "tool_call_count": 1,
+    "model": "claude-opus-4-7",
+    "input_tokens": 771,
+    "output_tokens": 23,
+    "orchestrator_elapsed_ms": 127500,
+    "orchestrator_error": "RateLimitError: Error code: 429 - {'message': 'Too many tokens per day, please wait before trying again.'}",
+    "render_ok": true,
+    "render_paths": [
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.glass_bottle__front_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.glass_bottle__side_three_quarter.png",
+      "C:\\Users\\Administrator\\Animora\\eval_renders_phase2\\materials.glass_bottle__top_down.png"
+    ],
+    "render_errors": [],
+    "render_elapsed_ms": 14420,
+    "vlm_score": 1,
+    "vlm_matches_brief": false,
+    "vlm_notes": "All three renders are completely black with no visible geometry, materials, or lighting. The cylindrical bottle with clear green-tinted glass material is entirely absent or unrendered.",
+    "vlm_error": "",
+    "aspect_overall": "fail",
+    "aspect_results": [
+      {
+        "aspect": "silhouette",
+        "label": "Silhouette",
+        "verdict": "fail",
+        "reason": "All three images appear entirely black with no discernible silhouette or outline of any cylindrical bottle shape visible.",
+        "fix_suggestion": "Ensure the scene has adequate lighting or a contrasting background so the bottle silhouette is visible; the object may be unlit, invisible, or the render failed to produce any visible output.",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "proportion",
+        "label": "Proportion",
+        "verdict": "n/a",
+        "reason": "The images are entirely black and no geometry is visible, making it impossible to assess proportional relationships between any parts.",
+        "fix_suggestion": "",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "topology",
+        "label": "Topology / construction",
+        "verdict": "n/a",
+        "reason": "The images are entirely black and no geometry is visible to evaluate topology or construction.",
+        "fix_suggestion": "",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "placement",
+        "label": "Placement",
+        "verdict": "n/a",
+        "reason": "The rendered images are entirely black, making it impossible to assess the spatial placement of any objects in the scene.",
+        "fix_suggestion": "",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "composition",
+        "label": "Composition / framing",
+        "verdict": "n/a",
+        "reason": "All three images are entirely black \u2014 no subject is visible, making composition and framing impossible to assess.",
+        "fix_suggestion": "",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "materials",
+        "label": "Materials",
+        "verdict": "n/a",
+        "reason": "All three images are completely black, making it impossible to assess whether any materials were applied to the cylindrical bottle.",
+        "fix_suggestion": "Ensure the render output is visible \u2014 check camera placement, lighting, and that the render was saved/exported correctly before evaluating materials.",
+        "confidence": 0.95
+      },
+      {
+        "aspect": "lighting",
+        "label": "Lighting",
+        "verdict": "fail",
+        "reason": "All three images are entirely black \u2014 exposure is crushed to black with no visible lighting whatsoever, making it impossible to assess any lighting structure.",
+        "fix_suggestion": "Add at least a three-point light setup (key, fill, rim) and check render exposure/camera settings to ensure the scene outputs a visible, non-black image.",
+        "confidence": 0.97
+      },
+      {
+        "aspect": "technical",
+        "label": "Technical correctness",
+        "verdict": "n/a",
+        "reason": "All three images are completely black with no visible geometry, making it impossible to assess any technical defects such as missing geometry, z-fighting, inverted normals, or clipping.",
+        "fix_suggestion": "Ensure the render output is correctly saved/displayed \u2014 check camera positioning, lighting, and that the rendered image is not being overwritten or exported as a blank frame.",
+        "confidence": 0.85
+      }
+    ],
+    "aspect_cost_usd": 0.058584,
+    "cost_usd": 0.01329,
+    "vlm_cost_usd": 0.006336,
+    "tool_calls": [
+      {
+        "name": "get_scene_info",
+        "input": {}
+      }
+    ],
+    "best_of_n": 3,
+    "candidates": [
+      {
+        "index": 0,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.05,
+        "cost_usd": 0.07821,
+        "tool_call_count": 1,
+        "selected": true
+      },
+      {
+        "index": 1,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.05,
+        "cost_usd": 0.06636,
+        "tool_call_count": 0,
+        "selected": false
+      },
+      {
+        "index": 2,
+        "vlm_score": 1,
+        "aspect_overall": "fail",
+        "combined_score": 0.05,
+        "cost_usd": 0.065685,
+        "tool_call_count": 0,
+        "selected": false
+      }
+    ]
+  }
+]
